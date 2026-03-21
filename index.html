@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Peter Hill — badoo.net</title>
+<meta name="description" content="Peter Hill — software projects, photography, and more.">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Peter Hill — badoo.net">
+<meta property="og:description" content="Software projects, photography, and more.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://badoo.net">
+<link rel="canonical" href="https://badoo.net">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+  <a href="#" class="nav-logo">badoo.net</a>
+  <div class="nav-links">
+    <a href="https://github.com/powder8" target="_blank" rel="noopener">Projects</a>
+    <a href="#photography">Photography</a>
+    <a href="#about">About</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-content">
+    <h1>Hey, I'm <span class="highlight">Peter</span></h1>
+    <p>I build software and take photos.</p>
+  </div>
+</header>
+
+<section id="projects">
+  <h2>Projects</h2>
+  <div class="project-grid">
+
+    <a class="project-card" href="https://powder8.github.io/dailyPodcast/" target="_blank" rel="noopener">
+      <div class="project-icon">🎙️</div>
+      <h3>Daily Podcast</h3>
+      <p>An automated pipeline that fetches news, scores articles with AI, generates podcast scripts, and delivers audio digests daily.</p>
+      <span class="project-tag">Python</span>
+      <span class="project-tag">Claude API</span>
+      <span class="project-tag">OpenAI TTS</span>
+    </a>
+
+    <a class="project-card" href="#" target="_blank" rel="noopener">
+      <div class="project-icon">🧪</div>
+      <h3>AutoResearch</h3>
+      <p>Autonomous ML experimentation — an AI agent iterates on model architectures and hyperparameters while you sleep.</p>
+      <span class="project-tag">PyTorch</span>
+      <span class="project-tag">MPS</span>
+    </a>
+
+    <a class="project-card" href="#" target="_blank" rel="noopener">
+      <div class="project-icon">🎿</div>
+      <h3>Ski Weather</h3>
+      <p>A live forecast dashboard for ski trips — pulls weather data and generates a clean, at-a-glance conditions page.</p>
+      <span class="project-tag">Python</span>
+    </a>
+
+    <a class="project-card" href="#" target="_blank" rel="noopener">
+      <div class="project-icon">📰</div>
+      <h3>Daily Digest</h3>
+      <p>A curated daily email with top news links — AI-scored and organized by relevance, delivered to your inbox each morning.</p>
+      <span class="project-tag">Python</span>
+      <span class="project-tag">Claude API</span>
+      <span class="project-tag">Resend</span>
+    </a>
+
+  </div>
+</section>
+
+<section id="photography">
+  <h2>Photography</h2>
+  <p class="section-subtitle">A few favourites. Click to enlarge.</p>
+  <div class="photo-grid">
+    <div class="photo-item" style="background:#d4e4ed;" data-label="Replace with your photo"></div>
+    <div class="photo-item" style="background:#e4d4c4;" data-label="Replace with your photo"></div>
+    <div class="photo-item" style="background:#c4d4c4;" data-label="Replace with your photo"></div>
+    <div class="photo-item" style="background:#d4c4d4;" data-label="Replace with your photo"></div>
+    <div class="photo-item" style="background:#e4e4c4;" data-label="Replace with your photo"></div>
+    <div class="photo-item" style="background:#c4d4e4;" data-label="Replace with your photo"></div>
+  </div>
+</section>
+
+<section id="about">
+  <h2>About</h2>
+  <div class="about-content">
+    <p>A few words about yourself go here. What you're interested in, where you're based, what drives you. Keep it short and personal.</p>
+    <div class="about-links">
+      <a href="https://github.com/powder8" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://www.linkedin.com/in/powder8/" target="_blank" rel="noopener">LinkedIn</a>
+      <a href="https://instagram.com/peterhill" target="_blank" rel="noopener">Instagram</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>badoo.net</p>
+</footer>
+
+<!-- Lightbox for photography -->
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" aria-label="Close">&times;</button>
+  <img class="lightbox-img" id="lightbox-img" src="" alt="">
+</div>
+
+<script>
+  // Smooth scroll for nav links
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  });
+
+  // Lightbox (activate once you add real <img> to photo-items)
+  const lightbox = document.getElementById('lightbox');
+  const lightboxImg = document.getElementById('lightbox-img');
+
+  document.querySelectorAll('.photo-item img').forEach(img => {
+    img.addEventListener('click', () => {
+      lightboxImg.src = img.src;
+      lightbox.classList.add('active');
+    });
+  });
+
+  lightbox.addEventListener('click', () => {
+    lightbox.classList.remove('active');
+  });
+
+  // Navbar background on scroll
+  const nav = document.querySelector('nav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 40);
+  });
+</script>
+
+</body>
+</html>
