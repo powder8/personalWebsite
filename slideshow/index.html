@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memorial Slideshow</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000;
+      overflow: hidden;
+      font-family: Georgia, 'Times New Roman', serif;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    .slideshow {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .slide {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      opacity: 0;
+      transition: opacity 2s ease-in-out;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+    }
+
+    .slide.active {
+      opacity: 1;
+    }
+
+    .slide img,
+    .slide video {
+      max-width: 85%;
+      max-height: 85vh;
+      object-fit: contain;
+      border-radius: 4px;
+      box-shadow: 0 4px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Subtle vignette overlay */
+    .vignette {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.5) 100%);
+      z-index: 10;
+    }
+
+    /* Controls */
+    .controls {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      display: flex;
+      gap: 16px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    body.show-ui .controls {
+      opacity: 1;
+    }
+
+    .controls button {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #fff;
+      padding: 10px 20px;
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 6px;
+      font-family: Georgia, serif;
+      backdrop-filter: blur(10px);
+      transition: background 0.2s;
+    }
+
+    .controls button:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    /* Photo counter */
+    .counter {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      color: rgba(255, 255, 255, 0.4);
+      font-size: 14px;
+      z-index: 20;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    body.show-ui .counter {
+      opacity: 1;
+    }
+
+    /* Music player */
+    .music-player {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 300px;
+      z-index: 20;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    body.show-ui .music-player {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="vignette"></div>
+
+  <div class="slideshow" id="slideshow"></div>
+
+  <div class="controls">
+    <button onclick="prevSlide()">&#9664; Prev</button>
+    <button onclick="togglePause()" id="pauseBtn">Pause</button>
+    <button onclick="nextSlide()">Next &#9654;</button>
+  </div>
+
+  <div class="counter" id="counter"></div>
+  <div class="music-player">
+    <iframe style="border-radius:12px" src="https://open.spotify.com/embed/playlist/3iYEYyIT93Zcey9LH85yh9?utm_source=generator" width="100%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+  </div>
+
+  <script>
+    const ALBUM_KEY = 'hDSZcZ';
+    const API_BASE = 'https://powder8.smugmug.com';
+    const SLIDE_DURATION = 10000; // 10 seconds per photo
+    const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.ogg'];
+
+    let photos = [];
+    let currentIndex = 0;
+    let paused = false;
+    let timer = null;
+
+    const slideshowEl = document.getElementById('slideshow');
+    const counterEl = document.getElementById('counter');
+
+    function isVideo(filename) {
+      return VIDEO_EXTENSIONS.some(ext => filename.toLowerCase().endsWith(ext));
+    }
+
+    async function fetchImages() {
+      // Fetch image list from album
+      const listRes = await fetch(`${API_BASE}/api/v2/album/${ALBUM_KEY}!images`);
+      const listData = await listRes.json();
+      const images = listData.Response.AlbumImage;
+
+      // Fetch size details for each image to get the largest URL
+      const sizePromises = images.map(img =>
+        fetch(`${API_BASE}/api/v2/image/${img.ImageKey}-0!sizedetails`)
+          .then(r => r.json())
+      );
+      const sizeResults = await Promise.all(sizePromises);
+
+      // Pick the largest available size for each image
+      const sizePreference = ['ImageSizeX3Large', 'ImageSizeX2Large', 'ImageSizeXLarge', 'ImageSizeLarge', 'ImageSizeMedium'];
+      return sizeResults.map(data => {
+        const sizes = data.Response.ImageSizeDetails;
+        for (const size of sizePreference) {
+          if (sizes[size] && sizes[size].Url) return sizes[size].Url;
+        }
+        return null;
+      }).filter(Boolean);
+    }
+
+    function buildSlides() {
+      slideshowEl.innerHTML = '';
+      photos.forEach((photo, i) => {
+        const slide = document.createElement('div');
+        slide.className = 'slide' + (i === 0 ? ' active' : '');
+        const src = photo.startsWith('http') ? photo : encodeURI(photo);
+        if (isVideo(photo)) {
+          const video = document.createElement('video');
+          video.src = src;
+          video.muted = false;
+          video.playsInline = true;
+          video.preload = 'auto';
+          video.addEventListener('ended', () => {
+            if (currentIndex === i && !paused) nextSlide();
+          });
+          slide.appendChild(video);
+        } else {
+          slide.innerHTML = `<img src="${src}" alt="Photo ${i + 1}" loading="lazy">`;
+        }
+        slideshowEl.appendChild(slide);
+      });
+      updateCounter();
+    }
+
+    function updateCounter() {
+      counterEl.textContent = photos.length ? `${currentIndex + 1} / ${photos.length}` : 'Loading...';
+    }
+
+    function getCurrentVideo() {
+      const slides = document.querySelectorAll('.slide');
+      return slides[currentIndex]?.querySelector('video');
+    }
+
+    function stopAllVideos() {
+      document.querySelectorAll('.slide video').forEach(v => {
+        v.pause();
+        v.currentTime = 0;
+      });
+    }
+
+    function showSlide(index) {
+      stopAllVideos();
+      const slides = document.querySelectorAll('.slide');
+      slides.forEach(s => s.classList.remove('active'));
+      slides[index].classList.add('active');
+      currentIndex = index;
+      updateCounter();
+
+      const video = slides[index].querySelector('video');
+      if (video) {
+        clearInterval(timer);
+        timer = null;
+        if (!paused) video.play();
+      } else {
+        resetTimer();
+      }
+    }
+
+    function nextSlide() {
+      if (!photos.length) return;
+      showSlide((currentIndex + 1) % photos.length);
+    }
+
+    function prevSlide() {
+      if (!photos.length) return;
+      showSlide((currentIndex - 1 + photos.length) % photos.length);
+    }
+
+    function togglePause() {
+      paused = !paused;
+      document.getElementById('pauseBtn').textContent = paused ? 'Play' : 'Pause';
+      const video = getCurrentVideo();
+      if (paused) {
+        clearInterval(timer);
+        if (video) video.pause();
+      } else {
+        if (video) {
+          video.play();
+        } else {
+          startTimer();
+        }
+      }
+    }
+
+    function startTimer() {
+      timer = setInterval(() => {
+        if (!paused) nextSlide();
+      }, SLIDE_DURATION);
+    }
+
+    function resetTimer() {
+      clearInterval(timer);
+      if (!paused) startTimer();
+    }
+
+    // Keyboard controls
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
+      if (e.key === 'p') togglePause();
+      if (e.key === 'f') document.documentElement.requestFullscreen?.();
+    });
+
+    // Show/hide UI on mouse movement
+    let uiTimer = null;
+    document.addEventListener('mousemove', () => {
+      document.body.classList.add('show-ui');
+      clearTimeout(uiTimer);
+      uiTimer = setTimeout(() => {
+        document.body.classList.remove('show-ui');
+      }, 3000);
+    });
+
+    // Load images and start slideshow
+    updateCounter();
+    fetchImages().then(urls => {
+      photos = urls;
+      buildSlides();
+      startTimer();
+    }).catch(err => {
+      counterEl.textContent = 'Failed to load images';
+      console.error('SmugMug fetch error:', err);
+    });
+  </script>
+</body>
+</html>
