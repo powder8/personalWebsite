@@ -35,5 +35,22 @@
     "enabled": true,
     "model": "claude-sonnet-4-5-20250929",
     "max_tokens": 1800
+  },
+
+  "alternatives": {
+    "_comment": "A curated, diversified shortlist of REAL funds to research as self-managed alternatives — spanning sources and roles. Each is validated and backtested against real data on the same dollar basis as the leaderboard; Claude writes the per-fund rationale. Edit freely. These are research starting points, not recommendations or predictions.",
+    "enabled": true,
+    "model": "claude-sonnet-4-5-20250929",
+    "max_tokens": 1600,
+    "candidates": [
+      { "ticker": "FZROX", "name": "Fidelity ZERO Total Market",        "source": "Fidelity", "role": "Ultra-low-cost core",        "expense_ratio": 0.0000 },
+      { "ticker": "FXAIX", "name": "Fidelity 500 Index",                "source": "Fidelity", "role": "Ultra-low-cost core",        "expense_ratio": 0.00015 },
+      { "ticker": "SCHD",  "name": "Schwab US Dividend Equity",         "source": "Schwab",   "role": "Dividend / quality tilt",    "expense_ratio": 0.0006 },
+      { "ticker": "VXUS",  "name": "Vanguard Total International Stock", "source": "Vanguard", "role": "International diversification","expense_ratio": 0.0008 },
+      { "ticker": "AVUV",  "name": "Avantis US Small Cap Value",        "source": "Avantis",  "role": "Factor tilt (small value)",  "expense_ratio": 0.0025 },
+      { "ticker": "QQQM",  "name": "Invesco Nasdaq-100",                "source": "Invesco",  "role": "Tech / growth exposure",     "expense_ratio": 0.0015 },
+      { "ticker": "BND",   "name": "Vanguard Total Bond Market",        "source": "Vanguard", "role": "Lower-risk ballast",         "expense_ratio": 0.0003 },
+      { "ticker": "AOR",   "name": "iShares Core Growth (60/40)",       "source": "iShares",  "role": "All-in-one balanced",        "expense_ratio": 0.0015 }
+    ]
   }
 }

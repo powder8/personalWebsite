@@ -247,6 +247,17 @@ def build():
     ratio = best_passive["current"] / manager_gross[-1]
     breakeven_fee = 1 - ratio ** (1 / years) if years > 0 and ratio > 0 else 0.0
 
+    # Alternatives to research: real funds, validated + backtested on the same basis.
+    alternatives = []
+    alt_cfg = CONFIG.get("alternatives", {})
+    if alt_cfg.get("enabled", True):
+        print("Backtesting alternatives to research…")
+        for c in alt_cfg.get("candidates", []):
+            entry = dict(c)
+            entry["metrics"] = backtest_ticker(c["ticker"], start_capital, dates[0], dates[-1])
+            entry["rationale"] = ""
+            alternatives.append(entry)
+
     result = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "start_date": dates[0],
@@ -261,6 +272,8 @@ def build():
         "strategies": strategies,
         "best_passive_key": best_passive["key"],
         "breakeven_fee": breakeven_fee,
+        "alternatives": alternatives,
+        "alt_intro": "",
         "missing": missing,
     }
     return result
@@ -279,13 +292,33 @@ def load_api_key():
     return None
 
 
+def call_claude(prompt, model, max_tokens):
+    """POST to the Anthropic Messages API over urllib; return text or None."""
+    key = load_api_key()
+    if not key:
+        sys.stderr.write("No ANTHROPIC_API_KEY found; skipping Claude call.\n")
+        return None
+    body = json.dumps({
+        "model": model,
+        "max_tokens": max_tokens,
+        "messages": [{"role": "user", "content": prompt}],
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages", data=body, method="POST",
+        headers={"x-api-key": key, "anthropic-version": "2023-06-01",
+                 "content-type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=120, context=SSL_CTX) as r:
+            data = json.load(r)
+        return "".join(b.get("text", "") for b in data.get("content", [])).strip()
+    except Exception as e:
+        sys.stderr.write(f"Claude call failed: {e}\n")
+        return None
+
+
 def write_memo(result):
     cfg = CONFIG.get("memo", {})
     if not cfg.get("enabled", True):
-        return None
-    key = load_api_key()
-    if not key:
-        sys.stderr.write("No ANTHROPIC_API_KEY found; skipping analyst memo.\n")
         return None
 
     def line(s):
@@ -324,22 +357,77 @@ the client's likely risk tolerance. Hedge appropriately but DO take a position.
 Plain text, no markdown headers, no preamble. End with one italic-free sentence reminding this is \
 informational, not personalized financial advice."""
 
-    body = json.dumps({
-        "model": cfg.get("model", "claude-sonnet-4-5-20250929"),
-        "max_tokens": cfg.get("max_tokens", 1800),
-        "messages": [{"role": "user", "content": prompt}],
-    }).encode()
-    req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages", data=body, method="POST",
-        headers={"x-api-key": key, "anthropic-version": "2023-06-01",
-                 "content-type": "application/json"})
-    try:
-        with urllib.request.urlopen(req, timeout=120, context=SSL_CTX) as r:
-            data = json.load(r)
-        return "".join(b.get("text", "") for b in data.get("content", [])).strip()
-    except Exception as e:
-        sys.stderr.write(f"Memo generation failed: {e}\n")
+    return call_claude(prompt, cfg.get("model", "claude-sonnet-4-5-20250929"),
+                       cfg.get("max_tokens", 1800))
+
+
+# ─── Alternatives to research (validated + backtested + Claude rationale) ─────
+
+def backtest_ticker(ticker, start_capital, start_date, as_of):
+    """Grow start_capital through one ticker over [start_date, as_of] using real data."""
+    s = fetch_series(ticker)
+    if not s:
         return None
+    ds = sorted(d for d in s if start_date <= d <= as_of)
+    if len(ds) < 30:
+        return None
+    pv = [s[d] for d in ds]
+    units = start_capital / pv[0]
+    gv = [units * x for x in pv]
+    yrs = (datetime.strptime(ds[-1], "%Y-%m-%d") -
+           datetime.strptime(ds[0], "%Y-%m-%d")).days / 365.25
+    return {
+        "current": gv[-1],
+        "cagr": cagr(start_capital, gv[-1], yrs),
+        "vol": annualized_vol(pv),
+        "mdd": max_drawdown(pv),
+        "first_date": ds[0],
+        "partial": ds[0] > start_date,
+    }
+
+
+def write_alt_rationale(result):
+    """Mutate result['alternatives'] with a Claude rationale per fund + a section intro."""
+    cfg = CONFIG.get("alternatives", {})
+    alts = result.get("alternatives") or []
+    if not cfg.get("enabled", True) or not alts:
+        return
+    lines = []
+    for a in alts:
+        m = a.get("metrics")
+        perf = (f"same ${result['start_capital']:,.0f} -> ${m['current']:,.0f} "
+                f"({m['cagr']*100:+.1f}%/yr, vol {m['vol']*100:.1f}%, maxDD {m['mdd']*100:.1f}%)"
+                if m else "price data unavailable")
+        lines.append(f"- {a['ticker']} ({a['name']}, {a['source']}, role: {a['role']}, "
+                     f"ER {a['expense_ratio']*100:.2f}%): {perf}")
+    prompt = f"""You are an investment analyst helping a retail investor RESEARCH self-managed \
+alternatives to their money manager, who currently concentrates them in AMZN plus a US \
+core-equity fund. Below is a shortlist of real funds, each backtested over the past year on \
+the same ${result['start_capital']:,.0f} basis.
+
+{chr(10).join(lines)}
+
+For EACH ticker, write a 1–2 sentence rationale: the role it plays in a portfolio, who it \
+suits, and one honest caveat. Do NOT predict prices or future returns. Then write a 1–2 \
+sentence section intro on how to think about combining these (a low-cost core plus \
+diversifiers and ballast) rather than chasing the past year's winner.
+
+Respond with ONLY valid JSON, no markdown fences, exactly this shape:
+{{"intro": "...", "funds": {{"FZROX": "...", "FXAIX": "...", ...}}}}"""
+    txt = call_claude(prompt, cfg.get("model", "claude-sonnet-4-5-20250929"),
+                      cfg.get("max_tokens", 1600))
+    if not txt:
+        return
+    try:
+        start, end = txt.find("{"), txt.rfind("}")
+        obj = json.loads(txt[start:end + 1])
+    except Exception as e:
+        sys.stderr.write(f"Could not parse alternatives JSON: {e}\n")
+        return
+    result["alt_intro"] = obj.get("intro", "")
+    funds = obj.get("funds", {})
+    for a in alts:
+        a["rationale"] = funds.get(a["ticker"], "")
 
 
 # ─── Rendering ───────────────────────────────────────────────────────────────
@@ -442,6 +530,45 @@ def svg_fan(result):
            f'<span class="lg"><i style="background:#4f46e5"></i>{html_esc(best["name"])}</span>'
            '<span class="lg muted">shaded = P10–P90 range</span></div>')
     return "".join(parts) + leg
+
+
+def render_alternatives(result):
+    alts = result.get("alternatives") or []
+    if not alts:
+        return ""
+    intro = result.get("alt_intro") or (
+        "Educated starting points for your own research. A durable portfolio is usually a "
+        "low-cost core plus a few diversifiers and some ballast — not a bet on last year's winner.")
+    cards = []
+    for a in alts:
+        m = a.get("metrics")
+        if m:
+            partial = (f' <span class="muted">(data since {m["first_date"]})</span>'
+                       if m.get("partial") else "")
+            cls = "pos" if m["cagr"] >= 0 else "neg"
+            perf = (f'<div class="altperf">Same {money(result["start_capital"])} → '
+                    f'<b>{money(m["current"])}</b> '
+                    f'<span class="{cls}">{pct(m["cagr"], True)}/yr</span> · '
+                    f'vol {pct(m["vol"])} · maxDD {pct(m["mdd"])}{partial}</div>')
+        else:
+            perf = '<div class="altperf muted">price data unavailable this run</div>'
+        rat = f'<p class="altrat">{html_esc(a["rationale"])}</p>' if a.get("rationale") else ""
+        cards.append(
+            f'<div class="altcard">'
+            f'<div class="althead"><span class="altname">{html_esc(a["name"])}</span>'
+            f'<span class="pill">{html_esc(a["ticker"])}</span></div>'
+            f'<div class="altmeta">{html_esc(a["role"])} · {html_esc(a["source"])} · '
+            f'ER {a["expense_ratio"]*100:.2f}%</div>'
+            f'{perf}{rat}</div>')
+    return (
+        '<section class="card"><h2>Alternatives worth researching</h2>'
+        f'<p class="sub">{html_esc(intro)}</p>'
+        f'<div class="altgrid">{"".join(cards)}</div>'
+        '<p class="src">Real funds across sources, validated and backtested on the same dollar '
+        'basis as the leaderboard; per-fund rationale by Claude. These are research starting '
+        'points — <strong>not</strong> recommendations or predictions. Past returns shown for '
+        'context only; verify expense ratios and suitability yourself.</p>'
+        '</section>')
 
 
 def render(result, memo):
@@ -576,6 +703,16 @@ def render(result, memo):
   .breakeven b {{ color:var(--accent); font-size:18px; }}
   .memo p {{ margin-bottom:12px; }}
   .src {{ color:var(--muted); font-size:12px; margin-top:10px; }}
+  .altgrid {{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:6px; }}
+  .altcard {{ border:1px solid var(--card-border); border-radius:12px; padding:14px 16px; background:#fcfcfd; }}
+  .althead {{ display:flex; align-items:center; justify-content:space-between; gap:8px; }}
+  .altname {{ font-weight:700; font-size:15px; }}
+  .altmeta {{ color:var(--muted); font-size:12px; margin-top:2px; }}
+  .altperf {{ font-size:13px; margin-top:8px; font-variant-numeric:tabular-nums; }}
+  .altperf .pos {{ color:#047857; font-weight:600; }}
+  .altperf .neg {{ color:#b91c1c; font-weight:600; }}
+  .altrat {{ font-size:13.5px; color:var(--text); margin-top:8px; line-height:1.55; }}
+  @media (max-width:620px) {{ .altgrid {{ grid-template-columns:1fr; }} }}
   .grid2 {{ display:grid; grid-template-columns:1fr; gap:0; }}
   .disclaim {{ color:var(--muted); font-size:12px; line-height:1.6; margin-top:28px; border-top:1px solid var(--card-border); padding-top:18px; }}
   .stamp {{ color:var(--muted); font-size:13px; }}
@@ -641,6 +778,8 @@ def render(result, memo):
 
   {memo_html}
 
+  {render_alternatives(result)}
+
   <p class="stamp">Last updated {gen}. Data: Yahoo Finance (adjusted close). Rebuilds weekly.</p>
   <p class="disclaim">
     This page uses stand-in dollar amounts, not real balances. It is a personal research tool for
@@ -659,6 +798,7 @@ def render(result, memo):
 def main():
     result = build()
     memo = write_memo(result)
+    write_alt_rationale(result)
     (DIR / "index.html").write_text(render(result, memo))
     # Trim the heavy date/series arrays out of the committed data.json? Keep them — small.
     (DIR / "data.json").write_text(json.dumps(result, indent=2))
