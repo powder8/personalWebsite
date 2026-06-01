@@ -247,16 +247,9 @@ def build():
     ratio = best_passive["current"] / manager_gross[-1]
     breakeven_fee = 1 - ratio ** (1 / years) if years > 0 and ratio > 0 else 0.0
 
-    # Alternatives to research: real funds, validated + backtested on the same basis.
-    alternatives = []
-    alt_cfg = CONFIG.get("alternatives", {})
-    if alt_cfg.get("enabled", True):
-        print("Backtesting alternatives to research…")
-        for c in alt_cfg.get("candidates", []):
-            entry = dict(c)
-            entry["metrics"] = backtest_ticker(c["ticker"], start_capital, dates[0], dates[-1])
-            entry["rationale"] = ""
-            alternatives.append(entry)
+    # Rotating watchlist of alternatives: discover + backtest + rank + diff vs last week.
+    alternatives, rotated_out = build_alternatives(
+        start_capital, dates[0], dates[-1], set(need))
 
     result = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -273,6 +266,8 @@ def build():
         "best_passive_key": best_passive["key"],
         "breakeven_fee": breakeven_fee,
         "alternatives": alternatives,
+        "alt_rotated_out": rotated_out,
+        "alt_rank_by": CONFIG.get("alternatives", {}).get("rank_by", "sharpe"),
         "alt_intro": "",
         "missing": missing,
     }
@@ -292,25 +287,33 @@ def load_api_key():
     return None
 
 
-def call_claude(prompt, model, max_tokens):
-    """POST to the Anthropic Messages API over urllib; return text or None."""
+def call_claude(prompt, model, max_tokens, search_uses=0):
+    """POST to the Anthropic Messages API over urllib; return text or None.
+
+    If search_uses > 0, attaches the server-side web_search tool so the model can
+    look up current fund ideas before answering (only its text blocks are returned).
+    """
     key = load_api_key()
     if not key:
         sys.stderr.write("No ANTHROPIC_API_KEY found; skipping Claude call.\n")
         return None
-    body = json.dumps({
+    msg = {
         "model": model,
         "max_tokens": max_tokens,
         "messages": [{"role": "user", "content": prompt}],
-    }).encode()
+    }
+    if search_uses > 0:
+        msg["tools"] = [{"type": "web_search_20250305", "name": "web_search",
+                         "max_uses": search_uses}]
+    body = json.dumps(msg).encode()
     req = urllib.request.Request(
         "https://api.anthropic.com/v1/messages", data=body, method="POST",
         headers={"x-api-key": key, "anthropic-version": "2023-06-01",
                  "content-type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=120, context=SSL_CTX) as r:
+        with urllib.request.urlopen(req, timeout=240 if search_uses else 120, context=SSL_CTX) as r:
             data = json.load(r)
-        return "".join(b.get("text", "") for b in data.get("content", [])).strip()
+        return "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text").strip()
     except Exception as e:
         sys.stderr.write(f"Claude call failed: {e}\n")
         return None
@@ -386,6 +389,139 @@ def backtest_ticker(ticker, start_capital, start_date, as_of):
     }
 
 
+def score_metrics(m, rank_by):
+    """A single comparable score for ranking the watchlist. Higher = better."""
+    if not m:
+        return float("-inf")
+    if rank_by == "cagr":
+        return m["cagr"]
+    if rank_by == "return_per_drawdown":
+        return m["cagr"] / max(abs(m["mdd"]), 0.01)
+    # default: Sharpe-like, risk-adjusted
+    return (m["cagr"] - RF) / m["vol"] if m["vol"] > 0 else float("-inf")
+
+
+def load_prev_roster():
+    """Read last run's watchlist from the committed data.json (durable 'last week')."""
+    f = DIR / "data.json"
+    if not f.exists():
+        return {"exists": False, "tickers": [], "first_seen": {}}
+    try:
+        prev = json.loads(f.read_text())
+    except Exception:
+        return {"exists": False, "tickers": [], "first_seen": {}}
+    first_seen = {}
+    for a in (prev.get("alternatives") or []) + (prev.get("alt_rotated_out") or []):
+        if a.get("ticker"):
+            first_seen[a["ticker"]] = a.get("first_seen") or prev.get("as_of")
+    roster_tickers = [a["ticker"] for a in (prev.get("alternatives") or []) if a.get("ticker")]
+    return {"exists": bool(prev.get("alternatives")), "tickers": roster_tickers,
+            "first_seen": first_seen}
+
+
+def discover_alternatives(exclude, cfg):
+    """Web-search for fresh fund ideas to consider. Returns a list of candidate dicts."""
+    dcfg = cfg.get("discover", {})
+    if not dcfg.get("enabled", True):
+        return []
+    prompt = f"""You are an investment analyst maintaining a rotating watchlist of low-cost \
+funds a retail investor could use to self-manage instead of paying a money manager. Search \
+the web for strong, currently-available fund/ETF ideas worth adding to the watchlist — favour \
+broad, low-cost, durable options across roles (core, dividend/quality, international, factor, \
+sector/growth, bonds, balanced/all-in-one), and feel free to surface newer or less-obvious \
+funds. Suggest up to {dcfg.get('max_new', 8)} real, US-listed tickers.
+
+Do NOT suggest any of these already-tracked tickers: {', '.join(sorted(exclude))}.
+Only funds/ETFs (or index mutual funds) — no single stocks.
+
+After searching, respond with ONLY valid JSON, no markdown fences, exactly:
+{{"candidates": [{{"ticker": "XXXX", "name": "...", "source": "Vanguard|Fidelity|Schwab|iShares|...", "role": "...", "expense_ratio": 0.0003}}]}}
+Use a decimal for expense_ratio (e.g. 0.0003 for 3 bps); omit or use null if unknown."""
+    txt = call_claude(prompt, dcfg.get("model", cfg.get("model", "claude-sonnet-4-5-20250929")),
+                      1500, search_uses=dcfg.get("max_search_uses", 5))
+    if not txt:
+        return []
+    try:
+        obj = json.loads(txt[txt.find("{"):txt.rfind("}") + 1])
+        out = []
+        for c in obj.get("candidates", []):
+            t = (c.get("ticker") or "").strip().upper()
+            if t and t not in exclude:
+                out.append({"ticker": t, "name": c.get("name", t),
+                            "source": c.get("source", "—"), "role": c.get("role", "—"),
+                            "expense_ratio": c.get("expense_ratio")})
+        return out
+    except Exception as e:
+        sys.stderr.write(f"Could not parse discovery JSON: {e}\n")
+        return []
+
+
+def build_alternatives(start_capital, start_iso, as_of, exclude_tracked):
+    """Discover + backtest + rank a rotating watchlist; diff against last week."""
+    cfg = CONFIG.get("alternatives", {})
+    if not cfg.get("enabled", True):
+        return [], []
+    rank_by = cfg.get("rank_by", "sharpe")
+    size = cfg.get("roster_size", 8)
+    prev = load_prev_roster()
+
+    print("Searching for new alternatives…")
+    discovered = discover_alternatives(exclude_tracked | set(prev["tickers"]), cfg)
+    if discovered:
+        print(f"  discovered: {', '.join(c['ticker'] for c in discovered)}")
+
+    # Assemble the candidate pool: last week's roster + config seeds + new finds.
+    # Earlier entries win on metadata when tickers repeat.
+    seeds = cfg.get("candidates", [])
+    seed_by_t = {c["ticker"]: c for c in seeds}
+    pool, seen = [], set()
+    # last week's roster first (so we keep their metadata if present in seeds)
+    for t in prev["tickers"]:
+        if t in exclude_tracked or t in seen:
+            continue
+        meta = seed_by_t.get(t, {"ticker": t, "name": t, "source": "—", "role": "—",
+                                 "expense_ratio": None})
+        pool.append(dict(meta)); seen.add(t)
+    for c in seeds + discovered:
+        t = c["ticker"]
+        if t in exclude_tracked or t in seen:
+            continue
+        pool.append(dict(c)); seen.add(t)
+
+    print(f"Backtesting {len(pool)} watchlist candidates…")
+    scored = []
+    for c in pool:
+        m = backtest_ticker(c["ticker"], start_capital, start_iso, as_of)
+        if not m:
+            continue
+        c["metrics"] = m
+        c["score"] = score_metrics(m, rank_by)
+        c["rationale"] = ""
+        scored.append(c)
+    scored.sort(key=lambda x: x["score"], reverse=True)
+
+    roster = scored[:size]
+    dropped = scored[size:]
+
+    roster_tickers = {c["ticker"] for c in roster}
+    prev_set = set(prev["tickers"])
+    for c in roster:
+        c["status"] = "held" if (not prev["exists"] or c["ticker"] in prev_set) else "new"
+        c["first_seen"] = prev["first_seen"].get(c["ticker"]) or as_of
+
+    # Rotated out: were in last week's roster, not in this week's.
+    rotated_out = []
+    for c in dropped:
+        if prev["exists"] and c["ticker"] in prev_set:
+            c["first_seen"] = prev["first_seen"].get(c["ticker"]) or as_of
+            rotated_out.append(c)
+
+    if prev["exists"]:
+        rin = [c["ticker"] for c in roster if c["status"] == "new"]
+        print(f"  rotated in: {rin or '—'} | rotated out: {[c['ticker'] for c in rotated_out] or '—'}")
+    return roster, rotated_out
+
+
 def write_alt_rationale(result):
     """Mutate result['alternatives'] with a Claude rationale per fund + a section intro."""
     cfg = CONFIG.get("alternatives", {})
@@ -398,8 +534,9 @@ def write_alt_rationale(result):
         perf = (f"same ${result['start_capital']:,.0f} -> ${m['current']:,.0f} "
                 f"({m['cagr']*100:+.1f}%/yr, vol {m['vol']*100:.1f}%, maxDD {m['mdd']*100:.1f}%)"
                 if m else "price data unavailable")
+        er = f"{a['expense_ratio']*100:.2f}%" if a.get("expense_ratio") is not None else "n/a"
         lines.append(f"- {a['ticker']} ({a['name']}, {a['source']}, role: {a['role']}, "
-                     f"ER {a['expense_ratio']*100:.2f}%): {perf}")
+                     f"ER {er}): {perf}")
     prompt = f"""You are an investment analyst helping a retail investor RESEARCH self-managed \
 alternatives to their money manager, who currently concentrates them in AMZN plus a US \
 core-equity fund. Below is a shortlist of real funds, each backtested over the past year on \
@@ -532,10 +669,19 @@ def svg_fan(result):
     return "".join(parts) + leg
 
 
+RANK_LABEL = {"sharpe": "risk-adjusted return (Sharpe)", "cagr": "trailing return",
+              "return_per_drawdown": "return per unit of drawdown"}
+
+
+def _er_str(a):
+    return f"{a['expense_ratio']*100:.2f}%" if a.get("expense_ratio") is not None else "n/a"
+
+
 def render_alternatives(result):
     alts = result.get("alternatives") or []
     if not alts:
         return ""
+    rank_by = result.get("alt_rank_by", "sharpe")
     intro = result.get("alt_intro") or (
         "Educated starting points for your own research. A durable portfolio is usually a "
         "low-cost core plus a few diversifiers and some ballast — not a bet on last year's winner.")
@@ -553,21 +699,48 @@ def render_alternatives(result):
         else:
             perf = '<div class="altperf muted">price data unavailable this run</div>'
         rat = f'<p class="altrat">{html_esc(a["rationale"])}</p>' if a.get("rationale") else ""
+        is_new = a.get("status") == "new"
+        badge = '<span class="badge new">NEW</span>' if is_new else ""
+        since = (f'<span class="since">in watchlist since {a["first_seen"]}</span>'
+                 if a.get("first_seen") and not is_new else "")
         cards.append(
-            f'<div class="altcard">'
-            f'<div class="althead"><span class="altname">{html_esc(a["name"])}</span>'
+            f'<div class="altcard{ " isnew" if is_new else "" }">'
+            f'<div class="althead"><span class="altname">{html_esc(a["name"])}{badge}</span>'
             f'<span class="pill">{html_esc(a["ticker"])}</span></div>'
             f'<div class="altmeta">{html_esc(a["role"])} · {html_esc(a["source"])} · '
-            f'ER {a["expense_ratio"]*100:.2f}%</div>'
+            f'ER {_er_str(a)} {since}</div>'
             f'{perf}{rat}</div>')
+
+    # Rotated-out note
+    out = result.get("alt_rotated_out") or []
+    rotated_html = ""
+    if out:
+        items = []
+        for a in out:
+            m = a.get("metrics") or {}
+            ret = pct(m["cagr"], True) + "/yr" if m else "—"
+            items.append(f'<li><b>{html_esc(a["ticker"])}</b> {html_esc(a["name"])} '
+                         f'<span class="muted">({ret}, dropped below the top {len(alts)} '
+                         f'by {html_esc(RANK_LABEL.get(rank_by, rank_by))})</span></li>')
+        rotated_html = (
+            '<div class="rotout"><h3>Rotated out this week</h3>'
+            f'<ul>{"".join(items)}</ul></div>')
+    new_count = sum(1 for a in alts if a.get("status") == "new")
+    rotated_summary = (f' <strong>{new_count} rotated in</strong> and '
+                       f'{len(out)} rotated out since last week.' if (new_count or out) else "")
+
     return (
         '<section class="card"><h2>Alternatives worth researching</h2>'
-        f'<p class="sub">{html_esc(intro)}</p>'
+        f'<p class="sub">A watchlist that refreshes weekly: each run web-searches for new fund '
+        f'ideas, backtests them against last week’s roster on the same dollar basis, and keeps '
+        f'the top {len(alts)} ranked by {html_esc(RANK_LABEL.get(rank_by, rank_by))}.{rotated_summary}</p>'
+        f'<p class="sub" style="margin-top:-4px;">{html_esc(intro)}</p>'
         f'<div class="altgrid">{"".join(cards)}</div>'
+        f'{rotated_html}'
         '<p class="src">Real funds across sources, validated and backtested on the same dollar '
-        'basis as the leaderboard; per-fund rationale by Claude. These are research starting '
-        'points — <strong>not</strong> recommendations or predictions. Past returns shown for '
-        'context only; verify expense ratios and suitability yourself.</p>'
+        'basis as the leaderboard; ideas surfaced by web search, per-fund rationale by Claude. '
+        'These are research starting points — <strong>not</strong> recommendations or predictions. '
+        'Past returns shown for context only; verify expense ratios and suitability yourself.</p>'
         '</section>')
 
 
@@ -712,6 +885,14 @@ def render(result, memo):
   .altperf .pos {{ color:#047857; font-weight:600; }}
   .altperf .neg {{ color:#b91c1c; font-weight:600; }}
   .altrat {{ font-size:13.5px; color:var(--text); margin-top:8px; line-height:1.55; }}
+  .altcard.isnew {{ border-color:#a7f3d0; background:#f0fdf9; box-shadow:0 0 0 1px #a7f3d0 inset; }}
+  .badge {{ display:inline-block; font-size:10px; font-weight:700; letter-spacing:.05em; border-radius:5px; padding:1px 6px; margin-left:8px; vertical-align:middle; }}
+  .badge.new {{ background:#047857; color:#fff; }}
+  .since {{ color:var(--muted); font-size:11px; }}
+  .rotout {{ margin-top:18px; padding-top:14px; border-top:1px dashed var(--card-border); }}
+  .rotout h3 {{ font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:8px; }}
+  .rotout ul {{ list-style:none; padding:0; margin:0; }}
+  .rotout li {{ font-size:13.5px; padding:3px 0; }}
   @media (max-width:620px) {{ .altgrid {{ grid-template-columns:1fr; }} }}
   .grid2 {{ display:grid; grid-template-columns:1fr; gap:0; }}
   .disclaim {{ color:var(--muted); font-size:12px; line-height:1.6; margin-top:28px; border-top:1px solid var(--card-border); padding-top:18px; }}

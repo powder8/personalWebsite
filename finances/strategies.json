@@ -38,10 +38,18 @@
   },
 
   "alternatives": {
-    "_comment": "A curated, diversified shortlist of REAL funds to research as self-managed alternatives — spanning sources and roles. Each is validated and backtested against real data on the same dollar basis as the leaderboard; Claude writes the per-fund rationale. Edit freely. These are research starting points, not recommendations or predictions.",
+    "_comment": "A dynamic watchlist of REAL funds to research as self-managed alternatives. Each weekly run web-searches for new fund ideas, backtests last week's roster + these seeds + the new finds on the same dollar basis, keeps the top `roster_size` by `rank_by`, and shows what rotated in/out vs last week. `candidates` below are the permanent seed pool that's always reconsidered (not guaranteed to stay in). Research starting points, not recommendations or predictions.",
     "enabled": true,
     "model": "claude-sonnet-4-5-20250929",
     "max_tokens": 1600,
+    "roster_size": 8,
+    "rank_by": "sharpe",
+    "discover": {
+      "enabled": true,
+      "model": "claude-sonnet-4-5-20250929",
+      "max_new": 8,
+      "max_search_uses": 5
+    },
     "candidates": [
       { "ticker": "FZROX", "name": "Fidelity ZERO Total Market",        "source": "Fidelity", "role": "Ultra-low-cost core",        "expense_ratio": 0.0000 },
       { "ticker": "FXAIX", "name": "Fidelity 500 Index",                "source": "Fidelity", "role": "Ultra-low-cost core",        "expense_ratio": 0.00015 },
