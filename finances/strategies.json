@@ -1,0 +1,39 @@
+{
+  "_comment": "Config for the Manager-vs-Index comparison page. Positions are TODAY's dollar values; the pipeline derives shares from today's price, values the cohort backward to start_date, and seeds every strategy with that same starting capital. Edit this file to add strategies, change the fee band, or tune assumptions.",
+
+  "start_date": "2025-06-02",
+  "horizon_quarters": 4,
+
+  "positions": [
+    { "ticker": "AMZN",  "value_today": 1200, "name": "Amazon.com" },
+    { "ticker": "DFEOX", "value_today": 1600, "name": "DFA US Core Equity 2" }
+  ],
+
+  "manager": {
+    "name": "Money Manager (current)",
+    "advisory_fee_low": 0.0125,
+    "advisory_fee_central": 0.0140,
+    "advisory_fee_high": 0.0150
+  },
+
+  "benchmark": "VOO",
+
+  "passive_strategies": [
+    { "ticker": "VOO",  "name": "Vanguard S&P 500 ETF",        "expense_ratio": 0.0003 },
+    { "ticker": "VFIAX","name": "Vanguard 500 Index Admiral",  "expense_ratio": 0.0004 },
+    { "ticker": "VTI",  "name": "Vanguard Total US Market ETF", "expense_ratio": 0.0003 },
+    { "ticker": "VT",   "name": "Vanguard Total World ETF",     "expense_ratio": 0.0007 }
+  ],
+
+  "assumptions": {
+    "risk_free": 0.043,
+    "equity_risk_premium": 0.05,
+    "trading_days_per_year": 252
+  },
+
+  "memo": {
+    "enabled": true,
+    "model": "claude-sonnet-4-5-20250929",
+    "max_tokens": 1800
+  }
+}
