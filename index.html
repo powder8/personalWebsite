@@ -3,101 +3,126 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Peter Hill — badoo.net</title>
-<meta name="description" content="Peter Hill — software projects, photography, and more.">
+<title>badoo.net — AI experiments by Peter Hill</title>
+<meta name="description" content="A playground of AI experiments — automated podcasts, research agents, finance bots, and more.">
 <meta name="robots" content="index, follow">
-<meta property="og:title" content="Peter Hill — badoo.net">
-<meta property="og:description" content="Software projects, photography, and more.">
+<meta property="og:title" content="badoo.net — AI experiments">
+<meta property="og:description" content="A playground of AI experiments — automated podcasts, research agents, finance bots, and more.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://badoo.net">
+<meta name="theme-color" content="#0b0b12">
 <link rel="canonical" href="https://badoo.net">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+<!-- animated background blobs -->
+<div class="aurora" aria-hidden="true">
+  <span class="blob blob-1"></span>
+  <span class="blob blob-2"></span>
+  <span class="blob blob-3"></span>
+</div>
+
 <nav>
-  <a href="#" class="nav-logo">badoo.net</a>
+  <a href="#" class="nav-logo">badoo<span class="dot">.</span>net</a>
   <div class="nav-links">
-    <a href="https://github.com/powder8" target="_blank" rel="noopener">Projects</a>
-    <a href="#photography">Photography</a>
-    <a href="#about">About</a>
+    <a href="#projects">Projects</a>
+    <a href="#photography">Photos</a>
+    <a href="https://github.com/powder8" target="_blank" rel="noopener">GitHub ↗</a>
   </div>
 </nav>
 
 <header class="hero">
   <div class="hero-content">
-    <h1>Hey, I'm <span class="highlight">Peter</span></h1>
-    <p>I build software and take photos.</p>
+    <span class="hero-badge">✦ a playground of experiments</span>
+    <h1>I build <span class="grad">AI things</span><br>for the fun of it.</h1>
+    <p>Automated podcasts, research agents, finance bots — little machines that do useful (and occasionally ridiculous) work while I sleep.</p>
+    <div class="hero-links">
+      <a href="#projects" class="btn-primary">See the projects ↓</a>
+      <a href="https://github.com/powder8" target="_blank" rel="noopener" class="btn-ghost">GitHub</a>
+    </div>
   </div>
 </header>
 
 <section id="projects">
   <h2>Projects</h2>
+  <p class="section-subtitle">Things I've shipped — mostly AI-powered, all built for curiosity.</p>
   <div class="project-grid">
 
-    <a class="project-card" href="/finances/">
-      <div class="project-icon">💹</div>
-      <h3>Manager vs. Index</h3>
-      <p>Should I fire my money manager? A weekly, analyst-grade comparison of the manager's actual positions against passive Vanguard index funds — with fee drag, break-even fee, and a forward projection.</p>
-      <span class="project-tag">Python</span>
-      <span class="project-tag">Claude API</span>
-      <span class="project-tag">Yahoo Finance</span>
-    </a>
-
-    <a class="project-card" href="https://powder8.github.io/dailyPodcast/" target="_blank" rel="noopener">
+    <a class="project-card" href="https://powder8.github.io/dailyPodcast/" target="_blank" rel="noopener" style="--glow:#a855f7;">
       <div class="project-icon">🎙️</div>
       <h3>Daily Podcast</h3>
-      <p>An automated pipeline that fetches news, scores articles with AI, generates podcast scripts, and delivers audio digests daily.</p>
-      <span class="project-tag">Python</span>
-      <span class="project-tag">Claude API</span>
-      <span class="project-tag">OpenAI TTS</span>
+      <p>An automated pipeline that fetches news, scores articles with AI, writes podcast scripts, and delivers audio digests every morning.</p>
+      <div class="tags">
+        <span class="project-tag">Python</span>
+        <span class="project-tag">Claude API</span>
+        <span class="project-tag">OpenAI TTS</span>
+      </div>
     </a>
 
-    <a class="project-card" href="#" target="_blank" rel="noopener">
+    <a class="project-card" href="/finances/" style="--glow:#22d3ee;">
+      <div class="project-icon">💹</div>
+      <h3>Manager vs. Index</h3>
+      <p>Should I fire my money manager? A weekly, analyst-grade comparison of the manager's actual positions against passive index funds — fee drag, break-even fee, and a forward projection.</p>
+      <div class="tags">
+        <span class="project-tag">Python</span>
+        <span class="project-tag">Claude API</span>
+        <span class="project-tag">Yahoo Finance</span>
+      </div>
+    </a>
+
+    <a class="project-card" href="#" target="_blank" rel="noopener" style="--glow:#f472b6;">
       <div class="project-icon">🧪</div>
       <h3>AutoResearch</h3>
-      <p>Autonomous ML experimentation — an AI agent iterates on model architectures and hyperparameters while you sleep.</p>
-      <span class="project-tag">PyTorch</span>
-      <span class="project-tag">MPS</span>
+      <p>Autonomous ML experimentation — an AI agent iterates on model architectures and hyperparameters while you sleep, logging every run.</p>
+      <div class="tags">
+        <span class="project-tag">PyTorch</span>
+        <span class="project-tag">MPS</span>
+      </div>
     </a>
 
-    <a class="project-card" href="https://powder8.github.io/skiWeather/" target="_blank" rel="noopener">
+    <a class="project-card" href="https://powder8.github.io/dailyPodcast/digest.html" target="_blank" rel="noopener" style="--glow:#34d399;">
+      <div class="project-icon">📰</div>
+      <h3>Daily Digest</h3>
+      <p>A curated daily email of top news links — AI-scored, organized by relevance, and delivered to your inbox each morning.</p>
+      <div class="tags">
+        <span class="project-tag">Python</span>
+        <span class="project-tag">Claude API</span>
+        <span class="project-tag">Resend</span>
+      </div>
+    </a>
+
+    <a class="project-card" href="https://powder8.github.io/skiWeather/" target="_blank" rel="noopener" style="--glow:#60a5fa;">
       <div class="project-icon">🎿</div>
       <h3>Sol Mountain Ski Weather</h3>
       <p>A live forecast dashboard for ski trips — pulls weather data and generates a clean, at-a-glance conditions page.</p>
-      <span class="project-tag">Python</span>
+      <div class="tags">
+        <span class="project-tag">Python</span>
+      </div>
     </a>
 
-    <a class="project-card" href="https://powder8.github.io/dailyPodcast/digest.html" target="_blank" rel="noopener">
-      <div class="project-icon">📰</div>
-      <h3>Daily Digest</h3>
-      <p>A curated daily email with top news links — AI-scored and organized by relevance, delivered to your inbox each morning.</p>
-      <span class="project-tag">Python</span>
-      <span class="project-tag">Claude API</span>
-      <span class="project-tag">Resend</span>
+    <a class="project-card" href="https://share.synthesia.io/936b6714-dcec-4f59-a87e-501d96dba290" target="_blank" rel="noopener" style="--glow:#fbbf24;">
+      <div class="project-icon">🎬</div>
+      <h3>Claude Code on Mac</h3>
+      <p>A short walkthrough video covering how to get up and running with Claude Code on macOS.</p>
+      <div class="tags">
+        <span class="project-tag">Video</span>
+      </div>
     </a>
 
-    <a class="project-card" href="/slideshow/">
+    <a class="project-card" href="/slideshow/" style="--glow:#fb923c;">
       <div class="project-icon">🕯️</div>
       <h3>Memorial Slideshow</h3>
       <p>A photo slideshow with music for remembering and celebrating a life well lived.</p>
-    </a>
-
-    <a class="project-card" href="https://share.synthesia.io/936b6714-dcec-4f59-a87e-501d96dba290" target="_blank" rel="noopener">
-      <div class="project-icon">🎬</div>
-      <h3>Start Using Claude Code on Mac</h3>
-      <p>A short walkthrough video covering how to get up and running with Claude Code on macOS.</p>
-      <span class="project-tag">Video</span>
     </a>
 
   </div>
 </section>
 
 <section id="photography">
-  <h2>Photography</h2>
-  <p class="section-subtitle">A few favourites from <a href="https://powder8.smugmug.com" target="_blank" rel="noopener" style="color:var(--accent);">my gallery</a>. Click to enlarge.</p>
+  <h2>Photography <span class="h2-emoji">📸</span></h2>
+  <p class="section-subtitle">When I'm not building, I'm shooting. A few favourites from <a href="https://powder8.smugmug.com" target="_blank" rel="noopener">my gallery</a> — click to enlarge.</p>
 
-  <h3 class="photo-category">Landscapes & Nature</h3>
   <div class="photo-grid">
     <div class="photo-item">
       <img src="https://photos.smugmug.com/Landscapes/XmasEveWalkToWork/i-K2jdTrV/0/MPz7MGJtKJ3L9XHxwTKhmhhDvMNWfGwx8qsgVhDK7/XL/IMG_3364-XL.jpg" alt="Snowy landscape on Christmas Eve" loading="lazy">
@@ -106,51 +131,27 @@
       <img src="https://photos.smugmug.com/EstesParkColorado/i-BCGQQFm/0/MFMV6x8k5pBPfHvqJc5D59TS5BhvSS3wbMKHmmtJM/XL/IMG_5845-XL.jpg" alt="Estes Park, Colorado" loading="lazy">
     </div>
     <div class="photo-item">
-      <img src="https://photos.smugmug.com/Nature/OminousMoon/i-SNBQGh2/0/LmnkjPxHsKdzNnsP26f5k98mLDbsbDSkH5HTKRNSL/L/20060212-ominousMoon%20014-L.jpg" alt="Ominous moon" loading="lazy">
-    </div>
-  </div>
-
-  <h3 class="photo-category">Travel & Adventure</h3>
-  <div class="photo-grid">
-    <div class="photo-item">
       <img src="https://photos.smugmug.com/Travel/MexicoWhaleWatch2010/i-QsfxHSz/0/MNPV3f6k98mjKjhHVtsnMwQZ7f3qQtZkjVmdxtrwG/XL/IMG_5246-XL.jpg" alt="Mexico whale watching" loading="lazy">
     </div>
     <div class="photo-item">
       <img src="https://photos.smugmug.com/ColoradoTrip2014/i-5Snr9cp/0/L56N8pNLzj5kttrwKDkk7xLkc5x62WBsjbLCV7P4d/XL/IMG_5809-XL.jpg" alt="Colorado trip" loading="lazy">
     </div>
     <div class="photo-item">
-      <img src="https://photos.smugmug.com/Travel/NYCSeptember2011/i-9Kxj7Jq/0/KxBF4DFDMhMKW8qLbQ2XRcBC9xBKFq27Z4K3MdPMX/XL/IMG_5678-XL.jpg" alt="New York City" loading="lazy">
-    </div>
-  </div>
-
-  <h3 class="photo-category">Architecture & Sports</h3>
-  <div class="photo-grid">
-    <div class="photo-item">
       <img src="https://photos.smugmug.com/Architecture/Cabin/i-r9pkjvT/0/MT2J7QPmzSJHbRxCm8q5vczvLxcG5KcjkNQkDDs74/XL/IMG_2583-XL.jpg" alt="Cabin architecture" loading="lazy">
     </div>
     <div class="photo-item">
       <img src="https://photos.smugmug.com/IronmanAustin2014/i-JQ8gwvf/0/MmjKZChKzsFwN3gGKSNzDcSv6SpnvwK3DhC8VMTbh/XL/IMG_5750%202-XL.jpg" alt="Ironman Austin 2014" loading="lazy">
     </div>
-    <div class="photo-item">
-      <img src="https://photos.smugmug.com/Sports/ClifBarGrandPrix2005/i-JFFMbbj/0/Lq7v4Bt6gcnS7DdMrK9DfKV4Mds7s5n468Q3qx6pc/L/IMG_0068-L.jpg" alt="Clif Bar Grand Prix cycling" loading="lazy">
-    </div>
-  </div>
-</section>
-
-<section id="about">
-  <h2>About</h2>
-  <div class="about-content">
-    <p>A few words about yourself go here. What you're interested in, where you're based, what drives you. Keep it short and personal.</p>
-    <div class="about-links">
-      <a href="https://github.com/powder8" target="_blank" rel="noopener">GitHub</a>
-      <a href="https://www.linkedin.com/in/powder8/" target="_blank" rel="noopener">LinkedIn</a>
-      <a href="https://instagram.com/peterhill" target="_blank" rel="noopener">Instagram</a>
-    </div>
   </div>
 </section>
 
 <footer>
-  <p>badoo.net</p>
+  <div class="footer-links">
+    <a href="https://github.com/powder8" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.linkedin.com/in/powder8/" target="_blank" rel="noopener">LinkedIn</a>
+    <a href="https://powder8.smugmug.com" target="_blank" rel="noopener">Photos</a>
+  </div>
+  <p>Built with curiosity · badoo.net</p>
 </footer>
 
 <!-- Lightbox for photography -->
@@ -171,7 +172,7 @@
     });
   });
 
-  // Lightbox (activate once you add real <img> to photo-items)
+  // Lightbox
   const lightbox = document.getElementById('lightbox');
   const lightboxImg = document.getElementById('lightbox-img');
 
@@ -191,7 +192,26 @@
   window.addEventListener('scroll', () => {
     nav.classList.toggle('scrolled', window.scrollY > 40);
   });
+
+  // Subtle parallax tilt on project cards
+  document.querySelectorAll('.project-card').forEach(card => {
+    card.addEventListener('pointermove', e => {
+      const r = card.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width - 0.5;
+      const y = (e.clientY - r.top) / r.height - 0.5;
+      card.style.setProperty('--rx', (y * -4) + 'deg');
+      card.style.setProperty('--ry', (x * 4) + 'deg');
+    });
+    card.addEventListener('pointerleave', () => {
+      card.style.setProperty('--rx', '0deg');
+      card.style.setProperty('--ry', '0deg');
+    });
+  });
 </script>
+
+<!-- GoatCounter analytics -->
+<script data-goatcounter="https://badoo.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
 
 </body>
 </html>
