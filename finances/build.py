@@ -1068,6 +1068,10 @@ def render(result, memo, history=None):
     on the managed portfolio. Verify all figures independently before acting.
   </p>
 </div>
+
+<!-- GoatCounter analytics -->
+<script data-goatcounter="https://badoo.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
 """
