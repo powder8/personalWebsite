@@ -23,6 +23,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add finances/index.html finances/data.json
+          git add finances/index.html finances/data.json finances/history.json
           git diff --staged --quiet || git commit -m "Update finances $(date -u +%Y-%m-%dT%H:%M)"
           git push

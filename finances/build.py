@@ -744,7 +744,88 @@ def render_alternatives(result):
         '</section>')
 
 
-def render(result, memo):
+HISTORY_FILE = DIR / "history.json"
+
+
+def load_history():
+    try:
+        return json.loads(HISTORY_FILE.read_text())
+    except Exception:
+        return []
+
+
+def update_history(result):
+    """Append (or refresh) this week's snapshot so progress accrues across runs."""
+    hist = [h for h in load_history() if h.get("as_of") != result["as_of"]]
+    mgr = next(s for s in result["strategies"] if s.get("is_manager"))
+    best = next(s for s in result["strategies"] if s["key"] == result["best_passive_key"])
+    hist.append({
+        "as_of": result["as_of"],
+        "manager": round(mgr["current"], 2),
+        "best": round(best["current"], 2),
+        "best_key": best["key"],
+        "best_name": best["name"],
+        "gap": round(best["current"] - mgr["current"], 2),
+        "breakeven_fee": result["breakeven_fee"],
+    })
+    hist.sort(key=lambda h: h["as_of"])
+    HISTORY_FILE.write_text(json.dumps(hist, indent=2))
+    return hist
+
+
+def svg_history(history):
+    """Week-by-week line: the best passive option's after-fee lead over the manager."""
+    W, H, PAD = 720, 240, 48
+    gaps = [h["gap"] for h in history]
+    lo, hi = min(gaps + [0.0]), max(gaps + [0.0])
+    span = (hi - lo) or 1
+    lo -= span * 0.15
+    hi += span * 0.15
+    n = len(history)
+
+    def x(i):
+        return PAD + (W - 2 * PAD) * i / max(n - 1, 1)
+
+    def y(v):
+        return H - PAD - (H - 2 * PAD) * (v - lo) / (hi - lo)
+
+    parts = [f'<svg viewBox="0 0 {W} {H}" class="chart" role="img" aria-label="Index lead over the manager over time">']
+    for g in range(5):
+        gv = lo + (hi - lo) * g / 4
+        gy = y(gv)
+        parts.append(f'<line x1="{PAD}" y1="{gy:.1f}" x2="{W-PAD}" y2="{gy:.1f}" stroke="rgba(255,255,255,0.08)"/>')
+        parts.append(f'<text x="{PAD-6}" y="{gy+4:.1f}" text-anchor="end" class="ax">{money(gv)}</text>')
+    if lo < 0 < hi:
+        zy = y(0)
+        parts.append(f'<line x1="{PAD}" y1="{zy:.1f}" x2="{W-PAD}" y2="{zy:.1f}" stroke="rgba(255,255,255,0.30)" stroke-dasharray="4 4"/>')
+    pts = " ".join(f"{x(i):.1f},{y(g):.1f}" for i, g in enumerate(gaps))
+    parts.append(f'<polyline points="{pts}" fill="none" stroke="#a855f7" stroke-width="2.5"/>')
+    for i, g in enumerate(gaps):
+        parts.append(f'<circle cx="{x(i):.1f}" cy="{y(g):.1f}" r="3.5" fill="#a855f7"/>')
+    parts.append(f'<text x="{PAD}" y="{H-16}" class="ax">{html_esc(history[0]["as_of"])}</text>')
+    parts.append(f'<text x="{W-PAD}" y="{H-16}" text-anchor="end" class="ax">{html_esc(history[-1]["as_of"])}</text>')
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def tracking_section(history):
+    """A 'progress over time' card — only shown once at least two weekly snapshots exist."""
+    if not history or len(history) < 2:
+        return ""
+    first, last = history[0], history[-1]
+    chg = last["gap"] - first["gap"]
+    moved = "widened" if chg > 0 else "narrowed" if chg < 0 else "held steady"
+    lead = (f"the index leads by {money(abs(last['gap']))}" if last["gap"] >= 0
+            else f"the manager leads by {money(abs(last['gap']))}")
+    sub = (f"The best passive option's after-fee lead over the manager across "
+           f"{len(history)} weekly snapshots since {html_esc(first['as_of'])}. Above the dashed "
+           f"break-even line indexing is ahead; below it the manager is. Over this window the gap "
+           f"{moved} by {money(abs(chg))} — now {lead}.")
+    return (f'<section class="card"><h2>Tracking over time</h2>'
+            f'<p class="sub">{sub}</p>{svg_history(history)}</section>')
+
+
+def render(result, memo, history=None):
     s_manager = next(s for s in result["strategies"] if s.get("is_manager"))
     best = next(s for s in result["strategies"] if s["key"] == result["best_passive_key"])
     be = result["breakeven_fee"]
@@ -822,6 +903,7 @@ def render(result, memo):
                 f'{html_esc(", ".join(result["missing"]))} this run; excluded from the comparison.</p>')
 
     gen = result["generated"].replace("T", " ").replace("+00:00", " UTC")
+    tracking_html = tracking_section(history or [])
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -964,6 +1046,8 @@ def render(result, memo):
     {svg_fan(result)}
   </section>
 
+  {tracking_html}
+
   {memo_html}
 
   {render_alternatives(result)}
@@ -985,9 +1069,14 @@ def render(result, memo):
 
 def main():
     result = build()
+    try:
+        history = update_history(result)
+    except Exception as e:
+        history = load_history()
+        print(f"history update skipped: {e}", file=sys.stderr)
     memo = write_memo(result)
     write_alt_rationale(result)
-    (DIR / "index.html").write_text(render(result, memo))
+    (DIR / "index.html").write_text(render(result, memo, history))
     # Trim the heavy date/series arrays out of the committed data.json? Keep them — small.
     (DIR / "data.json").write_text(json.dumps(result, indent=2))
     print(f"Wrote index.html and data.json — start_capital {money(result['start_capital'])}, "
