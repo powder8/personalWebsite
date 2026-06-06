@@ -248,8 +248,13 @@ def build():
     breakeven_fee = 1 - ratio ** (1 / years) if years > 0 and ratio > 0 else 0.0
 
     # Rotating watchlist of alternatives: discover + backtest + rank + diff vs last week.
-    alternatives, rotated_out = build_alternatives(
-        start_capital, dates[0], dates[-1], set(need))
+    # Best-effort: discovery uses the API/web-search, so never let it abort the build.
+    try:
+        alternatives, rotated_out = build_alternatives(
+            start_capital, dates[0], dates[-1], set(need))
+    except Exception as e:
+        sys.stderr.write(f"Alternatives watchlist skipped: {e}\n")
+        alternatives, rotated_out = [], []
 
     result = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -894,8 +899,9 @@ def render(result, memo, history=None):
                      f'</section>')
     else:
         memo_html = ('<section class="card"><h2>Analyst view</h2>'
-                     '<p class="muted">Memo unavailable this run (no API key or generation skipped). '
-                     'The quantitative comparison above stands on its own.</p></section>')
+                     '<p class="sub">Analyst memo skipped this run — the <code>ANTHROPIC_API_KEY</code> '
+                     'secret wasn\'t available, so the AI write-up was not generated. Every number '
+                     'above is computed directly from market data and stands on its own.</p></section>')
 
     miss = ""
     if result["missing"]:
@@ -1074,8 +1080,19 @@ def main():
     except Exception as e:
         history = load_history()
         print(f"history update skipped: {e}", file=sys.stderr)
-    memo = write_memo(result)
-    write_alt_rationale(result)
+
+    # AI enrichment is best-effort: a missing ANTHROPIC_API_KEY (or any API
+    # failure) must never abort the build, so the weekly page still updates.
+    try:
+        memo = write_memo(result)
+    except Exception as e:
+        memo = None
+        sys.stderr.write(f"Memo generation skipped: {e}\n")
+    try:
+        write_alt_rationale(result)
+    except Exception as e:
+        sys.stderr.write(f"Alternatives rationale skipped: {e}\n")
+
     (DIR / "index.html").write_text(render(result, memo, history))
     # Trim the heavy date/series arrays out of the committed data.json? Keep them — small.
     (DIR / "data.json").write_text(json.dumps(result, indent=2))
