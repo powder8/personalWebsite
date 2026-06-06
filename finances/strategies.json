@@ -5,7 +5,7 @@
   "horizon_quarters": 4,
 
   "positions": [
-    { "ticker": "AMZN",  "value_today": 1200, "name": "Amazon.com", "client_directed": true },
+    { "ticker": "AMZN",  "value_today": 1200, "name": "Amazon.com", "manager_assumed": true, "basis": "your past work at Amazon" },
     { "ticker": "DFEOX", "value_today": 1600, "name": "DFA US Core Equity 2" }
   ],
 
