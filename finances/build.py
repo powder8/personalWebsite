@@ -592,7 +592,7 @@ def svg_growth(result):
     lo, hi = min(all_vals), max(all_vals)
     pad_v = (hi - lo) * 0.08 or 1
     lo, hi = lo - pad_v, hi + pad_v
-    colors = ["#111827", "#4f46e5", "#0891b2", "#16a34a", "#d97706", "#db2777"]
+    colors = ["#cbd5e1", "#a855f7", "#22d3ee", "#34d399", "#fbbf24", "#db2777"]
 
     def x(i):
         return PAD + (W - 2 * PAD) * i / max(n - 1, 1)
@@ -605,7 +605,7 @@ def svg_growth(result):
     for g in range(5):
         gv = lo + (hi - lo) * g / 4
         gy = y(gv)
-        parts.append(f'<line x1="{PAD}" y1="{gy:.1f}" x2="{W-PAD}" y2="{gy:.1f}" stroke="#eee"/>')
+        parts.append(f'<line x1="{PAD}" y1="{gy:.1f}" x2="{W-PAD}" y2="{gy:.1f}" stroke="rgba(255,255,255,0.08)"/>')
         parts.append(f'<text x="{PAD-6}" y="{gy+4:.1f}" text-anchor="end" class="ax">{money(gv)}</text>')
     # x labels (start + end)
     parts.append(f'<text x="{PAD}" y="{H-14}" class="ax">{dates[0]}</text>')
@@ -630,7 +630,7 @@ def svg_fan(result):
     q = result["horizon_quarters"]
     mgr = next(s for s in result["strategies"] if s.get("is_manager"))
     best = next(s for s in result["strategies"] if s["key"] == result["best_passive_key"])
-    show = [(mgr, "#111827"), (best, "#4f46e5")]
+    show = [(mgr, "#cbd5e1"), (best, "#a855f7")]
     pts = [mgr["current"], best["current"]]
     for s, _ in show:
         for f in s["fan"]:
@@ -649,7 +649,7 @@ def svg_fan(result):
     for g in range(5):
         gv = lo + (hi - lo) * g / 4
         gy = y(gv)
-        parts.append(f'<line x1="{PAD}" y1="{gy:.1f}" x2="{W-PAD}" y2="{gy:.1f}" stroke="#eee"/>')
+        parts.append(f'<line x1="{PAD}" y1="{gy:.1f}" x2="{W-PAD}" y2="{gy:.1f}" stroke="rgba(255,255,255,0.08)"/>')
         parts.append(f'<text x="{PAD-6}" y="{gy+4:.1f}" text-anchor="end" class="ax">{money(gv)}</text>')
     parts.append(f'<text x="{PAD}" y="{H-14}" class="ax">today</text>')
     parts.append(f'<text x="{W-PAD}" y="{H-14}" text-anchor="end" class="ax">+{q} quarters</text>')
@@ -663,8 +663,8 @@ def svg_fan(result):
         parts.append(f'<polyline points="{mid}" fill="none" stroke="{c}" stroke-width="2"/>')
     parts.append("</svg>")
     leg = ('<div class="legend">'
-           f'<span class="lg"><i style="background:#111827"></i>{html_esc(mgr["name"])}</span>'
-           f'<span class="lg"><i style="background:#4f46e5"></i>{html_esc(best["name"])}</span>'
+           f'<span class="lg"><i style="background:#cbd5e1"></i>{html_esc(mgr["name"])}</span>'
+           f'<span class="lg"><i style="background:#a855f7"></i>{html_esc(best["name"])}</span>'
            '<span class="lg muted">shaded = P10–P90 range</span></div>')
     return "".join(parts) + leg
 
@@ -833,22 +833,22 @@ def render(result, memo):
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="../style.css">
 <style>
-  /* This report is designed for a light theme; keep it self-contained so the
-     site-wide dark palette in ../style.css doesn't make text unreadable. */
+  /* This report carries its own dark palette so it stays readable and on-brand
+     regardless of the site-wide stylesheet. */
   :root {{
-    --bg: #fafafa; --text: #1a1a1a; --muted: #666;
-    --accent: #4f46e5; --accent-light: #e0e7ff;
-    --card-bg: #fff; --card-border: #e5e7eb;
+    --bg: #0b0b12; --text: #f4f4f8; --muted: #9aa0b5;
+    --accent: #a855f7; --accent-light: rgba(168,85,247,0.16);
+    --card-bg: #14141d; --card-border: rgba(255,255,255,0.10);
   }}
   body {{ padding-top: 0; background: var(--bg); color: var(--text); }}
   .fin-wrap {{ max-width: 860px; margin: 0 auto; padding: 90px 20px 80px; }}
   .fin-head h1 {{ font-size: clamp(28px,5vw,40px); letter-spacing:-.02em; }}
   .fin-head p.lede {{ color: var(--muted); max-width: 60ch; margin-top: 8px; }}
   .banner {{ border-radius: var(--radius); padding: 22px 24px; margin: 26px 0; border:1px solid var(--card-border); }}
-  .banner.self {{ background:#ecfdf5; border-color:#a7f3d0; }}
-  .banner.manager {{ background:var(--accent-light); border-color:#c7d2fe; }}
+  .banner.self {{ background:rgba(52,211,153,0.10); border-color:rgba(52,211,153,0.40); }}
+  .banner.manager {{ background:var(--accent-light); border-color:rgba(168,85,247,0.40); }}
   .banner .v {{ font-size: 13px; text-transform:uppercase; letter-spacing:.08em; font-weight:700; color:var(--accent); }}
-  .banner.self .v {{ color:#047857; }}
+  .banner.self .v {{ color:#34d399; }}
   .banner h2 {{ font-size: 22px; margin:4px 0 8px; }}
   .banner p {{ color: var(--text); margin:0; }}
   .card {{ background:var(--card-bg); border:1px solid var(--card-border); border-radius:var(--radius); padding:24px; margin:22px 0; }}
@@ -861,9 +861,9 @@ def render(result, memo):
   table.board td.nm {{ text-align:left; font-weight:600; }}
   table.board td.num {{ text-align:right; font-variant-numeric: tabular-nums; }}
   table.board td.big {{ font-weight:700; }}
-  table.board tr.win {{ background:#f0fdf4; }}
+  table.board tr.win {{ background:rgba(52,211,153,0.10); }}
   table.board tr.mgrrow td.nm {{ }}
-  .pill {{ display:inline-block; font-size:11px; font-weight:600; color:var(--muted); background:#f3f4f6; border-radius:6px; padding:1px 7px; margin-left:6px; vertical-align:middle; }}
+  .pill {{ display:inline-block; font-size:11px; font-weight:600; color:var(--muted); background:rgba(255,255,255,0.08); border-radius:6px; padding:1px 7px; margin-left:6px; vertical-align:middle; }}
   .pill.mgr {{ background:var(--accent-light); color:var(--accent); }}
   .chart {{ width:100%; height:auto; display:block; margin-top:6px; }}
   .chart .ax {{ font-size:11px; fill:var(--muted); }}
@@ -884,15 +884,15 @@ def render(result, memo):
   .memo p {{ margin-bottom:12px; }}
   .src {{ color:var(--muted); font-size:12px; margin-top:10px; }}
   .altgrid {{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:6px; }}
-  .altcard {{ border:1px solid var(--card-border); border-radius:12px; padding:14px 16px; background:#fcfcfd; }}
+  .altcard {{ border:1px solid var(--card-border); border-radius:12px; padding:14px 16px; background:rgba(255,255,255,0.03); }}
   .althead {{ display:flex; align-items:center; justify-content:space-between; gap:8px; }}
   .altname {{ font-weight:700; font-size:15px; }}
   .altmeta {{ color:var(--muted); font-size:12px; margin-top:2px; }}
   .altperf {{ font-size:13px; margin-top:8px; font-variant-numeric:tabular-nums; }}
-  .altperf .pos {{ color:#047857; font-weight:600; }}
-  .altperf .neg {{ color:#b91c1c; font-weight:600; }}
+  .altperf .pos {{ color:#34d399; font-weight:600; }}
+  .altperf .neg {{ color:#f87171; font-weight:600; }}
   .altrat {{ font-size:13.5px; color:var(--text); margin-top:8px; line-height:1.55; }}
-  .altcard.isnew {{ border-color:#a7f3d0; background:#f0fdf9; box-shadow:0 0 0 1px #a7f3d0 inset; }}
+  .altcard.isnew {{ border-color:rgba(52,211,153,0.40); background:rgba(52,211,153,0.07); box-shadow:0 0 0 1px rgba(52,211,153,0.40) inset; }}
   .badge {{ display:inline-block; font-size:10px; font-weight:700; letter-spacing:.05em; border-radius:5px; padding:1px 6px; margin-left:8px; vertical-align:middle; }}
   .badge.new {{ background:#047857; color:#fff; }}
   .since {{ color:var(--muted); font-size:11px; }}
