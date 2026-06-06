@@ -833,7 +833,14 @@ def render(result, memo):
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="../style.css">
 <style>
-  body {{ padding-top: 0; }}
+  /* This report is designed for a light theme; keep it self-contained so the
+     site-wide dark palette in ../style.css doesn't make text unreadable. */
+  :root {{
+    --bg: #fafafa; --text: #1a1a1a; --muted: #666;
+    --accent: #4f46e5; --accent-light: #e0e7ff;
+    --card-bg: #fff; --card-border: #e5e7eb;
+  }}
+  body {{ padding-top: 0; background: var(--bg); color: var(--text); }}
   .fin-wrap {{ max-width: 860px; margin: 0 auto; padding: 90px 20px 80px; }}
   .fin-head h1 {{ font-size: clamp(28px,5vw,40px); letter-spacing:-.02em; }}
   .fin-head p.lede {{ color: var(--muted); max-width: 60ch; margin-top: 8px; }}
