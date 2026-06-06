@@ -247,6 +247,37 @@ def build():
     ratio = best_passive["current"] / manager_gross[-1]
     breakeven_fee = 1 - ratio ** (1 / years) if years > 0 and ratio > 0 else 0.0
 
+    # Attribution: separate the client-directed position(s) (e.g. AMZN the client
+    # required) from the manager's own discretionary picks, so the manager can be
+    # credited for their own selection if the forced holding is the drag.
+    directed = [p for p in CONFIG["positions"] if p.get("client_directed")]
+    disc = [p for p in CONFIG["positions"] if not p.get("client_directed")]
+    attribution = None
+    if directed and disc:
+        def sleeve_gross(ps):
+            ts = [p["ticker"] for p in ps]
+            return [sum(shares[t] * series[t][d] for t in ts) for d in dates]
+        dir_g, disc_g = sleeve_gross(directed), sleeve_gross(disc)
+        # Counterfactual: the manager's discretionary sleeve run with the FULL seed
+        # (i.e. no forced position), net of the same advisory fee.
+        disc_full_net = net_series([g * (start_capital / disc_g[0]) for g in disc_g], fee_c)
+        attribution = {
+            "directed_names": [p.get("name", p["ticker"]) for p in directed],
+            "directed_tickers": [p["ticker"] for p in directed],
+            "disc_names": [p.get("name", p["ticker"]) for p in disc],
+            "disc_tickers": [p["ticker"] for p in disc],
+            "directed_start": dir_g[0],
+            "directed_now": dir_g[-1],
+            "directed_cagr": cagr(dir_g[0], dir_g[-1], years),
+            "disc_cagr": cagr(disc_g[0], disc_g[-1], years),
+            "disc_full_net_now": disc_full_net[-1],
+            "disc_full_net_cagr": cagr(start_capital, disc_full_net[-1], years),
+            "manager_net_now": manager_net_central[-1],
+            "manager_cagr": cagr(start_capital, manager_net_central[-1], years),
+            "best_name": best_passive["name"],
+            "best_now": best_passive["current"],
+        }
+
     # Rotating watchlist of alternatives: discover + backtest + rank + diff vs last week.
     # Best-effort: discovery uses the API/web-search, so never let it abort the build.
     try:
@@ -270,6 +301,7 @@ def build():
         "strategies": strategies,
         "best_passive_key": best_passive["key"],
         "breakeven_fee": breakeven_fee,
+        "attribution": attribution,
         "alternatives": alternatives,
         "alt_rotated_out": rotated_out,
         "alt_rank_by": CONFIG.get("alternatives", {}).get("rank_by", "sharpe"),
@@ -830,6 +862,59 @@ def tracking_section(history):
             f'<p class="sub">{sub}</p>{svg_history(history)}</section>')
 
 
+def render_attribution(result):
+    """Credit the manager for their own pick by isolating the client-directed holding."""
+    a = result.get("attribution")
+    if not a:
+        return ""
+    directed = " + ".join(a["directed_tickers"])
+    directed_long = " & ".join(a["directed_names"])
+    disc_long = " & ".join(a["disc_names"])
+    disc_tk = " + ".join(a["disc_tickers"])
+    fee = next((s["fee_central"] for s in result["strategies"] if s.get("is_manager")), 0)
+    impact = a["manager_net_now"] - a["disc_full_net_now"]   # < 0 => forced holding dragged them down
+    blended_gap = a["best_now"] - a["manager_net_now"]       # manager as-run vs best index
+    own_gap = a["best_now"] - a["disc_full_net_now"]         # manager's own pick vs best index
+
+    if impact < 0:
+        lead = (f"Credit where it's due: your call cost them. Requiring <b>{directed}</b> held the "
+                f"portfolio back by {money(-impact)} versus running their own pick at the full stake.")
+    elif impact > 0:
+        lead = (f"Your call helped them: requiring <b>{directed}</b> added {money(impact)} versus the "
+                f"manager's own pick.")
+    else:
+        lead = f"Requiring <b>{directed}</b> was a wash versus the manager's own pick."
+
+    blended_phrase = (f"they trail by {money(blended_gap)}" if blended_gap > 0
+                      else f"they're ahead by {money(-blended_gap)}" if blended_gap < 0
+                      else "they're level")
+    if own_gap > 0:
+        vs_index = (f"Even on their own pick alone they still trail {html_esc(a['best_name'])} by "
+                    f"{money(own_gap)} (blended, {blended_phrase}).")
+    else:
+        vs_index = (f"On their own pick alone they actually beat {html_esc(a['best_name'])} by "
+                    f"{money(-own_gap)} — the forced {directed} is what flipped the result "
+                    f"(blended, {blended_phrase}).")
+
+    rows = (
+        f'<tr><td>Manager, as you ran it <span class="pill">{html_esc(directed)} + {html_esc(disc_tk)}</span></td>'
+        f'<td class="num">{money(a["manager_net_now"])}</td><td class="num">{pct(a["manager_cagr"], True)}</td></tr>'
+        f'<tr class="hl"><td>Manager’s own pick, full stake <span class="pill mgr">ex-{html_esc(directed)}</span></td>'
+        f'<td class="num">{money(a["disc_full_net_now"])}</td><td class="num">{pct(a["disc_full_net_cagr"], True)}</td></tr>'
+        f'<tr><td>Your forced position, on its own <span class="pill">{html_esc(directed)}</span></td>'
+        f'<td class="num">{money(a["directed_now"])}</td><td class="num">{pct(a["directed_cagr"], True)}</td></tr>'
+    )
+    return (
+        f'<section class="card"><h2>Your call: the {html_esc(directed)} position</h2>'
+        f'<p class="sub">You required the manager to hold <b>{html_esc(directed_long)}</b>; '
+        f'<b>{html_esc(disc_long)}</b> ({html_esc(disc_tk)}) is their own selection. This isolates that '
+        f'decision so the manager is judged on what they actually chose — both manager lines are net of '
+        f'the {pct(fee)} advisory fee, on the same {money(result["start_capital"])} stake.</p>'
+        f'<div class="banner self" style="margin:0 0 16px;"><p>{lead} {vs_index}</p></div>'
+        f'<table class="mini"><tr><th>Scenario</th><th>Value today</th><th>Return/yr</th></tr>{rows}</table>'
+        f'</section>')
+
+
 def render(result, memo, history=None):
     s_manager = next(s for s in result["strategies"] if s.get("is_manager"))
     best = next(s for s in result["strategies"] if s["key"] == result["best_passive_key"])
@@ -1030,6 +1115,8 @@ def render(result, memo, history=None):
     </div>
     {miss}
   </section>
+
+  {render_attribution(result)}
 
   <section class="card">
     <h2>Growth of {money(result["start_capital"])}</h2>
