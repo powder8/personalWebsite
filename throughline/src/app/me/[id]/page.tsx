@@ -1,0 +1,205 @@
+import { notFound } from 'next/navigation';
+import { getAthletePortal, type PortalSession } from '@/server/portal';
+import { BandBadge, Card } from '@/components/ui';
+import { secPerKmToMinPerMile } from '@/engine/plan';
+import { CheckInForm } from '@/components/CheckInForm';
+import { AvailabilityForm } from '@/components/AvailabilityForm';
+import { CalendarSubscribe } from '@/components/CalendarSubscribe';
+
+export const dynamic = 'force-dynamic';
+
+const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function pace(sec: number | null): string {
+  return sec == null ? '' : `${secPerKmToMinPerMile(sec)}/mi`;
+}
+function miles(m: number | null): string {
+  return m == null || m <= 0 ? '—' : (m / 1609.344).toFixed(1);
+}
+function dow(day: string): string {
+  const [y, mo, d] = day.split('-').map(Number);
+  const idx = ((Math.floor(Date.UTC(y, mo - 1, d) / 86400000) % 7) + 3) % 7;
+  return DOW[idx];
+}
+
+/**
+ * Athlete-facing portal (magic-link surface). Focused on "what do I do today /
+ * this week", plus the two things only the athlete can provide: a daily check-in
+ * and their availability. Distinct from the coach console.
+ */
+export default async function PortalPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const portal = await getAthletePortal(id);
+  if (!portal) notFound();
+
+  const {
+    athlete,
+    today,
+    readiness,
+    todaySession,
+    thisWeek,
+    comingWeeks,
+    goalRace,
+    unavailable,
+    checkedInToday,
+    recentCheckIns,
+  } = portal;
+
+  const firstName = athlete.fullName.split(' ')[0];
+  const todayCheckIn = recentCheckIns.find((c) => c.day === today) ?? null;
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-4">
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Hi {firstName} 👋</h1>
+          <p className="text-sm text-slate-500">{today}</p>
+        </div>
+        {goalRace.name && (
+          <div className="text-right text-sm">
+            <div className="font-medium text-slate-800">{goalRace.name}</div>
+            <div className="text-slate-500">
+              {goalRace.date}
+              {goalRace.daysAway != null && goalRace.daysAway >= 0 && (
+                <span className="ml-1 font-medium text-violet-700">· {goalRace.daysAway} days</span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Today */}
+      <Card title="Today">
+        <div className="flex items-center gap-3">
+          <BandBadge band={readiness.band} score={readiness.score} />
+          <p className="text-sm text-slate-700">
+            {readiness.sentence ?? 'No readiness reading yet — your check-in below helps.'}
+          </p>
+        </div>
+        <div className="mt-3 rounded-lg bg-slate-50 p-3">
+          {todaySession ? <SessionLine s={todaySession} big /> : (
+            <p className="text-sm text-slate-500">No session scheduled today — rest up.</p>
+          )}
+        </div>
+      </Card>
+
+      {/* Daily check-in */}
+      <Card title={checkedInToday ? 'Today’s check-in ✓' : 'How are you feeling?'}>
+        {checkedInToday && todayCheckIn && (
+          <p className="mb-3 text-xs text-slate-500">
+            Soreness {todayCheckIn.soreness ?? '—'} · Energy {todayCheckIn.energy ?? '—'} · Yesterday RPE{' '}
+            {todayCheckIn.yesterdayRpe ?? '—'}. You can update it below.
+          </p>
+        )}
+        <CheckInForm
+          athleteId={athlete.id}
+          day={today}
+          initial={todayCheckIn ? { soreness: todayCheckIn.soreness, energy: todayCheckIn.energy, yesterdayRpe: todayCheckIn.yesterdayRpe } : null}
+        />
+      </Card>
+
+      {/* This week */}
+      <Card title={thisWeek ? `This week${thisWeek.phase ? ` · ${thisWeek.phase}` : ''}` : 'This week'}>
+        {thisWeek ? (
+          <table className="w-full text-sm">
+            <tbody className="divide-y divide-slate-100">
+              {thisWeek.sessions.map((s) => (
+                <tr key={s.id} className={s.day === today ? 'bg-sky-50' : ''}>
+                  <td className="w-12 px-2 py-2 font-medium text-slate-500">{dow(s.day)}</td>
+                  <td className="w-14 px-2 py-2 text-slate-700">{miles(s.distanceMeters)} mi</td>
+                  <td className="px-2 py-2">
+                    <SessionLine s={s} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-sm text-slate-500">No published plan for this week yet.</p>
+        )}
+      </Card>
+
+      {/* Coming weeks */}
+      {comingWeeks.length > 0 && (
+        <Card title="Coming weeks">
+          <div className="space-y-4">
+            {comingWeeks.map((w) => (
+              <div key={w.weekStart}>
+                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Week of {w.weekStart}
+                  {w.phase && <span className="capitalize"> · {w.phase}</span>}
+                </div>
+                <table className="w-full text-sm">
+                  <tbody className="divide-y divide-slate-100">
+                    {w.sessions.map((s) => (
+                      <tr key={s.id}>
+                        <td className="w-12 px-2 py-1 font-medium text-slate-500">{dow(s.day)}</td>
+                        <td className="w-14 px-2 py-1 text-slate-700">{miles(s.distanceMeters)} mi</td>
+                        <td className="px-2 py-1">
+                          <span className="capitalize text-slate-800">{s.sessionType.replace('_', ' ')}</span>
+                          {s.paceFastSecPerKm != null && (
+                            <span className="ml-2 text-xs text-slate-400">
+                              {pace(s.paceFastSecPerKm)}–{pace(s.paceSlowSecPerKm)}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Availability */}
+      <Card title="Can’t train? Let your coach know">
+        <p className="mb-3 text-xs text-slate-500">
+          Travelling, slammed, or sick? Mark those days and the plan reshapes around them.
+        </p>
+        <AvailabilityForm athleteId={athlete.id} />
+        {unavailable.length > 0 && (
+          <ul className="mt-3 space-y-1 border-t border-slate-100 pt-3 text-sm">
+            {unavailable.map((d) => (
+              <li key={d.id} className="text-slate-700">
+                {d.from}
+                {d.to && d.to !== d.from ? ` → ${d.to}` : ''}
+                {d.label ? ` · ${d.label}` : ''}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      {/* Calendar subscription */}
+      <Card title="Put your plan in your calendar">
+        <CalendarSubscribe athleteId={athlete.id} />
+      </Card>
+    </div>
+  );
+}
+
+function SessionLine({ s, big = false }: { s: PortalSession; big?: boolean }) {
+  return (
+    <div>
+      <span className={`capitalize text-slate-800 ${big ? 'text-base font-medium' : ''}`}>
+        {s.sessionType.replace('_', ' ')}
+      </span>
+      {big && s.distanceMeters != null && s.distanceMeters > 0 && (
+        <span className="ml-2 text-slate-600">{miles(s.distanceMeters)} mi</span>
+      )}
+      {s.paceFastSecPerKm != null && (
+        <span className="ml-2 text-xs text-slate-400">
+          {pace(s.paceFastSecPerKm)}–{pace(s.paceSlowSecPerKm)}
+        </span>
+      )}
+      {s.adjustments.length > 0 && (
+        <span className="ml-2 rounded bg-amber-50 px-1 text-[10px] font-medium text-amber-700">
+          {s.adjustments.join('; ')}
+        </span>
+      )}
+      {s.description && <p className="mt-0.5 text-xs text-slate-500">{s.description}</p>}
+    </div>
+  );
+}
