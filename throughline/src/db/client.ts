@@ -13,7 +13,11 @@ import * as schema from './schema';
 
 export type DB = PgDatabase<PgQueryResultHKT, typeof schema>;
 
-let dbPromise: Promise<DB> | null = null;
+// Memoize on globalThis, NOT a module-level variable. Next's App Router bundles
+// each route/page separately, so a module-level singleton would be duplicated
+// (one PGlite instance per route → writes invisible across routes). globalThis
+// is shared across all bundles in the process, giving a single shared instance.
+const globalForDb = globalThis as unknown as { __throughlineDb?: Promise<DB> };
 
 function isNeonUrl(url: string | undefined): url is string {
   return !!url && !url.includes('localhost');
@@ -68,8 +72,8 @@ async function applyMigrations(client: {
 }
 
 export function getDb(): Promise<DB> {
-  if (!dbPromise) dbPromise = create();
-  return dbPromise;
+  if (!globalForDb.__throughlineDb) globalForDb.__throughlineDb = create();
+  return globalForDb.__throughlineDb;
 }
 
 export { schema };

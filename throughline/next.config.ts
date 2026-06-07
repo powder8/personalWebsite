@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // PGlite ships a wasm binary; keep it external so it isn't bundled.
-  serverExternalPackages: ["@electric-sql/pglite"],
+  // Keep heavy/native-ish server deps external rather than bundled.
+  serverExternalPackages: ["@electric-sql/pglite", "exceljs"],
 };
 
 export default nextConfig;

@@ -37,6 +37,14 @@ export default function RootLayout({
             <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
               Coach Console
             </span>
+            <nav className="ml-auto flex gap-4 text-sm">
+              <Link href="/" className="text-slate-600 hover:text-slate-900">
+                Roster
+              </Link>
+              <Link href="/import" className="text-slate-600 hover:text-slate-900">
+                Import
+              </Link>
+            </nav>
           </div>
         </header>
         <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-6">{children}</main>
