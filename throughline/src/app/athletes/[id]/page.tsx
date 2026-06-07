@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { getAthleteDetail, TODAY, type Band } from '@/server/console';
 import { BandBadge, Card, Sparkline } from '@/components/ui';
 import { secPerKmToMinPerMile } from '@/engine/plan';
+import { EscalationActions } from '@/components/EscalationActions';
+import { ESCALATION_LABELS } from '@/server/escalations';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +37,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
     injuries,
     races,
     raceWindows,
+    escalations,
     signals,
   } = detail;
 
@@ -57,6 +60,25 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       </div>
+
+      {/* Autopilot escalations needing review */}
+      {escalations.length > 0 && (
+        <Card title="Needs review (autopilot held)" className="border-rose-200">
+          <ul className="space-y-2 text-sm">
+            {escalations.map((e) => (
+              <li key={e.id} className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="rounded bg-rose-50 px-1.5 py-0.5 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-200">
+                    {ESCALATION_LABELS[e.kind] ?? e.kind}
+                  </span>
+                  <p className="mt-1 text-slate-600">{e.reason}</p>
+                </div>
+                <EscalationActions id={e.id} status={e.status} />
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {/* Today's readiness */}
       <Card title={`Readiness — ${TODAY}`}>

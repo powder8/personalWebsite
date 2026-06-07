@@ -1,7 +1,17 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { getDb } from "@/db";
+import { countActiveEscalations } from "@/server/escalations";
 import "./globals.css";
+
+async function escalationCount(): Promise<number> {
+  try {
+    return await countActiveEscalations(await getDb());
+  } catch {
+    return 0;
+  }
+}
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,11 +28,12 @@ export const metadata: Metadata = {
   description: "AI endurance coach: readiness-aware training.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const openEscalations = await escalationCount();
   return (
     <html
       lang="en"
@@ -43,6 +54,14 @@ export default function RootLayout({
               </Link>
               <Link href="/import" className="text-slate-600 hover:text-slate-900">
                 Import
+              </Link>
+              <Link href="/escalations" className="flex items-center gap-1 text-slate-600 hover:text-slate-900">
+                Escalations
+                {openEscalations > 0 && (
+                  <span className="rounded-full bg-rose-600 px-1.5 text-[10px] font-semibold text-white">
+                    {openEscalations}
+                  </span>
+                )}
               </Link>
             </nav>
           </div>
