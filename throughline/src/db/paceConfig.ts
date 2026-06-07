@@ -8,11 +8,36 @@ import type { DB } from './client';
 import { athletes, intakeProfiles, engineSettings } from './schema';
 import {
   resolvePaceZones,
+  vdotFromRace,
+  vdotFromThreshold,
   DEFAULT_GLOBAL_MODEL,
   type GlobalPaceModel,
   type AthletePaceConfig,
   type PaceZones,
 } from '@/engine/plan';
+
+/**
+ * The athlete's VDOT taken DIRECTLY from their fitness anchor (race / explicit
+ * VDOT / threshold), with an intake-threshold fallback. Not re-derived from the
+ * resolved training-pace zones — those carry tweaks (bias, overrides) that must
+ * not move the fitness number, and the threshold→VDOT round-trip loses ~2%.
+ */
+export async function getAthleteVdot(db: DB, athleteId: string): Promise<number | null> {
+  const [athlete] = await db.select().from(athletes).where(eq(athletes.id, athleteId)).limit(1);
+  if (!athlete) return null;
+  const cfg = (athlete.paceConfig as AthletePaceConfig | null) ?? {};
+  if (cfg.vdot != null) return cfg.vdot;
+  if (cfg.race) return vdotFromRace(cfg.race);
+  if (cfg.thresholdSecPerKm != null) return vdotFromThreshold(cfg.thresholdSecPerKm);
+
+  const [intake] = await db
+    .select()
+    .from(intakeProfiles)
+    .where(eq(intakeProfiles.athleteId, athleteId))
+    .limit(1);
+  const t = (intake?.answers as { thresholdSecPerKm?: number } | null)?.thresholdSecPerKm;
+  return t != null ? vdotFromThreshold(t) : null;
+}
 
 export async function getGlobalPaceModel(db: DB): Promise<GlobalPaceModel> {
   const [row] = await db.select().from(engineSettings).where(eq(engineSettings.id, 'global')).limit(1);

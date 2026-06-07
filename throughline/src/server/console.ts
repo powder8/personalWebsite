@@ -9,13 +9,12 @@ import {
   suggestRaceWindows,
   annotateWindows,
   paceRangeLabel,
-  vdotFromThreshold,
   equivalentPerformances,
   type RaceWindow,
   type EquivalentPerformance,
   type AthletePaceConfig,
 } from '@/engine/plan';
-import { getAthleteZones } from '@/db/paceConfig';
+import { getAthleteZones, getAthleteVdot } from '@/db/paceConfig';
 import { listEscalationsForAthlete, type EscalationRow } from '@/server/escalations';
 import { getUpcomingWeeks, type UpcomingWeek } from '@/server/season';
 import { listActiveDirectives, type DirectiveRow } from '@/server/directives';
@@ -301,8 +300,13 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
           (k) => ({ key: k, label: paceRangeLabel(zones.zones[k]) }),
         )
       : [],
-    vdot: zones ? Math.round(vdotFromThreshold(zones.thresholdSecPerKm) * 10) / 10 : null,
-    equivalents: zones ? equivalentPerformances(vdotFromThreshold(zones.thresholdSecPerKm)) : [],
+    ...(await (async () => {
+      const v = await getAthleteVdot(db, id);
+      return {
+        vdot: v != null ? Math.round(v * 10) / 10 : null,
+        equivalents: v != null ? equivalentPerformances(v) : [],
+      };
+    })()),
     strengthBias: ((athlete.paceConfig as AthletePaceConfig | null) ?? {}).strengthBias ?? 0,
     ...(await activitySummary(db, id)),
     signals: { hrv: hrvRows, restingHr: rhrRows, sleepHours },
