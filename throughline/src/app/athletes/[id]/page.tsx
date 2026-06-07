@@ -11,6 +11,7 @@ import { PostButton } from '@/components/PostButton';
 import { StrengthControl } from '@/components/StrengthControl';
 import { PmcChart, PmcLegend } from '@/components/PmcChart';
 import { getFitnessFatigueSeries } from '@/server/fitness';
+import { getComplianceWeeks, type DayStatus } from '@/server/compliance';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +34,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
   const detail = await getAthleteDetail(id);
   if (!detail) notFound();
   const fitness = await getFitnessFatigueSeries(id);
+  const compliance = await getComplianceWeeks(id, TODAY);
 
   const {
     athlete,
@@ -274,6 +276,57 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
         </Card>
       )}
 
+      {/* Adherence / compliance */}
+      {compliance.weeks.length > 0 && (
+        <Card title="Adherence (planned vs actual)">
+          {compliance.hasActuals ? (
+            <div className="space-y-3">
+              {compliance.weeks.map((w) => (
+                <div key={w.weekStart} className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span className="w-24 text-xs font-medium text-slate-500">{w.weekStart}</span>
+                  <span className="flex gap-0.5">
+                    {w.days.map((d) => (
+                      <span
+                        key={d.day}
+                        title={`${d.day}: ${d.status}${
+                          d.plannedMiles ? ` · planned ${d.plannedMiles.toFixed(1)}mi` : ''
+                        }${d.actualMiles ? ` · actual ${d.actualMiles.toFixed(1)}mi` : ''}`}
+                        className={`inline-block h-3 w-3 rounded-sm ${STATUS_COLOR[d.status]}`}
+                      />
+                    ))}
+                  </span>
+                  <span className="text-xs tabular-nums text-slate-600">
+                    {w.actualMiles.toFixed(0)}/{w.plannedMiles.toFixed(0)} mi
+                  </span>
+                  {w.adherencePct != null && (
+                    <span
+                      className={`text-xs font-medium tabular-nums ${
+                        w.adherencePct >= 80 ? 'text-emerald-700' : w.adherencePct >= 50 ? 'text-amber-700' : 'text-rose-600'
+                      }`}
+                    >
+                      {w.adherencePct}% ({w.sessionsDone}/{w.sessionsPlanned})
+                    </span>
+                  )}
+                </div>
+              ))}
+              <div className="flex flex-wrap gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-[11px] text-slate-400">
+                <Legend color={STATUS_COLOR.done} label="done" />
+                <Legend color={STATUS_COLOR.partial} label="partial" />
+                <Legend color={STATUS_COLOR.missed} label="missed" />
+                <Legend color={STATUS_COLOR.extra} label="extra" />
+                <Legend color={STATUS_COLOR.upcoming} label="upcoming" />
+                <Legend color={STATUS_COLOR.rest} label="rest" />
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">
+              No completed-activity data yet. Connect Strava (or import a current training log) to track
+              planned-vs-actual adherence.
+            </p>
+          )}
+        </Card>
+      )}
+
       {/* Current plan week */}
       <Card title={currentWeek ? `This week — ${currentWeek.plan.phase ?? ''} (cycle ${currentWeek.plan.cycle ?? '—'})` : 'This week'}>
         {currentWeek ? (
@@ -491,6 +544,23 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
         </table>
       </Card>
     </div>
+  );
+}
+
+const STATUS_COLOR: Record<DayStatus, string> = {
+  done: 'bg-emerald-500',
+  partial: 'bg-amber-400',
+  missed: 'bg-rose-500',
+  upcoming: 'bg-slate-200',
+  rest: 'bg-slate-100 ring-1 ring-inset ring-slate-200',
+  extra: 'bg-sky-400',
+};
+
+function Legend({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className={`inline-block h-2.5 w-2.5 rounded-sm ${color}`} /> {label}
+    </span>
   );
 }
 
