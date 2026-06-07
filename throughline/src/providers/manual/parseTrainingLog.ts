@@ -74,15 +74,143 @@ export async function parseTrainingLogBuffer(
 }
 
 export function parseWorkbook(wb: ExcelJS.Workbook, opts: ParseOptions): ParsedDay[] {
-  const out: ParsedDay[] = [];
-  wb.eachSheet((ws) => {
-    if (NON_WEEK_SHEETS.has(ws.name.trim().toLowerCase())) return;
-    out.push(...parseWeekSheet(ws, opts));
-  });
+  // Two known shapes: a flat daily table (a real "Date" column) vs the weekly
+  // sheet-per-week layout. Detect and dispatch.
+  const flatSheet = wb.worksheets.find((ws) => flatHeaderRow(ws) != null);
+  const out: ParsedDay[] = flatSheet
+    ? parseFlatSheet(flatSheet)
+    : (() => {
+        const acc: ParsedDay[] = [];
+        wb.eachSheet((ws) => {
+          if (NON_WEEK_SHEETS.has(ws.name.trim().toLowerCase())) return;
+          acc.push(...parseWeekSheet(ws, opts));
+        });
+        return acc;
+      })();
+
   // Sort chronologically and de-dupe by date (last wins).
   const byDate = new Map<string, ParsedDay>();
   for (const d of out.sort((a, b) => a.date.localeCompare(b.date))) byDate.set(d.date, d);
   return Array.from(byDate.values());
+}
+
+// --- flat daily-table format (e.g. an exported "log_report") ---
+
+interface FlatCols {
+  date: number;
+  logged?: number;
+  assigned?: number;
+  type?: number;
+  description?: number;
+  phase?: number;
+  pace?: number; // "Log Pace Per Mile"
+}
+
+/** Returns the header row number if this sheet is a flat daily log (has a Date column). */
+function flatHeaderRow(ws: ExcelJS.Worksheet): number | null {
+  const max = Math.min(ws.rowCount || 3, 3);
+  for (let r = 1; r <= max; r++) {
+    const cells: string[] = [];
+    ws.getRow(r).eachCell((c) => cells.push(cellText(c).toLowerCase().trim()));
+    if (cells.includes('date') && cells.some((t) => t.includes('miles') || t.includes('workout'))) {
+      return r;
+    }
+  }
+  return null;
+}
+
+function mapFlatColumns(row: ExcelJS.Row): FlatCols {
+  // Exact matches — these logs often carry parallel metric columns
+  // ("Logged Kilometers", "Workout Description(Kms)") we must NOT pick.
+  const cols: Partial<FlatCols> = {};
+  row.eachCell((cell, c) => {
+    const t = cellText(cell).toLowerCase().trim();
+    if (t === 'date') cols.date = c;
+    else if (t === 'logged miles') cols.logged = c;
+    else if (t === 'assigned miles') cols.assigned = c;
+    else if (t === 'type of workout' || t === 'type') cols.type = c;
+    else if (t === 'workout description') cols.description = c;
+    else if (t === 'log pace per mile') cols.pace = c;
+    else if (t.includes('phase')) cols.phase = c;
+  });
+  return cols as FlatCols;
+}
+
+function mapTypeToSport(type: string): 'run' | 'cross_train' | 'other' {
+  const t = type.toLowerCase();
+  if (/bike|cycl|swim|aqua|elliptical|pool|cross/.test(t)) return 'cross_train';
+  if (/rest|hike|off\b/.test(t)) return 'other';
+  return 'run';
+}
+
+/** Parse a "Log Pace Per Mile" cell ("7:08") → sec/km. */
+function parsePaceCell(cell: ExcelJS.Cell): number | null {
+  const m = cellText(cell).match(/(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  const secPerMile = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  return secPerMile > 240 && secPerMile < 900 ? secPerMile / MI_TO_KM : null;
+}
+
+function parseFlatSheet(ws: ExcelJS.Worksheet): ParsedDay[] {
+  const headerRow = flatHeaderRow(ws)!;
+  const cols = mapFlatColumns(ws.getRow(headerRow));
+  if (cols.date == null) return [];
+
+  const days: ParsedDay[] = [];
+  const lastRow = ws.actualRowCount || ws.rowCount;
+  for (let r = headerRow + 1; r <= lastRow; r++) {
+    const row = ws.getRow(r);
+    const dateVal = row.getCell(cols.date).value;
+    const date = dateVal instanceof Date ? dateVal.toISOString().slice(0, 10) : null;
+    if (!date) continue;
+
+    const type = cols.type ? cellText(row.getCell(cols.type)) : '';
+    const description = cols.description ? cellText(row.getCell(cols.description)) : '';
+    const logged = cols.logged ? numberFrom(row.getCell(cols.logged)) : null;
+    const assigned = cols.assigned ? numberFrom(row.getCell(cols.assigned)) : null;
+    const sport = mapTypeToSport(type);
+    // Prefer the dedicated pace column; else parse a steady "@ pace" from text.
+    const avgPaceSecPerKm =
+      (cols.pace ? parsePaceCell(row.getCell(cols.pace)) : null) ??
+      (/easy|maintenance|recovery|long|aerobic/i.test(type) ? parseAtPace(description) : null);
+    const actualMiles = logged != null && logged > 0 ? logged : null;
+
+    days.push({
+      date,
+      dayName: '',
+      sheetName: ws.name,
+      sport,
+      assignedMiles: assigned != null ? { value: assigned, lo: assigned, hi: assigned, wasDateBug: false } : null,
+      actualMiles,
+      workout: [type, description].filter(Boolean).join(' — '),
+      warmup: '',
+      cooldown: '',
+      description,
+      core: '',
+      avgPaceSecPerKm,
+      durationSeconds:
+        avgPaceSecPerKm != null && actualMiles != null
+          ? Math.round(actualMiles * MI_TO_KM * avgPaceSecPerKm)
+          : null,
+    });
+  }
+  return days;
+}
+
+function numberFrom(cell: ExcelJS.Cell): number | null {
+  const v = cell.value;
+  if (typeof v === 'number' && isFinite(v)) return v;
+  const m = cellText(cell).match(/-?\d+(?:\.\d+)?/);
+  return m ? parseFloat(m[0]) : null;
+}
+
+/** Parse "@ 7:08/mi" style steady-run paces → sec/km. */
+function parseAtPace(desc: string): number | null {
+  const m = desc.match(/@?\s*(\d{1,2}):(\d{2})\s*\/\s*mi/i);
+  if (!m) return null;
+  const secPerMile = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  if (secPerMile > 240 && secPerMile < 900) return secPerMile / MI_TO_KM;
+  return null;
 }
 
 function parseWeekSheet(ws: ExcelJS.Worksheet, opts: ParseOptions): ParsedDay[] {

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ImportForm } from '@/components/ImportForm';
+import { FileUploadForm } from '@/components/FileUploadForm';
 import { Card } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +19,15 @@ export default function ImportPage() {
         </p>
       </div>
 
-      <Card>
+      <Card title="Upload files">
+        <p className="mb-3 text-xs text-slate-500">
+          Upload one or more training-log spreadsheets (.xlsx). Multiple formats are supported
+          (weekly sheets or a flat daily log).
+        </p>
+        <FileUploadForm />
+      </Card>
+
+      <Card title="Or import from Google Sheets links">
         <ImportForm />
       </Card>
 

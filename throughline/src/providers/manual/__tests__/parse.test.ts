@@ -7,6 +7,8 @@ import { parseTrainingLogFile, parseAvgPace, type ParsedDay } from '../parseTrai
 
 const FIXTURE = join(process.cwd(), 'sample-data', 'moira-build-2021.xlsx');
 const hasFixture = existsSync(FIXTURE);
+const FLAT_FIXTURE = join(process.cwd(), 'sample-data', 'heather-tanner-rclog.xlsx');
+const hasFlat = existsSync(FLAT_FIXTURE);
 
 // --- pure pace parsing (no file needed) ---
 
@@ -62,4 +64,19 @@ test('parses the real Moira training log', { skip: !hasFixture }, async () => {
   // Mostly running.
   const runs = days.filter((d: ParsedDay) => d.sport === 'run').length;
   assert.ok(runs / days.length > 0.7);
+});
+
+test('parses a flat daily-log format and picks IMPERIAL columns (not metric)', { skip: !hasFlat }, async () => {
+  const days = await parseTrainingLogFile(FLAT_FIXTURE, { year: 2013 });
+  assert.ok(days.length > 300, `expected many days, got ${days.length}`);
+  // Real dates → no date-bug reversals.
+  assert.ok(!days.some((d) => d.assignedMiles?.wasDateBug));
+
+  // Miles must be imperial (~10), NOT the parallel km column (~16).
+  const easy = days.find((d) => /easy/i.test(d.workout) && d.actualMiles != null)!;
+  assert.ok(easy.actualMiles! < 14, `imperial miles expected, got ${easy.actualMiles}`);
+
+  // The "Log Pace Per Mile" column is used: ~7:08/mi ≈ 266 s/km.
+  const withPace = days.find((d) => d.avgPaceSecPerKm != null)!;
+  assert.ok(withPace.avgPaceSecPerKm! > 230 && withPace.avgPaceSecPerKm! < 320);
 });

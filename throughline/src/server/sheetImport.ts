@@ -67,3 +67,81 @@ export async function importFromSheetUrl(
   const result = await importParsedDays(db, athleteId, days, { fileName: `gsheet:${parseSheetId(input.url)}` });
   return { ...result, athleteId };
 }
+
+export interface MultiImportInput {
+  name: string;
+  email: string;
+  files: { url: string; year: number }[];
+}
+
+export interface MultiImportResult {
+  athleteId: string;
+  totals: ImportResult;
+  perFile: { url: string; ok: boolean; error?: string; result?: ImportResult }[];
+}
+
+/**
+ * Import several training-log links for ONE athlete (e.g. one file per season).
+ * A bad link is reported per-file and doesn't abort the rest; imports are
+ * idempotent so re-sharing the same file is safe.
+ */
+export async function importMultipleSheets(db: DB, input: MultiImportInput): Promise<MultiImportResult> {
+  if (!input.files?.length) throw new Error('No files provided.');
+  const athleteId = await ensureAthlete(db, input.name.trim(), input.email.trim().toLowerCase());
+  const totals: ImportResult = { days: 0, rawEvents: 0, activities: 0, dateBugFixes: 0, pacesParsed: 0 };
+  const perFile: MultiImportResult['perFile'] = [];
+
+  for (const f of input.files) {
+    try {
+      const buf = await fetchSheetBuffer(f.url);
+      const days = await parseTrainingLogBuffer(buf, { year: f.year });
+      if (days.length === 0) throw new Error('No weekly training data found.');
+      const result = await importParsedDays(db, athleteId, days, {
+        fileName: `gsheet:${parseSheetId(f.url)}`,
+      });
+      totals.days += result.days;
+      totals.rawEvents += result.rawEvents;
+      totals.activities += result.activities;
+      totals.dateBugFixes += result.dateBugFixes;
+      totals.pacesParsed += result.pacesParsed;
+      perFile.push({ url: f.url, ok: true, result });
+    } catch (e) {
+      perFile.push({ url: f.url, ok: false, error: e instanceof Error ? e.message : 'Import failed.' });
+    }
+  }
+  return { athleteId, totals, perFile };
+}
+
+export interface UploadedFile {
+  name: string;
+  buffer: Buffer;
+  year: number;
+}
+
+/** Import one or more UPLOADED training-log files for one athlete (any format). */
+export async function importUploadedFiles(
+  db: DB,
+  input: { name: string; email: string; files: UploadedFile[] },
+): Promise<MultiImportResult> {
+  if (!input.files?.length) throw new Error('No files provided.');
+  const athleteId = await ensureAthlete(db, input.name.trim(), input.email.trim().toLowerCase());
+  const totals: ImportResult = { days: 0, rawEvents: 0, activities: 0, dateBugFixes: 0, pacesParsed: 0 };
+  const perFile: MultiImportResult['perFile'] = [];
+
+  for (const f of input.files) {
+    try {
+      const days = await parseTrainingLogBuffer(f.buffer, { year: f.year });
+      if (days.length === 0) throw new Error('No training data found.');
+      const result = await importParsedDays(db, athleteId, days, { fileName: f.name });
+      totals.days += result.days;
+      totals.rawEvents += result.rawEvents;
+      totals.activities += result.activities;
+      totals.dateBugFixes += result.dateBugFixes;
+      totals.pacesParsed += result.pacesParsed;
+      perFile.push({ url: f.name, ok: true, result });
+    } catch (e) {
+      perFile.push({ url: f.name, ok: false, error: e instanceof Error ? e.message : 'Import failed.' });
+    }
+  }
+  return { athleteId, totals, perFile };
+}

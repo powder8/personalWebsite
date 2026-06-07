@@ -5,16 +5,25 @@ import { useState } from 'react';
 interface Result {
   ok?: boolean;
   athleteId?: string;
-  activities?: number;
-  rawEvents?: number;
-  dateBugFixes?: number;
-  pacesParsed?: number;
+  totals?: { activities: number; dateBugFixes: number; pacesParsed: number };
+  perFile?: { url: string; ok: boolean; error?: string }[];
   error?: string;
 }
 
+interface LinkRow {
+  url: string;
+  year: string;
+}
+
 export function ImportForm() {
+  const [links, setLinks] = useState<LinkRow[]>([{ url: '', year: String(new Date().getFullYear()) }]);
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
+
+  const update = (i: number, patch: Partial<LinkRow>) =>
+    setLinks((rows) => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const add = () => setLinks((rows) => [...rows, { url: '', year: String(new Date().getFullYear()) }]);
+  const remove = (i: number) => setLinks((rows) => rows.filter((_, j) => j !== i));
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -22,10 +31,9 @@ export function ImportForm() {
     setResult(null);
     const fd = new FormData(e.currentTarget);
     const body = {
-      url: String(fd.get('url') ?? ''),
       name: String(fd.get('name') ?? ''),
       email: String(fd.get('email') ?? ''),
-      year: String(fd.get('year') ?? ''),
+      files: links.filter((l) => l.url.trim()).map((l) => ({ url: l.url, year: Number(l.year) })),
     };
     try {
       const res = await fetch('/api/import', {
@@ -35,42 +43,58 @@ export function ImportForm() {
       });
       setResult(await res.json());
     } catch {
-      setResult({ error: 'Network error — is the app reachable?' });
+      setResult({ error: 'Network error.' });
     } finally {
       setPending(false);
     }
   }
 
-  const field = 'mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm';
-
+  const field = 'rounded border border-slate-300 px-2 py-1.5 text-sm';
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <label className="block">
-        <span className="text-sm font-medium text-slate-700">Google Sheets link</span>
-        <input
-          name="url"
-          required
-          placeholder="https://docs.google.com/spreadsheets/d/…"
-          className={field}
-        />
-        <span className="mt-1 block text-xs text-slate-500">
-          Set the sheet’s sharing to <strong>Anyone with the link → Viewer</strong> first.
-        </span>
-      </label>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="text-xs text-slate-600">
+          Athlete name
+          <input name="name" required placeholder="Moira Kahn" className={`mt-0.5 w-full ${field}`} />
+        </label>
+        <label className="text-xs text-slate-600">
+          Email (unique id)
+          <input name="email" type="email" required placeholder="moira@…" className={`mt-0.5 w-full ${field}`} />
+        </label>
+      </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <label className="block">
-          <span className="text-sm font-medium text-slate-700">Athlete name</span>
-          <input name="name" required placeholder="Moira Kahn" className={field} />
-        </label>
-        <label className="block">
-          <span className="text-sm font-medium text-slate-700">Email (unique id)</span>
-          <input name="email" type="email" required placeholder="moira@…" className={field} />
-        </label>
-        <label className="block">
-          <span className="text-sm font-medium text-slate-700">Build year</span>
-          <input name="year" type="number" required defaultValue={2025} className={field} />
-        </label>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-slate-600">Google Sheets links (one per season)</span>
+          <button type="button" onClick={add} className="text-xs font-medium text-sky-700 hover:underline">
+            + Add another file
+          </button>
+        </div>
+        {links.map((l, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              value={l.url}
+              onChange={(e) => update(i, { url: e.target.value })}
+              placeholder="https://docs.google.com/spreadsheets/d/…"
+              className={`flex-1 ${field}`}
+            />
+            <input
+              value={l.year}
+              onChange={(e) => update(i, { year: e.target.value })}
+              type="number"
+              className={`w-20 ${field}`}
+              title="Build year"
+            />
+            {links.length > 1 && (
+              <button type="button" onClick={() => remove(i)} className="text-xs text-rose-600">
+                ✕
+              </button>
+            )}
+          </div>
+        ))}
+        <p className="text-xs text-slate-500">
+          Set each sheet’s sharing to <strong>Anyone with the link → Viewer</strong>.
+        </p>
       </div>
 
       <button
@@ -78,21 +102,25 @@ export function ImportForm() {
         disabled={pending}
         className="rounded bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
       >
-        {pending ? 'Importing…' : 'Import training log'}
+        {pending ? 'Importing…' : 'Import from links'}
       </button>
 
       {result?.error && (
-        <p className="rounded bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
-          {result.error}
-        </p>
+        <p className="rounded bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">{result.error}</p>
       )}
-      {result?.ok && (
+      {result?.ok && result.totals && (
         <div className="rounded bg-emerald-50 px-3 py-2 text-sm text-emerald-800 ring-1 ring-inset ring-emerald-200">
-          Imported <strong>{result.activities}</strong> runs ·{' '}
-          {result.dateBugFixes} date-range fixes · {result.pacesParsed} paces parsed.{' '}
+          Imported <strong>{result.totals.activities}</strong> runs across {result.perFile?.length} file(s).{' '}
           <a className="font-medium underline" href={`/athletes/${result.athleteId}`}>
             View athlete →
           </a>
+          {result.perFile?.some((f) => !f.ok) && (
+            <ul className="mt-1 list-disc pl-4 text-xs text-rose-700">
+              {result.perFile.filter((f) => !f.ok).map((f) => (
+                <li key={f.url}>{f.error}</li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </form>
