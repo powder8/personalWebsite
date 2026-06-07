@@ -1,8 +1,10 @@
 import type { Provider, ProviderId } from './types';
 import { garmin } from './garmin';
+import { strava } from './strava';
 
 const registry: Record<ProviderId, Provider> = {
   garmin,
+  strava,
 };
 
 export function getProvider(id: ProviderId): Provider {

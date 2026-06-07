@@ -5,6 +5,7 @@ import { secPerKmToMinPerMile } from '@/engine/plan';
 import { CheckInForm } from '@/components/CheckInForm';
 import { AvailabilityForm } from '@/components/AvailabilityForm';
 import { CalendarSubscribe } from '@/components/CalendarSubscribe';
+import { ConnectStrava } from '@/components/ConnectStrava';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +44,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
     unavailable,
     checkedInToday,
     recentCheckIns,
+    strava,
   } = portal;
 
   const firstName = athlete.fullName.split(' ')[0];
@@ -170,6 +172,16 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
             ))}
           </ul>
         )}
+      </Card>
+
+      {/* Connect Strava */}
+      <Card title="Connect your watch (via Strava)">
+        <ConnectStrava
+          athleteId={athlete.id}
+          connected={strava.connected}
+          configured={strava.configured}
+          lastActivityDay={strava.lastActivityDay}
+        />
       </Card>
 
       {/* Calendar subscription */}

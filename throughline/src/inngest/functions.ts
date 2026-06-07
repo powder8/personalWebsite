@@ -9,15 +9,9 @@
 import { eq } from 'drizzle-orm';
 import { inngest, events } from './client';
 import { getDb } from '@/db';
-import {
-  rawEvents,
-  activities,
-  dailySummaries,
-  sleepRecords,
-  hrvRecords,
-  restingHrRecords,
-} from '@/db/schema';
+import { rawEvents } from '@/db/schema';
 import { getProvider } from '@/providers';
+import { persistNormalizedBatch } from '@/server/ingest';
 
 export const normalizeRawEvent = inngest.createFunction(
   { id: 'normalize-raw-event', retries: 4, triggers: [{ event: events.rawEventReceived }] },
@@ -36,7 +30,7 @@ export const normalizeRawEvent = inngest.createFunction(
     // Manual imports are normalized at import time, not here. Capture into a
     // const so the narrowing survives into the step closure below.
     const providerId = raw.provider;
-    if (providerId !== 'garmin') return { skipped: 'non-provider-event' };
+    if (providerId !== 'garmin' && providerId !== 'strava') return { skipped: 'non-provider-event' };
 
     const athleteId = raw.athleteId;
 
@@ -46,41 +40,7 @@ export const normalizeRawEvent = inngest.createFunction(
     await step.run('normalize-and-persist', async () => {
       const provider = getProvider(providerId);
       const batch = provider.normalize(raw.eventType, raw.payload);
-      const common = { athleteId, rawEventId: raw.id };
-
-      if (batch.activities?.length) {
-        await db
-          .insert(activities)
-          .values(batch.activities.map((a) => ({ ...a, ...common })))
-          .onConflictDoNothing({ target: activities.sourceRef });
-      }
-      if (batch.dailySummaries?.length) {
-        await db
-          .insert(dailySummaries)
-          .values(batch.dailySummaries.map((d) => ({ ...d, ...common })))
-          .onConflictDoUpdate({
-            target: [dailySummaries.athleteId, dailySummaries.day],
-            set: { metrics: batch.dailySummaries[0].metrics },
-          });
-      }
-      if (batch.sleepRecords?.length) {
-        await db
-          .insert(sleepRecords)
-          .values(batch.sleepRecords.map((s) => ({ ...s, ...common })))
-          .onConflictDoNothing({ target: [sleepRecords.athleteId, sleepRecords.day] });
-      }
-      if (batch.hrvRecords?.length) {
-        await db
-          .insert(hrvRecords)
-          .values(batch.hrvRecords.map((h) => ({ ...h, ...common })))
-          .onConflictDoNothing({ target: [hrvRecords.athleteId, hrvRecords.day] });
-      }
-      if (batch.restingHrRecords?.length) {
-        await db
-          .insert(restingHrRecords)
-          .values(batch.restingHrRecords.map((r) => ({ ...r, ...common })))
-          .onConflictDoNothing({ target: [restingHrRecords.athleteId, restingHrRecords.day] });
-      }
+      await persistNormalizedBatch(db, athleteId, raw.id, batch);
     });
 
     // Mark consumed (the one allowed write to a raw_event).

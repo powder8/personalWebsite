@@ -32,7 +32,7 @@ import {
 // Enums
 // ---------------------------------------------------------------------------
 
-export const providerEnum = pgEnum('provider', ['garmin', 'manual']);
+export const providerEnum = pgEnum('provider', ['garmin', 'strava', 'manual']);
 
 export const connectionStatusEnum = pgEnum('connection_status', [
   'pending',

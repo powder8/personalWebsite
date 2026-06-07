@@ -18,8 +18,11 @@ import {
   plans,
   plannedSessions,
   checkIns,
+  activities,
 } from '@/db/schema';
 import { TODAY, type Band } from '@/server/console';
+import { getStravaAccount } from '@/server/strava';
+import { stravaConfigured } from '@/providers/strava/env';
 
 export interface PortalSession {
   id: string;
@@ -51,6 +54,7 @@ export interface AthletePortal {
   unavailable: DirectiveRow[];
   checkedInToday: boolean;
   recentCheckIns: { day: string; soreness: number | null; energy: number | null; yesterdayRpe: number | null }[];
+  strava: { configured: boolean; connected: boolean; lastActivityDay: string | null };
 }
 
 function daysBetween(a: string, b: string): number {
@@ -142,6 +146,18 @@ export async function getAthletePortal(id: string): Promise<AthletePortal | null
 
   const daysAway = athlete.goalRaceDate ? daysBetween(TODAY, athlete.goalRaceDate) : null;
 
+  const stravaAcct = await getStravaAccount(db, id);
+  let lastActivityDay: string | null = null;
+  if (stravaAcct) {
+    const [latest] = await db
+      .select({ startTime: activities.startTime })
+      .from(activities)
+      .where(eq(activities.athleteId, id))
+      .orderBy(desc(activities.startTime))
+      .limit(1);
+    lastActivityDay = latest?.startTime ? latest.startTime.toISOString().slice(0, 10) : null;
+  }
+
   return {
     athlete,
     today: TODAY,
@@ -162,5 +178,10 @@ export async function getAthletePortal(id: string): Promise<AthletePortal | null
       energy: c.energy,
       yesterdayRpe: c.yesterdayRpe,
     })),
+    strava: {
+      configured: stravaConfigured(),
+      connected: !!stravaAcct && stravaAcct.status === 'active',
+      lastActivityDay,
+    },
   };
 }
