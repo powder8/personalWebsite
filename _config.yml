@@ -1,0 +1,8 @@
+# GitHub Pages (badoo.net) builds the static personal site from this repo.
+# The Throughline app lives in throughline/ and is deployed separately on
+# Vercel (throughline.badoo.net) — exclude it so Pages never tries to serve or
+# process it.
+exclude:
+  - throughline
+  - BUILD_SPEC.md
+  - README.md
