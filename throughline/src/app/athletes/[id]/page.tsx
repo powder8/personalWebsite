@@ -9,6 +9,8 @@ import { PaceAdjustForm } from '@/components/PaceAdjustForm';
 import { AdjustmentForm } from '@/components/AdjustmentForm';
 import { PostButton } from '@/components/PostButton';
 import { StrengthControl } from '@/components/StrengthControl';
+import { PmcChart, PmcLegend } from '@/components/PmcChart';
+import { getFitnessFatigueSeries } from '@/server/fitness';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +32,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const detail = await getAthleteDetail(id);
   if (!detail) notFound();
+  const fitness = await getFitnessFatigueSeries(id);
 
   const {
     athlete,
@@ -233,6 +236,43 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           <SignalCell label="Sleep (hrs)" series={signals.sleepHours} stroke="#8b5cf6" />
         </div>
       </Card>
+
+      {/* Fitness & fatigue (PMC) */}
+      {fitness.current && (
+        <Card title="Fitness & fatigue">
+          <div className="mb-2 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+            <span>
+              <span className="text-slate-400">Fitness (CTL)</span>{' '}
+              <span className="font-medium tabular-nums text-sky-700">{fitness.current.ctl.toFixed(0)}</span>
+            </span>
+            <span>
+              <span className="text-slate-400">Fatigue (ATL)</span>{' '}
+              <span className="font-medium tabular-nums text-orange-600">{fitness.current.atl.toFixed(0)}</span>
+            </span>
+            <span>
+              <span className="text-slate-400">Form (TSB)</span>{' '}
+              <span
+                className={`font-medium tabular-nums ${
+                  fitness.current.tsb >= 0 ? 'text-emerald-700' : 'text-rose-600'
+                }`}
+              >
+                {fitness.current.tsb >= 0 ? '+' : ''}
+                {fitness.current.tsb.toFixed(0)}
+              </span>
+              {fitness.form && <span className="ml-1 text-xs capitalize text-slate-400">({fitness.form})</span>}
+            </span>
+          </div>
+          <PmcChart points={fitness.points} />
+          <div className="mt-2">
+            <PmcLegend />
+          </div>
+          <p className="mt-2 text-xs text-slate-400">
+            Banister CTL/ATL/TSB from training load
+            {fitness.estimated ? ' (volume-estimated — no HR/power on these activities)' : ''}. Last{' '}
+            {fitness.points.length} days.
+          </p>
+        </Card>
+      )}
 
       {/* Current plan week */}
       <Card title={currentWeek ? `This week — ${currentWeek.plan.phase ?? ''} (cycle ${currentWeek.plan.cycle ?? '—'})` : 'This week'}>
