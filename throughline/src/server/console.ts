@@ -19,6 +19,7 @@ import {
   restingHrRecords,
   sleepRecords,
   races,
+  escalations,
 } from '@/db/schema';
 
 export const TODAY = '2026-06-06';
@@ -30,6 +31,7 @@ export interface RosterEntry {
   name: string;
   race: string | null;
   raceDate: string | null;
+  coachingMode: 'assisted' | 'autonomous';
   readiness: { score: number | null; band: Band | null; sentence: string | null };
   todaySession: { sessionType: string; description: string | null } | null;
   flags: string[];
@@ -69,16 +71,24 @@ export async function getRoster(): Promise<RosterEntry[]> {
 
       const todaySession = await getTodaySession(a.id);
 
+      const openEsc = await db
+        .select({ id: escalations.id })
+        .from(escalations)
+        .where(and(eq(escalations.athleteId, a.id), eq(escalations.status, 'open')));
+      const needsReview = openEsc.length > 0;
+
       const band = (readiness?.band as Band | undefined) ?? null;
       const flags: string[] = [];
       if (band === 'easy') flags.push('low readiness');
       if (activeInjuries > 0) flags.push('active injury');
+      if (needsReview) flags.push('needs review');
 
       return {
         id: a.id,
         name: a.fullName,
         race: a.goalRace,
         raceDate: a.goalRaceDate,
+        coachingMode: a.coachingMode,
         readiness: {
           score: readiness?.score ?? null,
           band,
@@ -86,7 +96,7 @@ export async function getRoster(): Promise<RosterEntry[]> {
         },
         todaySession,
         flags,
-        attention: attentionScore(band, activeInjuries, false),
+        attention: attentionScore(band, activeInjuries, false) + (needsReview ? 2 : 0),
       } satisfies RosterEntry;
     }),
   );

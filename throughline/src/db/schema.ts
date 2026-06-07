@@ -110,6 +110,20 @@ export const raceGoalTypeEnum = pgEnum('race_goal_type', ['time', 'pace', 'place
 
 export const raceStatusEnum = pgEnum('race_status', ['planned', 'completed', 'skipped']);
 
+/** Who drives this athlete's coaching: a human coach (assisted) or the app. */
+export const coachingModeEnum = pgEnum('coaching_mode', ['assisted', 'autonomous']);
+
+/** Why the autopilot escalated to a human instead of auto-publishing. */
+export const escalationKindEnum = pgEnum('escalation_kind', [
+  'active_injury',
+  'repeated_low_readiness',
+  'large_plan_change',
+  'stale_data',
+  'other',
+]);
+
+export const escalationStatusEnum = pgEnum('escalation_status', ['open', 'acknowledged', 'resolved']);
+
 /** Structured coach instruction kinds. Effect-windowed. */
 export const directiveKindEnum = pgEnum('directive_kind', [
   'intensity_cap',
@@ -156,6 +170,8 @@ export const athletes = pgTable(
     // Per-athlete pace customization (AthletePaceConfig): VDOT/threshold anchor
     // + per-zone overrides, layered on the global model. Null = pure global.
     paceConfig: jsonb('pace_config'),
+    // Who coaches this athlete: a human (assisted) or the app (autonomous).
+    coachingMode: coachingModeEnum('coaching_mode').notNull().default('assisted'),
     active: boolean('active').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -220,6 +236,28 @@ export const races = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('races_athlete_date_idx').on(t.athleteId, t.date)],
+);
+
+/**
+ * Autopilot escalations: when an athlete is coached autonomously but a guardrail
+ * trips, the app holds off auto-publishing and raises an escalation for a human
+ * to review. The open set is the autonomous-mode "needs attention" queue.
+ */
+export const escalations = pgTable(
+  'escalations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    athleteId: uuid('athlete_id')
+      .notNull()
+      .references(() => athletes.id, { onDelete: 'cascade' }),
+    kind: escalationKindEnum('kind').notNull(),
+    status: escalationStatusEnum('status').notNull().default('open'),
+    reason: text('reason').notNull(),
+    context: jsonb('context'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  },
+  (t) => [index('escalations_athlete_status_idx').on(t.athleteId, t.status)],
 );
 
 // ---------------------------------------------------------------------------

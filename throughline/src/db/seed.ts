@@ -29,6 +29,7 @@ import {
   dowMon0,
 } from '@/engine/plan';
 import { persistPlanDraft, publishPlan } from './plans';
+import { runAutopilot } from '@/server/autopilot';
 
 const TODAY = '2026-06-06';
 const SIGNAL_DAYS = 75;
@@ -65,6 +66,7 @@ interface Spec {
   illnessFromEnd?: number; // illness window starting N days before today
   injury?: { bodyPart: string; modalities: string[] };
   missed?: number;
+  coachingMode?: 'assisted' | 'autonomous';
   races?: {
     name: string;
     daysFromToday: number;
@@ -90,6 +92,7 @@ const ROSTER: Spec[] = [
     rhrBase: 46,
     sleepBase: 7.8,
     seed: 11,
+    coachingMode: 'autonomous', // elite, clean signals → autopilot can run
     races: [
       {
         name: 'Turkey Trot 10K',
@@ -140,6 +143,7 @@ const ROSTER: Spec[] = [
     seed: 33,
     injury: { bodyPart: 'achilles', modalities: ['bike', 'pool_run'] },
     missed: 3,
+    coachingMode: 'autonomous', // autonomous, but the injury will trip a guardrail → escalation
   },
 ];
 
@@ -160,6 +164,7 @@ async function seedAthlete(db: DB, s: Spec): Promise<void> {
     timezone: 'America/Los_Angeles',
     goalRace: s.race,
     goalRaceDate: s.raceDate,
+    coachingMode: s.coachingMode ?? 'assisted',
   });
 
   await db.insert(intakeProfiles).values({
@@ -299,5 +304,10 @@ async function seedAthlete(db: DB, s: Spec): Promise<void> {
       kind: 'reporting_bias',
       body: 'Underreports soreness; cross-check subjective check-ins against HRV/RHR.',
     });
+  }
+
+  // Autonomous athletes go through the autopilot gate (auto-publish or escalate).
+  if ((s.coachingMode ?? 'assisted') === 'autonomous') {
+    await runAutopilot(db, s.id, { today: TODAY });
   }
 }

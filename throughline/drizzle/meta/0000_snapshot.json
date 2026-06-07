@@ -1,5 +1,5 @@
 {
-  "id": "ee5ec668-f9ec-4c31-8f43-6668e1fe5203",
+  "id": "a5d25c1c-9f70-4d53-9cfc-9aa30c132b3b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -322,6 +322,14 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
+        },
+        "coaching_mode": {
+          "name": "coaching_mode",
+          "type": "coaching_mode",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'assisted'"
         },
         "active": {
           "name": "active",
@@ -991,6 +999,108 @@
       },
       "indexes": {},
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.escalations": {
+      "name": "escalations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "athlete_id": {
+          "name": "athlete_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "escalation_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "escalation_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "context": {
+          "name": "context",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "escalations_athlete_status_idx": {
+          "name": "escalations_athlete_status_idx",
+          "columns": [
+            {
+              "expression": "athlete_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "escalations_athlete_id_athletes_id_fk": {
+          "name": "escalations_athlete_id_athletes_id_fk",
+          "tableFrom": "escalations",
+          "tableTo": "athletes",
+          "columnsFrom": [
+            "athlete_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -2507,6 +2617,14 @@
     }
   },
   "enums": {
+    "public.coaching_mode": {
+      "name": "coaching_mode",
+      "schema": "public",
+      "values": [
+        "assisted",
+        "autonomous"
+      ]
+    },
     "public.connection_status": {
       "name": "connection_status",
       "schema": "public",
@@ -2529,6 +2647,26 @@
         "modality_constraint",
         "availability",
         "other"
+      ]
+    },
+    "public.escalation_kind": {
+      "name": "escalation_kind",
+      "schema": "public",
+      "values": [
+        "active_injury",
+        "repeated_low_readiness",
+        "large_plan_change",
+        "stale_data",
+        "other"
+      ]
+    },
+    "public.escalation_status": {
+      "name": "escalation_status",
+      "schema": "public",
+      "values": [
+        "open",
+        "acknowledged",
+        "resolved"
       ]
     },
     "public.ingest_source": {

@@ -32,6 +32,14 @@ export default async function RosterPage() {
                   <Link href={`/athletes/${a.id}`} className="font-medium text-sky-700 hover:underline">
                     {a.name}
                   </Link>
+                  {a.coachingMode === 'autonomous' && (
+                    <span
+                      className="ml-2 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-indigo-700 ring-1 ring-inset ring-indigo-200"
+                      title="Coached autonomously by the app"
+                    >
+                      auto
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3 align-top">
                   <BandBadge band={a.readiness.band} score={a.readiness.score} />

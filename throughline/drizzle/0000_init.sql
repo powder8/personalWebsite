@@ -1,5 +1,8 @@
+CREATE TYPE "public"."coaching_mode" AS ENUM('assisted', 'autonomous');--> statement-breakpoint
 CREATE TYPE "public"."connection_status" AS ENUM('pending', 'active', 'expired', 'revoked', 'error');--> statement-breakpoint
 CREATE TYPE "public"."directive_kind" AS ENUM('intensity_cap', 'volume_ceiling', 'no_run_days', 'rest_day', 'modality_constraint', 'availability', 'other');--> statement-breakpoint
+CREATE TYPE "public"."escalation_kind" AS ENUM('active_injury', 'repeated_low_readiness', 'large_plan_change', 'stale_data', 'other');--> statement-breakpoint
+CREATE TYPE "public"."escalation_status" AS ENUM('open', 'acknowledged', 'resolved');--> statement-breakpoint
 CREATE TYPE "public"."ingest_source" AS ENUM('webhook', 'backfill', 'file_upload', 'csv_import');--> statement-breakpoint
 CREATE TYPE "public"."injury_severity" AS ENUM('niggle', 'moderate', 'severe');--> statement-breakpoint
 CREATE TYPE "public"."injury_status" AS ENUM('acute', 'returning', 'cleared');--> statement-breakpoint
@@ -49,6 +52,7 @@ CREATE TABLE "athletes" (
 	"goal_race" text,
 	"goal_race_date" date,
 	"pace_config" jsonb,
+	"coaching_mode" "coaching_mode" DEFAULT 'assisted' NOT NULL,
 	"active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
@@ -123,6 +127,17 @@ CREATE TABLE "engine_settings" (
 	"id" text PRIMARY KEY DEFAULT 'global' NOT NULL,
 	"pace_model" jsonb,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "escalations" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"athlete_id" uuid NOT NULL,
+	"kind" "escalation_kind" NOT NULL,
+	"status" "escalation_status" DEFAULT 'open' NOT NULL,
+	"reason" text NOT NULL,
+	"context" jsonb,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"resolved_at" timestamp with time zone
 );
 --> statement-breakpoint
 CREATE TABLE "fitness_fatigue_states" (
@@ -295,6 +310,7 @@ ALTER TABLE "connected_accounts" ADD CONSTRAINT "connected_accounts_athlete_id_a
 ALTER TABLE "daily_summaries" ADD CONSTRAINT "daily_summaries_athlete_id_athletes_id_fk" FOREIGN KEY ("athlete_id") REFERENCES "public"."athletes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "daily_summaries" ADD CONSTRAINT "daily_summaries_raw_event_id_raw_events_id_fk" FOREIGN KEY ("raw_event_id") REFERENCES "public"."raw_events"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "directives" ADD CONSTRAINT "directives_athlete_id_athletes_id_fk" FOREIGN KEY ("athlete_id") REFERENCES "public"."athletes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "escalations" ADD CONSTRAINT "escalations_athlete_id_athletes_id_fk" FOREIGN KEY ("athlete_id") REFERENCES "public"."athletes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fitness_fatigue_states" ADD CONSTRAINT "fitness_fatigue_states_athlete_id_athletes_id_fk" FOREIGN KEY ("athlete_id") REFERENCES "public"."athletes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "hrv_records" ADD CONSTRAINT "hrv_records_athlete_id_athletes_id_fk" FOREIGN KEY ("athlete_id") REFERENCES "public"."athletes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "hrv_records" ADD CONSTRAINT "hrv_records_raw_event_id_raw_events_id_fk" FOREIGN KEY ("raw_event_id") REFERENCES "public"."raw_events"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -321,6 +337,7 @@ CREATE UNIQUE INDEX "connected_accounts_provider_user_uq" ON "connected_accounts
 CREATE INDEX "connected_accounts_athlete_idx" ON "connected_accounts" USING btree ("athlete_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "daily_summaries_athlete_day_uq" ON "daily_summaries" USING btree ("athlete_id","day");--> statement-breakpoint
 CREATE INDEX "directives_athlete_active_idx" ON "directives" USING btree ("athlete_id","active");--> statement-breakpoint
+CREATE INDEX "escalations_athlete_status_idx" ON "escalations" USING btree ("athlete_id","status");--> statement-breakpoint
 CREATE UNIQUE INDEX "ff_states_athlete_day_uq" ON "fitness_fatigue_states" USING btree ("athlete_id","day");--> statement-breakpoint
 CREATE UNIQUE INDEX "hrv_records_athlete_day_uq" ON "hrv_records" USING btree ("athlete_id","day");--> statement-breakpoint
 CREATE INDEX "injury_records_athlete_status_idx" ON "injury_records" USING btree ("athlete_id","status");--> statement-breakpoint
