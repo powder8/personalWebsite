@@ -8,6 +8,7 @@ import { getDb } from '@/db';
 import { suggestRaceWindows, annotateWindows, type RaceWindow } from '@/engine/plan';
 import { getAthleteZones } from '@/db/paceConfig';
 import { listEscalationsForAthlete, type EscalationRow } from '@/server/escalations';
+import { getUpcomingWeeks, type UpcomingWeek } from '@/server/season';
 import {
   athletes,
   readinessAssessments,
@@ -142,6 +143,7 @@ export interface AthleteDetail {
   races: typeof races.$inferSelect[];
   raceWindows: (RaceWindow & { filledBy: typeof races.$inferSelect | null })[];
   escalations: EscalationRow[];
+  upcomingWeeks: UpcomingWeek[];
   signals: {
     hrv: { day: string; value: number | null }[];
     restingHr: { day: string; value: number | null }[];
@@ -245,6 +247,7 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
     races: raceList,
     raceWindows,
     escalations: await listEscalationsForAthlete(db, id),
+    upcomingWeeks: await getUpcomingWeeks(db, id, TODAY, 4),
     signals: { hrv: hrvRows, restingHr: rhrRows, sleepHours },
   };
 }

@@ -38,6 +38,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
     races,
     raceWindows,
     escalations,
+    upcomingWeeks,
     signals,
   } = detail;
 
@@ -216,6 +217,50 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           <p className="text-sm text-slate-500">No published plan for this week.</p>
         )}
       </Card>
+
+      {/* Look ahead: the next few weeks (beyond the current one) */}
+      {upcomingWeeks.filter((w) => !(w.weekStart <= TODAY && TODAY <= w.weekEnd)).length > 0 && (
+        <Card title="Coming weeks">
+          <div className="space-y-4">
+            {upcomingWeeks
+              .filter((w) => !(w.weekStart <= TODAY && TODAY <= w.weekEnd))
+              .map((w) => (
+                <div key={w.planId}>
+                  <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Week of {w.weekStart} · <span className="capitalize">{w.phase}</span>
+                    {w.status === 'draft' && <span className="text-slate-400"> (draft)</span>}
+                  </div>
+                  <table className="w-full text-sm">
+                    <tbody className="divide-y divide-slate-100">
+                      {w.sessions.map((s) => (
+                        <tr key={s.id}>
+                          <td className="w-12 px-2 py-1 font-medium text-slate-500">{dow(s.day)}</td>
+                          <td className="w-16 px-2 py-1 text-slate-700">
+                            {s.targetDistanceMeters ? `${miles(s.targetDistanceMeters)} mi` : '—'}
+                          </td>
+                          <td className="px-2 py-1">
+                            <span className="capitalize text-slate-800">{s.sessionType}</span>
+                            {s.targetPaceFastSecPerKm != null && (
+                              <span className="ml-2 text-xs text-slate-400">
+                                {pace(s.targetPaceFastSecPerKm)}–{pace(s.targetPaceSlowSecPerKm)}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+          </div>
+          <Link
+            href={`/athletes/${athlete.id}/plan`}
+            className="mt-3 inline-block text-sm text-sky-700 hover:underline"
+          >
+            Full season plan →
+          </Link>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         {/* Injuries */}
