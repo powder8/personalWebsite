@@ -25,7 +25,8 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
   const detail = await getAthleteDetail(id);
   if (!detail) notFound();
 
-  const { athlete, readinessToday, readinessHistory, currentWeek, checkIns, notes, injuries, signals } = detail;
+  const { athlete, readinessToday, readinessHistory, currentWeek, checkIns, notes, injuries, races, signals } =
+    detail;
 
   return (
     <div className="space-y-5">
@@ -52,6 +53,32 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           <Sparkline values={readinessHistory.map((r) => r.score)} width={320} height={40} />
           <span className="text-xs text-slate-400">14-day readiness</span>
         </div>
+      </Card>
+
+      {/* Season races */}
+      <Card title="Season races">
+        {races.length ? (
+          <ul className="space-y-2 text-sm">
+            {races.map((r) => (
+              <li key={r.id} className="flex items-start justify-between gap-3">
+                <div>
+                  <RacePriorityBadge priority={r.priority} />
+                  <span className="ml-2 font-medium text-slate-800">{r.name}</span>
+                  <span className="ml-2 text-xs text-slate-500">
+                    {r.date}
+                    {r.distanceLabel && ` · ${r.distanceLabel}`}
+                  </span>
+                </div>
+                <div className="text-right text-xs text-slate-600">
+                  {raceGoal(r)}
+                  {r.status !== 'planned' && <span className="ml-2 text-slate-400">({r.status})</span>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-slate-500">No races scheduled.</p>
+        )}
       </Card>
 
       {/* Signals vs baseline */}
@@ -172,6 +199,46 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
       </Card>
     </div>
   );
+}
+
+const PRIORITY_STYLE: Record<string, string> = {
+  goal: 'bg-violet-100 text-violet-800 ring-violet-200',
+  tune_up: 'bg-sky-100 text-sky-800 ring-sky-200',
+  training: 'bg-slate-100 text-slate-600 ring-slate-200',
+  other: 'bg-slate-100 text-slate-500 ring-slate-200',
+};
+
+function RacePriorityBadge({ priority }: { priority: string }) {
+  const label = priority === 'tune_up' ? 'tune-up' : priority;
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium uppercase tracking-wide ring-1 ring-inset ${
+        PRIORITY_STYLE[priority] ?? PRIORITY_STYLE.other
+      }`}
+    >
+      {label}
+    </span>
+  );
+}
+
+function fmtTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return h > 0
+    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    : `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function raceGoal(r: {
+  goalType: string;
+  targetTimeSeconds: number | null;
+  targetPaceSecPerKm: number | null;
+}): string {
+  const parts: string[] = [];
+  if (r.targetTimeSeconds) parts.push(`goal ${fmtTime(r.targetTimeSeconds)}`);
+  if (r.targetPaceSecPerKm) parts.push(`${secPerKmToMinPerMile(r.targetPaceSecPerKm)}/mi`);
+  return parts.length ? parts.join(' · ') : r.goalType === 'effort' ? 'effort' : '—';
 }
 
 function SignalCell({

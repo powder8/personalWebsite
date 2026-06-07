@@ -6,6 +6,9 @@ CREATE TYPE "public"."injury_status" AS ENUM('acute', 'returning', 'cleared');--
 CREATE TYPE "public"."override_reason" AS ENUM('too_aggressive', 'too_cautious', 'injury_judgment', 'life_stress', 'travel', 'weather', 'race_strategy', 'athlete_request', 'data_quality', 'other');--> statement-breakpoint
 CREATE TYPE "public"."plan_status" AS ENUM('draft', 'published', 'superseded');--> statement-breakpoint
 CREATE TYPE "public"."provider" AS ENUM('garmin', 'manual');--> statement-breakpoint
+CREATE TYPE "public"."race_goal_type" AS ENUM('time', 'pace', 'place', 'effort', 'none');--> statement-breakpoint
+CREATE TYPE "public"."race_priority" AS ENUM('goal', 'tune_up', 'training', 'other');--> statement-breakpoint
+CREATE TYPE "public"."race_status" AS ENUM('planned', 'completed', 'skipped');--> statement-breakpoint
 CREATE TYPE "public"."session_type" AS ENUM('recovery', 'easy', 'maintenance', 'marathon', 'long', 'tempo', 'threshold', 'intervals', 'race', 'rest', 'cross_train');--> statement-breakpoint
 CREATE TYPE "public"."signal" AS ENUM('hrv', 'resting_hr', 'sleep', 'load');--> statement-breakpoint
 CREATE TYPE "public"."sport" AS ENUM('run', 'bike', 'swim', 'strength', 'cross_train', 'other');--> statement-breakpoint
@@ -216,6 +219,24 @@ CREATE TABLE "plans" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "races" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"athlete_id" uuid NOT NULL,
+	"name" text NOT NULL,
+	"date" date NOT NULL,
+	"distance_meters" double precision,
+	"distance_label" text,
+	"priority" "race_priority" DEFAULT 'tune_up' NOT NULL,
+	"goal_type" "race_goal_type" DEFAULT 'none' NOT NULL,
+	"target_time_seconds" integer,
+	"target_pace_sec_per_km" double precision,
+	"effort" text,
+	"status" "race_status" DEFAULT 'planned' NOT NULL,
+	"result_time_seconds" integer,
+	"notes" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "raw_events" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"athlete_id" uuid,
@@ -283,6 +304,7 @@ ALTER TABLE "overrides" ADD CONSTRAINT "overrides_athlete_id_athletes_id_fk" FOR
 ALTER TABLE "planned_sessions" ADD CONSTRAINT "planned_sessions_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."plans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "planned_sessions" ADD CONSTRAINT "planned_sessions_athlete_id_athletes_id_fk" FOREIGN KEY ("athlete_id") REFERENCES "public"."athletes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "plans" ADD CONSTRAINT "plans_athlete_id_athletes_id_fk" FOREIGN KEY ("athlete_id") REFERENCES "public"."athletes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "races" ADD CONSTRAINT "races_athlete_id_athletes_id_fk" FOREIGN KEY ("athlete_id") REFERENCES "public"."athletes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "raw_events" ADD CONSTRAINT "raw_events_athlete_id_athletes_id_fk" FOREIGN KEY ("athlete_id") REFERENCES "public"."athletes"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "readiness_assessments" ADD CONSTRAINT "readiness_assessments_athlete_id_athletes_id_fk" FOREIGN KEY ("athlete_id") REFERENCES "public"."athletes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "resting_hr_records" ADD CONSTRAINT "resting_hr_records_athlete_id_athletes_id_fk" FOREIGN KEY ("athlete_id") REFERENCES "public"."athletes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -308,6 +330,7 @@ CREATE INDEX "overrides_created_idx" ON "overrides" USING btree ("created_at");-
 CREATE INDEX "planned_sessions_plan_day_idx" ON "planned_sessions" USING btree ("plan_id","day");--> statement-breakpoint
 CREATE INDEX "plans_athlete_status_idx" ON "plans" USING btree ("athlete_id","status");--> statement-breakpoint
 CREATE INDEX "plans_athlete_week_idx" ON "plans" USING btree ("athlete_id","week_start");--> statement-breakpoint
+CREATE INDEX "races_athlete_date_idx" ON "races" USING btree ("athlete_id","date");--> statement-breakpoint
 CREATE INDEX "raw_events_athlete_idx" ON "raw_events" USING btree ("athlete_id");--> statement-breakpoint
 CREATE INDEX "raw_events_type_idx" ON "raw_events" USING btree ("provider","event_type");--> statement-breakpoint
 CREATE INDEX "raw_events_received_idx" ON "raw_events" USING btree ("received_at");--> statement-breakpoint

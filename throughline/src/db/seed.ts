@@ -19,6 +19,7 @@ import {
   readinessAssessments,
   injuryRecords,
   athleteNotes,
+  races,
 } from './schema';
 import { addDays, computeBaseline, assessReadiness, type DailyReading } from '@/engine';
 import {
@@ -64,6 +65,15 @@ interface Spec {
   illnessFromEnd?: number; // illness window starting N days before today
   injury?: { bodyPart: string; modalities: string[] };
   missed?: number;
+  races?: {
+    name: string;
+    daysFromToday: number;
+    distanceLabel: string;
+    priority: 'goal' | 'tune_up' | 'training';
+    goalType?: 'time' | 'pace' | 'effort';
+    targetPaceSecPerKm?: number;
+    targetTimeSeconds?: number;
+  }[];
 }
 
 const ROSTER: Spec[] = [
@@ -80,6 +90,25 @@ const ROSTER: Spec[] = [
     rhrBase: 46,
     sleepBase: 7.8,
     seed: 11,
+    races: [
+      {
+        name: 'Turkey Trot 10K',
+        daysFromToday: 21,
+        distanceLabel: '10K',
+        priority: 'tune_up',
+        goalType: 'pace',
+        targetPaceSecPerKm: 200, // ~5:22/mi tune-up effort
+        targetTimeSeconds: 33 * 60 + 20,
+      },
+      {
+        name: 'CIM Marathon',
+        daysFromToday: 56,
+        distanceLabel: 'Marathon',
+        priority: 'goal',
+        goalType: 'time',
+        targetTimeSeconds: 2 * 3600 + 38 * 60, // 2:38 goal
+      },
+    ],
   },
   {
     id: '10000000-0000-4000-8000-000000000002',
@@ -207,14 +236,36 @@ async function seedAthlete(db: DB, s: Spec): Promise<void> {
   }
   await db.insert(readinessAssessments).values(readRows);
 
-  // --- plan: generate, persist drafts, publish past/current weeks ---
+  // --- races (goal + tune-ups with pace goals) ---
+  if (s.races?.length) {
+    await db.insert(races).values(
+      s.races.map((r) => ({
+        athleteId: s.id,
+        name: r.name,
+        date: addDays(TODAY, r.daysFromToday),
+        distanceLabel: r.distanceLabel,
+        priority: r.priority,
+        goalType: (r.goalType ?? 'none') as 'time' | 'pace' | 'place' | 'effort' | 'none',
+        targetPaceSecPerKm: r.targetPaceSecPerKm ?? null,
+        targetTimeSeconds: r.targetTimeSeconds ?? null,
+      })),
+    );
+  }
+
+  // --- plan: generate (race-aware), persist drafts, publish past/current weeks ---
   const zones = buildZones(s.threshold);
+  const keyRaces = (s.races ?? []).map((r) => ({
+    date: addDays(TODAY, r.daysFromToday),
+    priority: r.priority,
+    label: r.name,
+  }));
   const weeks = generatePlan(
     {
       startDay: addDays(TODAY, -49),
       goalRaceDay: s.raceDate,
       startVolumeMiles: s.startVol,
       peakVolumeMiles: s.peakVol,
+      keyRaces,
     },
     zones,
   );

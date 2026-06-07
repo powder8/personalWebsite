@@ -99,6 +99,17 @@ export const injurySeverityEnum = pgEnum('injury_severity', [
   'severe',
 ]);
 
+/**
+ * Race priority within a season: the `goal` race anchors the build; `tune_up`
+ * races are real-effort building races (get a sharpening taper); `training`
+ * races are run through as workouts.
+ */
+export const racePriorityEnum = pgEnum('race_priority', ['goal', 'tune_up', 'training', 'other']);
+
+export const raceGoalTypeEnum = pgEnum('race_goal_type', ['time', 'pace', 'place', 'effort', 'none']);
+
+export const raceStatusEnum = pgEnum('race_status', ['planned', 'completed', 'skipped']);
+
 /** Structured coach instruction kinds. Effect-windowed. */
 export const directiveKindEnum = pgEnum('directive_kind', [
   'intensity_cap',
@@ -180,6 +191,36 @@ export const intakeProfiles = pgTable('intake_profiles', {
   answers: jsonb('answers'), // full raw questionnaire
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Races in an athlete's season. Exactly one `goal` race anchors the build;
+ * `tune_up` races are real-effort building races (the engine inserts a
+ * sharpening taper around them); each carries a goal (target time and/or pace,
+ * important for the interim races). Mirrors the coach's "Races" sheet.
+ */
+export const races = pgTable(
+  'races',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    athleteId: uuid('athlete_id')
+      .notNull()
+      .references(() => athletes.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    date: date('date').notNull(),
+    distanceMeters: doublePrecision('distance_meters'),
+    distanceLabel: text('distance_label'), // coach shorthand: 'Mile','5k','10k','Half','Marathon'
+    priority: racePriorityEnum('priority').notNull().default('tune_up'),
+    goalType: raceGoalTypeEnum('goal_type').notNull().default('none'),
+    targetTimeSeconds: integer('target_time_seconds'),
+    targetPaceSecPerKm: doublePrecision('target_pace_sec_per_km'),
+    effort: text('effort'), // free text: 'race effort', 'tempo effort', 'training race', …
+    status: raceStatusEnum('status').notNull().default('planned'),
+    resultTimeSeconds: integer('result_time_seconds'),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('races_athlete_date_idx').on(t.athleteId, t.date)],
+);
 
 // ---------------------------------------------------------------------------
 // Provider connection

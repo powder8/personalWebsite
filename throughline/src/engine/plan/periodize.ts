@@ -9,21 +9,35 @@ import type { TrainingPhase } from './types';
 import { addDays, dayNumber, diffDays } from '../dates';
 import { milesToMeters } from './zones';
 
+/** A race the periodizer should structure around. */
+export interface KeyRace {
+  date: string; // 'YYYY-MM-DD'
+  priority: 'goal' | 'tune_up' | 'training';
+  label?: string;
+}
+
 export interface PeriodizationInput {
   startDay: string; // any day; normalized to the Monday on/after it
   goalRaceDay: string;
   startVolumeMiles: number;
   peakVolumeMiles: number;
   downWeekEvery?: number; // default 4
+  /** Interim races between start and the goal. Goal race may be included or not. */
+  keyRaces?: KeyRace[];
 }
 
 export interface WeekPlan {
   weekStart: string; // Monday
   index: number; // 0-based from start
-  weeksToRace: number;
+  weeksToRace: number; // to the goal race
   phase: TrainingPhase;
   cycle: number; // 1-based mesocycle
   targetVolumeMeters: number;
+  /** The next key race on/after this week — the race this block builds toward. */
+  targetRaceDate: string | null;
+  targetRaceLabel: string | null;
+  /** A key race falls within this week. */
+  raceThisWeek: KeyRace | null;
 }
 
 /** Day-of-week with Mon=0 … Sun=6. (1970-01-01 was a Thursday = 3.) */
@@ -89,8 +103,60 @@ export function periodize(input: PeriodizationInput): WeekPlan[] {
       phase,
       cycle: Math.floor(i / downEvery) + 1,
       targetVolumeMeters: milesToMeters(Math.round(volMiles * 10) / 10),
+      targetRaceDate: null,
+      targetRaceLabel: null,
+      raceThisWeek: null,
     });
   }
 
+  applyKeyRaces(weeks, input.keyRaces ?? [], input.goalRaceDay);
   return weeks;
+}
+
+const MINI_TAPER = 0.72; // tune-up race week volume multiplier
+const POST_RACE_RECOVERY = 0.85; // the week after a tune-up race
+
+/**
+ * Tag each week with the race it builds toward and apply mini-tapers around
+ * interim (tune-up) races: the race week is sharpened down, the following week
+ * eased. The goal race keeps the macro taper already laid out above; training
+ * races are run through (tagged, no volume change).
+ */
+function applyKeyRaces(weeks: WeekPlan[], keyRaces: KeyRace[], goalRaceDay: string): void {
+  if (weeks.length === 0) return;
+  const races = [...keyRaces].sort((a, b) => a.date.localeCompare(b.date));
+
+  const weekIndexFor = (date: string): number => {
+    const d = dayNumber(date);
+    for (let i = 0; i < weeks.length; i++) {
+      const start = dayNumber(weeks[i].weekStart);
+      if (d >= start && d <= start + 6) return i;
+    }
+    return -1;
+  };
+
+  // Tag every week with the next upcoming key race (the block's target).
+  for (const w of weeks) {
+    const next = races.find((r) => r.date >= w.weekStart) ?? null;
+    w.targetRaceDate = next?.date ?? goalRaceDay;
+    w.targetRaceLabel = next?.label ?? null;
+  }
+
+  // Mark race weeks and apply taper/recovery for tune-up races mid-build.
+  for (const r of races) {
+    const idx = weekIndexFor(r.date);
+    if (idx < 0) continue;
+    weeks[idx].raceThisWeek = r;
+    if (r.priority === 'tune_up') {
+      // Don't fight the goal taper if we're already inside it.
+      if (weeks[idx].phase !== 'taper') {
+        weeks[idx].targetVolumeMeters = Math.round(weeks[idx].targetVolumeMeters * MINI_TAPER);
+        if (idx + 1 < weeks.length && weeks[idx + 1].phase !== 'taper') {
+          weeks[idx + 1].targetVolumeMeters = Math.round(
+            weeks[idx + 1].targetVolumeMeters * POST_RACE_RECOVERY,
+          );
+        }
+      }
+    }
+  }
 }

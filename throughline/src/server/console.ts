@@ -16,6 +16,7 @@ import {
   hrvRecords,
   restingHrRecords,
   sleepRecords,
+  races,
 } from '@/db/schema';
 
 export const TODAY = '2026-06-06';
@@ -125,6 +126,7 @@ export interface AthleteDetail {
   checkIns: typeof checkIns.$inferSelect[];
   notes: typeof athleteNotes.$inferSelect[];
   injuries: typeof injuryRecords.$inferSelect[];
+  races: typeof races.$inferSelect[];
   signals: {
     hrv: { day: string; value: number | null }[];
     restingHr: { day: string; value: number | null }[];
@@ -182,6 +184,7 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
     .from(injuryRecords)
     .where(eq(injuryRecords.athleteId, id))
     .orderBy(desc(injuryRecords.onsetDate));
+  const raceList = await db.select().from(races).where(eq(races.athleteId, id)).orderBy(races.date);
 
   const since = isoDaysAgo(28);
   const hrvRows = await db
@@ -209,6 +212,7 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
     checkIns: recentCheckIns,
     notes,
     injuries,
+    races: raceList,
     signals: { hrv: hrvRows, restingHr: rhrRows, sleepHours },
   };
 }
