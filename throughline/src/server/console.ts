@@ -4,7 +4,7 @@ import 'server-only';
  * "Today" is fixed to the seed's reference date so the dev demo is stable.
  */
 import { and, eq, gte, lte, desc } from 'drizzle-orm';
-import { getDb } from '@/db';
+import { getDb, type DB } from '@/db';
 import {
   suggestRaceWindows,
   annotateWindows,
@@ -33,6 +33,7 @@ import {
   sleepRecords,
   races,
   escalations,
+  activities,
 } from '@/db/schema';
 
 export const TODAY = '2026-06-06';
@@ -162,6 +163,8 @@ export interface AthleteDetail {
   vdot: number | null;
   equivalents: EquivalentPerformance[];
   strengthBias: number;
+  activitySummary: { count: number; totalMiles: number; firstDay: string | null; lastDay: string | null };
+  recentActivities: { day: string; distanceMiles: number; paceSecPerKm: number | null; sport: string }[];
   signals: {
     hrv: { day: string; value: number | null }[];
     restingHr: { day: string; value: number | null }[];
@@ -301,7 +304,41 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
     vdot: zones ? Math.round(vdotFromThreshold(zones.thresholdSecPerKm) * 10) / 10 : null,
     equivalents: zones ? equivalentPerformances(vdotFromThreshold(zones.thresholdSecPerKm)) : [],
     strengthBias: ((athlete.paceConfig as AthletePaceConfig | null) ?? {}).strengthBias ?? 0,
+    ...(await activitySummary(db, id)),
     signals: { hrv: hrvRows, restingHr: rhrRows, sleepHours },
+  };
+}
+
+async function activitySummary(
+  db: DB,
+  athleteId: string,
+): Promise<Pick<AthleteDetail, 'activitySummary' | 'recentActivities'>> {
+  const rows = await db
+    .select({
+      startTime: activities.startTime,
+      distanceMeters: activities.distanceMeters,
+      avgPaceSecPerKm: activities.avgPaceSecPerKm,
+      sport: activities.sport,
+    })
+    .from(activities)
+    .where(eq(activities.athleteId, athleteId))
+    .orderBy(desc(activities.startTime));
+
+  const totalMiles = rows.reduce((s, r) => s + (r.distanceMeters ?? 0) / 1609.344, 0);
+  const days = rows.map((r) => r.startTime.toISOString().slice(0, 10));
+  return {
+    activitySummary: {
+      count: rows.length,
+      totalMiles: Math.round(totalMiles),
+      firstDay: days.length ? days[days.length - 1] : null,
+      lastDay: days.length ? days[0] : null,
+    },
+    recentActivities: rows.slice(0, 20).map((r) => ({
+      day: r.startTime.toISOString().slice(0, 10),
+      distanceMiles: Math.round(((r.distanceMeters ?? 0) / 1609.344) * 10) / 10,
+      paceSecPerKm: r.avgPaceSecPerKm,
+      sport: r.sport,
+    })),
   };
 }
 

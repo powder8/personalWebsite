@@ -48,8 +48,13 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
     vdot,
     equivalents,
     strengthBias,
+    activitySummary,
+    recentActivities,
     signals,
   } = detail;
+
+  const paceMi = (secPerKm: number | null) =>
+    secPerKm == null ? '—' : `${secPerKmToMinPerMile(secPerKm)}/mi`;
 
   const ADJ_LABEL: Record<string, string> = {
     pace_adjust: 'Slower paces',
@@ -181,6 +186,37 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           </div>
         )}
       </Card>
+
+      {/* Imported training history */}
+      {activitySummary.count > 0 && (
+        <Card
+          title={`Training history — ${activitySummary.count} runs · ${activitySummary.totalMiles} mi${
+            activitySummary.firstDay ? ` (${activitySummary.firstDay} → ${activitySummary.lastDay})` : ''
+          }`}
+        >
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs uppercase tracking-wide text-slate-400">
+              <tr>
+                <th className="py-1 font-medium">Date</th>
+                <th className="py-1 font-medium">Distance</th>
+                <th className="py-1 font-medium">Pace</th>
+                <th className="py-1 font-medium">Sport</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {recentActivities.map((a, i) => (
+                <tr key={`${a.day}-${i}`}>
+                  <td className="py-1 text-slate-600">{a.day}</td>
+                  <td className="py-1 text-slate-700">{a.distanceMiles} mi</td>
+                  <td className="py-1 text-slate-500">{paceMi(a.paceSecPerKm)}</td>
+                  <td className="py-1 capitalize text-slate-500">{a.sport.replace('_', ' ')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-2 text-xs text-slate-400">Most recent 20 imported runs.</p>
+        </Card>
+      )}
 
       {/* Signals vs baseline */}
       <Card title="Signals (28 days)">
