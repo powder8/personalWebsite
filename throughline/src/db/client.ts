@@ -45,17 +45,14 @@ async function create(): Promise<DB> {
   return db;
 }
 
-/** Apply the generated SQL migrations into a fresh PGlite database. */
+/**
+ * Apply the generated SQL migrations into the PGlite database. Tolerant of
+ * re-application: statements for objects that already exist are skipped, so
+ * adding a new table to an existing local DB doesn't require wiping data.
+ */
 async function applyMigrations(client: {
   exec: (sql: string) => Promise<unknown>;
-  query: (sql: string) => Promise<{ rows: unknown[] }>;
 }): Promise<void> {
-  // Skip if already applied (the plans table exists).
-  const existing = await client.query(
-    "select 1 from information_schema.tables where table_name = 'plans'",
-  );
-  if (existing.rows.length > 0) return;
-
   const { readFileSync, readdirSync } = await import('node:fs');
   const { join } = await import('node:path');
   const dir = join(process.cwd(), 'drizzle');
@@ -66,7 +63,14 @@ async function applyMigrations(client: {
     const sql = readFileSync(join(dir, f), 'utf8');
     for (const stmt of sql.split('--> statement-breakpoint')) {
       const trimmed = stmt.trim();
-      if (trimmed) await client.exec(trimmed);
+      if (!trimmed) continue;
+      try {
+        await client.exec(trimmed);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (/already exists/i.test(msg)) continue; // object exists → fine
+        throw e;
+      }
     }
   }
 }

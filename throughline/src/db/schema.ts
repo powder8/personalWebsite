@@ -124,6 +124,8 @@ export const escalationKindEnum = pgEnum('escalation_kind', [
 
 export const escalationStatusEnum = pgEnum('escalation_status', ['open', 'acknowledged', 'resolved']);
 
+export const feedbackStatusEnum = pgEnum('feedback_status', ['open', 'addressed']);
+
 /** Structured coach instruction kinds. Effect-windowed. */
 export const directiveKindEnum = pgEnum('directive_kind', [
   'intensity_cap',
@@ -258,6 +260,27 @@ export const escalations = pgTable(
     resolvedAt: timestamp('resolved_at', { withTimezone: true }),
   },
   (t) => [index('escalations_athlete_status_idx').on(t.athleteId, t.status)],
+);
+
+/**
+ * In-app feedback from the coach (the product's quality bar). Captured in
+ * context — `path` records the page they were on — so the builder can triage
+ * "I'd do this differently" notes against exactly what they were looking at.
+ * Not tied to an athlete FK on purpose; the path carries that context.
+ */
+export const feedback = pgTable(
+  'feedback',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    author: text('author').notNull().default('Heather'),
+    path: text('path'), // page the feedback was left on
+    category: text('category'), // 'plans' | 'paces' | 'races' | 'ui' | 'bug' | 'idea' | …
+    body: text('body').notNull(),
+    status: feedbackStatusEnum('status').notNull().default('open'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    addressedAt: timestamp('addressed_at', { withTimezone: true }),
+  },
+  (t) => [index('feedback_status_idx').on(t.status)],
 );
 
 // ---------------------------------------------------------------------------

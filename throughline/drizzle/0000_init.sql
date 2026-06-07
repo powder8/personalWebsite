@@ -3,6 +3,7 @@ CREATE TYPE "public"."connection_status" AS ENUM('pending', 'active', 'expired',
 CREATE TYPE "public"."directive_kind" AS ENUM('intensity_cap', 'volume_ceiling', 'no_run_days', 'rest_day', 'modality_constraint', 'availability', 'other');--> statement-breakpoint
 CREATE TYPE "public"."escalation_kind" AS ENUM('active_injury', 'repeated_low_readiness', 'large_plan_change', 'stale_data', 'other');--> statement-breakpoint
 CREATE TYPE "public"."escalation_status" AS ENUM('open', 'acknowledged', 'resolved');--> statement-breakpoint
+CREATE TYPE "public"."feedback_status" AS ENUM('open', 'addressed');--> statement-breakpoint
 CREATE TYPE "public"."ingest_source" AS ENUM('webhook', 'backfill', 'file_upload', 'csv_import');--> statement-breakpoint
 CREATE TYPE "public"."injury_severity" AS ENUM('niggle', 'moderate', 'severe');--> statement-breakpoint
 CREATE TYPE "public"."injury_status" AS ENUM('acute', 'returning', 'cleared');--> statement-breakpoint
@@ -138,6 +139,17 @@ CREATE TABLE "escalations" (
 	"context" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"resolved_at" timestamp with time zone
+);
+--> statement-breakpoint
+CREATE TABLE "feedback" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"author" text DEFAULT 'Heather' NOT NULL,
+	"path" text,
+	"category" text,
+	"body" text NOT NULL,
+	"status" "feedback_status" DEFAULT 'open' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"addressed_at" timestamp with time zone
 );
 --> statement-breakpoint
 CREATE TABLE "fitness_fatigue_states" (
@@ -338,6 +350,7 @@ CREATE INDEX "connected_accounts_athlete_idx" ON "connected_accounts" USING btre
 CREATE UNIQUE INDEX "daily_summaries_athlete_day_uq" ON "daily_summaries" USING btree ("athlete_id","day");--> statement-breakpoint
 CREATE INDEX "directives_athlete_active_idx" ON "directives" USING btree ("athlete_id","active");--> statement-breakpoint
 CREATE INDEX "escalations_athlete_status_idx" ON "escalations" USING btree ("athlete_id","status");--> statement-breakpoint
+CREATE INDEX "feedback_status_idx" ON "feedback" USING btree ("status");--> statement-breakpoint
 CREATE UNIQUE INDEX "ff_states_athlete_day_uq" ON "fitness_fatigue_states" USING btree ("athlete_id","day");--> statement-breakpoint
 CREATE UNIQUE INDEX "hrv_records_athlete_day_uq" ON "hrv_records" USING btree ("athlete_id","day");--> statement-breakpoint
 CREATE INDEX "injury_records_athlete_status_idx" ON "injury_records" USING btree ("athlete_id","status");--> statement-breakpoint

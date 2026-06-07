@@ -3,13 +3,16 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { getDb } from "@/db";
 import { countActiveEscalations } from "@/server/escalations";
+import { countOpenFeedback } from "@/server/feedback";
+import { FeedbackWidget } from "@/components/FeedbackWidget";
 import "./globals.css";
 
-async function escalationCount(): Promise<number> {
+async function counts(): Promise<{ escalations: number; feedback: number }> {
   try {
-    return await countActiveEscalations(await getDb());
+    const db = await getDb();
+    return { escalations: await countActiveEscalations(db), feedback: await countOpenFeedback(db) };
   } catch {
-    return 0;
+    return { escalations: 0, feedback: 0 };
   }
 }
 
@@ -33,7 +36,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const openEscalations = await escalationCount();
+  const { escalations: openEscalations, feedback: openFeedback } = await counts();
   return (
     <html
       lang="en"
@@ -63,10 +66,19 @@ export default async function RootLayout({
                   </span>
                 )}
               </Link>
+              <Link href="/feedback" className="flex items-center gap-1 text-slate-600 hover:text-slate-900">
+                Feedback
+                {openFeedback > 0 && (
+                  <span className="rounded-full bg-sky-600 px-1.5 text-[10px] font-semibold text-white">
+                    {openFeedback}
+                  </span>
+                )}
+              </Link>
             </nav>
           </div>
         </header>
         <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-6">{children}</main>
+        <FeedbackWidget />
       </body>
     </html>
   );
