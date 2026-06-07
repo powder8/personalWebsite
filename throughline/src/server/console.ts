@@ -1,0 +1,221 @@
+import 'server-only';
+/**
+ * Read model for the coach console. Server-only data access; pages call these.
+ * "Today" is fixed to the seed's reference date so the dev demo is stable.
+ */
+import { and, eq, gte, lte, desc } from 'drizzle-orm';
+import { getDb } from '@/db';
+import {
+  athletes,
+  readinessAssessments,
+  injuryRecords,
+  plans,
+  plannedSessions,
+  checkIns,
+  athleteNotes,
+  hrvRecords,
+  restingHrRecords,
+  sleepRecords,
+} from '@/db/schema';
+
+export const TODAY = '2026-06-06';
+
+export type Band = 'easy' | 'normal' | 'go';
+
+export interface RosterEntry {
+  id: string;
+  name: string;
+  race: string | null;
+  raceDate: string | null;
+  readiness: { score: number | null; band: Band | null; sentence: string | null };
+  todaySession: { sessionType: string; description: string | null } | null;
+  flags: string[];
+  attention: number; // higher = needs attention sooner
+}
+
+function attentionScore(band: Band | null, injuries: number, missed: boolean): number {
+  let n = 0;
+  if (band === 'easy') n += 3;
+  else if (band === 'normal') n += 1;
+  if (injuries > 0) n += 2;
+  if (missed) n += 1;
+  return n;
+}
+
+export async function getRoster(): Promise<RosterEntry[]> {
+  const db = await getDb();
+  const rows = await db.select().from(athletes).where(eq(athletes.active, true));
+
+  const entries = await Promise.all(
+    rows.map(async (a) => {
+      const [readiness] = await db
+        .select()
+        .from(readinessAssessments)
+        .where(and(eq(readinessAssessments.athleteId, a.id), eq(readinessAssessments.day, TODAY)))
+        .limit(1);
+
+      const injuries = await db
+        .select()
+        .from(injuryRecords)
+        .where(and(eq(injuryRecords.athleteId, a.id), eq(injuryRecords.status, 'returning')));
+      const acute = await db
+        .select()
+        .from(injuryRecords)
+        .where(and(eq(injuryRecords.athleteId, a.id), eq(injuryRecords.status, 'acute')));
+      const activeInjuries = injuries.length + acute.length;
+
+      const todaySession = await getTodaySession(a.id);
+
+      const band = (readiness?.band as Band | undefined) ?? null;
+      const flags: string[] = [];
+      if (band === 'easy') flags.push('low readiness');
+      if (activeInjuries > 0) flags.push('active injury');
+
+      return {
+        id: a.id,
+        name: a.fullName,
+        race: a.goalRace,
+        raceDate: a.goalRaceDate,
+        readiness: {
+          score: readiness?.score ?? null,
+          band,
+          sentence: readiness?.sentence ?? null,
+        },
+        todaySession,
+        flags,
+        attention: attentionScore(band, activeInjuries, false),
+      } satisfies RosterEntry;
+    }),
+  );
+
+  return entries.sort((a, b) => b.attention - a.attention || a.name.localeCompare(b.name));
+}
+
+async function getTodaySession(athleteId: string) {
+  const db = await getDb();
+  const [plan] = await db
+    .select()
+    .from(plans)
+    .where(
+      and(
+        eq(plans.athleteId, athleteId),
+        eq(plans.status, 'published'),
+        lte(plans.weekStart, TODAY),
+        gte(plans.weekEnd, TODAY),
+      ),
+    )
+    .limit(1);
+  if (!plan) return null;
+  const [session] = await db
+    .select()
+    .from(plannedSessions)
+    .where(and(eq(plannedSessions.planId, plan.id), eq(plannedSessions.day, TODAY)))
+    .limit(1);
+  return session ? { sessionType: session.sessionType, description: session.description } : null;
+}
+
+export interface AthleteDetail {
+  athlete: typeof athletes.$inferSelect;
+  readinessToday: typeof readinessAssessments.$inferSelect | null;
+  readinessHistory: typeof readinessAssessments.$inferSelect[];
+  currentWeek: {
+    plan: typeof plans.$inferSelect;
+    sessions: typeof plannedSessions.$inferSelect[];
+  } | null;
+  checkIns: typeof checkIns.$inferSelect[];
+  notes: typeof athleteNotes.$inferSelect[];
+  injuries: typeof injuryRecords.$inferSelect[];
+  signals: {
+    hrv: { day: string; value: number | null }[];
+    restingHr: { day: string; value: number | null }[];
+    sleepHours: { day: string; value: number | null }[];
+  };
+}
+
+export async function getAthleteDetail(id: string): Promise<AthleteDetail | null> {
+  const db = await getDb();
+  const [athlete] = await db.select().from(athletes).where(eq(athletes.id, id)).limit(1);
+  if (!athlete) return null;
+
+  const history = await db
+    .select()
+    .from(readinessAssessments)
+    .where(eq(readinessAssessments.athleteId, id))
+    .orderBy(desc(readinessAssessments.day))
+    .limit(14);
+
+  const readinessToday = history.find((h) => h.day === TODAY) ?? null;
+
+  const [plan] = await db
+    .select()
+    .from(plans)
+    .where(
+      and(
+        eq(plans.athleteId, id),
+        eq(plans.status, 'published'),
+        lte(plans.weekStart, TODAY),
+        gte(plans.weekEnd, TODAY),
+      ),
+    )
+    .limit(1);
+
+  let currentWeek: AthleteDetail['currentWeek'] = null;
+  if (plan) {
+    const sessions = await db
+      .select()
+      .from(plannedSessions)
+      .where(eq(plannedSessions.planId, plan.id))
+      .orderBy(plannedSessions.day);
+    currentWeek = { plan, sessions };
+  }
+
+  const recentCheckIns = await db
+    .select()
+    .from(checkIns)
+    .where(eq(checkIns.athleteId, id))
+    .orderBy(desc(checkIns.day))
+    .limit(7);
+
+  const notes = await db.select().from(athleteNotes).where(eq(athleteNotes.athleteId, id));
+  const injuries = await db
+    .select()
+    .from(injuryRecords)
+    .where(eq(injuryRecords.athleteId, id))
+    .orderBy(desc(injuryRecords.onsetDate));
+
+  const since = isoDaysAgo(28);
+  const hrvRows = await db
+    .select({ day: hrvRecords.day, value: hrvRecords.overnightAvgMs })
+    .from(hrvRecords)
+    .where(and(eq(hrvRecords.athleteId, id), gte(hrvRecords.day, since)))
+    .orderBy(hrvRecords.day);
+  const rhrRows = await db
+    .select({ day: restingHrRecords.day, value: restingHrRecords.restingHr })
+    .from(restingHrRecords)
+    .where(and(eq(restingHrRecords.athleteId, id), gte(restingHrRecords.day, since)))
+    .orderBy(restingHrRecords.day);
+  const sleepRows = await db
+    .select({ day: sleepRecords.day, value: sleepRecords.totalSleepSeconds })
+    .from(sleepRecords)
+    .where(and(eq(sleepRecords.athleteId, id), gte(sleepRecords.day, since)))
+    .orderBy(sleepRecords.day);
+  const sleepHours = sleepRows.map((d) => ({ day: d.day, value: d.value == null ? null : d.value / 3600 }));
+
+  return {
+    athlete,
+    readinessToday,
+    readinessHistory: history.slice().reverse(),
+    currentWeek,
+    checkIns: recentCheckIns,
+    notes,
+    injuries,
+    signals: { hrv: hrvRows, restingHr: rhrRows, sleepHours },
+  };
+}
+
+function isoDaysAgo(n: number): string {
+  // relative to TODAY (seed reference), not the wall clock
+  const [y, m, d] = TODAY.split('-').map(Number);
+  const t = Date.UTC(y, m - 1, d) - n * 86400000;
+  return new Date(t).toISOString().slice(0, 10);
+}
