@@ -7,21 +7,12 @@ import { getSeasonPlan, getUpcomingWeeks } from '@/server/season';
 import { SeasonForm } from '@/components/SeasonForm';
 import { Card } from '@/components/ui';
 import { TODAY } from '@/server/console';
-import { secPerKmToMinPerMile } from '@/engine/plan';
+import { SessionEditor } from '@/components/SessionEditor';
 
 export const dynamic = 'force-dynamic';
 
-const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
 function miles(m: number | null): number {
   return m == null ? 0 : Math.round((m / 1609.344) * 10) / 10;
-}
-function pace(sec: number | null): string {
-  return sec == null ? '' : `${secPerKmToMinPerMile(sec)}/mi`;
-}
-function dow(day: string): string {
-  const [y, mo, d] = day.split('-').map(Number);
-  return DOW[((Math.floor(Date.UTC(y, mo - 1, d) / 86400000) % 7) + 3) % 7];
 }
 
 const PHASE_COLOR: Record<string, string> = {
@@ -129,31 +120,22 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
             >
               <table className="w-full text-sm">
                 <tbody className="divide-y divide-slate-100">
-                  {w.sessions.map((s) => {
-                    const isToday = s.day === TODAY;
-                    return (
-                      <tr key={s.id} className={isToday ? 'bg-sky-50' : ''}>
-                        <td className="w-12 px-2 py-1.5 font-medium text-slate-500">{dow(s.day)}</td>
-                        <td className="w-16 px-2 py-1.5 text-slate-700">
-                          {s.targetDistanceMeters ? `${miles(s.targetDistanceMeters)} mi` : '—'}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <span className="capitalize text-slate-800">{s.sessionType}</span>
-                          {s.targetPaceFastSecPerKm != null && (
-                            <span className="ml-2 text-xs text-slate-400">
-                              {pace(s.targetPaceFastSecPerKm)}–{pace(s.targetPaceSlowSecPerKm)}
-                            </span>
-                          )}
-                          {s.pinned && (
-                            <span className="ml-2 rounded bg-slate-200 px-1 text-[10px] font-medium text-slate-600">
-                              pinned
-                            </span>
-                          )}
-                          {s.description && <p className="text-xs text-slate-500">{s.description}</p>}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {w.sessions.map((s) => (
+                    <SessionEditor
+                      key={s.id}
+                      today={TODAY}
+                      session={{
+                        id: s.id,
+                        day: s.day,
+                        sessionType: s.sessionType,
+                        targetDistanceMeters: s.targetDistanceMeters,
+                        targetPaceFastSecPerKm: s.targetPaceFastSecPerKm,
+                        targetPaceSlowSecPerKm: s.targetPaceSlowSecPerKm,
+                        description: s.description,
+                        pinned: s.pinned,
+                      }}
+                    />
+                  ))}
                 </tbody>
               </table>
             </Card>
