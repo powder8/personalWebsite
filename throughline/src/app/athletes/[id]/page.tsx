@@ -5,6 +5,7 @@ import { BandBadge, Card, Sparkline } from '@/components/ui';
 import { secPerKmToMinPerMile } from '@/engine/plan';
 import { EscalationActions } from '@/components/EscalationActions';
 import { ESCALATION_LABELS } from '@/server/escalations';
+import { PaceAdjustForm } from '@/components/PaceAdjustForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +40,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
     raceWindows,
     escalations,
     upcomingWeeks,
+    paceZones,
     signals,
   } = detail;
 
@@ -259,6 +261,13 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           >
             Full season plan →
           </Link>
+        </Card>
+      )}
+
+      {/* Adjust this athlete's pace model */}
+      {paceZones.length > 0 && (
+        <Card title="Adjust paces (individual model)">
+          <PaceAdjustForm athleteId={athlete.id} zones={paceZones} />
         </Card>
       )}
 

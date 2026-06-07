@@ -5,7 +5,7 @@ import 'server-only';
  */
 import { and, eq, gte, lte, desc } from 'drizzle-orm';
 import { getDb } from '@/db';
-import { suggestRaceWindows, annotateWindows, type RaceWindow } from '@/engine/plan';
+import { suggestRaceWindows, annotateWindows, paceRangeLabel, type RaceWindow } from '@/engine/plan';
 import { getAthleteZones } from '@/db/paceConfig';
 import { listEscalationsForAthlete, type EscalationRow } from '@/server/escalations';
 import { getUpcomingWeeks, type UpcomingWeek } from '@/server/season';
@@ -144,6 +144,7 @@ export interface AthleteDetail {
   raceWindows: (RaceWindow & { filledBy: typeof races.$inferSelect | null })[];
   escalations: EscalationRow[];
   upcomingWeeks: UpcomingWeek[];
+  paceZones: { key: string; label: string }[];
   signals: {
     hrv: { day: string; value: number | null }[];
     restingHr: { day: string; value: number | null }[];
@@ -248,6 +249,11 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
     raceWindows,
     escalations: await listEscalationsForAthlete(db, id),
     upcomingWeeks: await getUpcomingWeeks(db, id, TODAY, 4),
+    paceZones: zones
+      ? (['recovery', 'easy', 'maintenance', 'marathon', 'threshold', 'interval', 'rep'] as const).map(
+          (k) => ({ key: k, label: paceRangeLabel(zones.zones[k]) }),
+        )
+      : [],
     signals: { hrv: hrvRows, restingHr: rhrRows, sleepHours },
   };
 }
