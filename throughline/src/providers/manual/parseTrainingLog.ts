@@ -36,6 +36,10 @@ export interface ParsedDay {
   core: string;
   avgPaceSecPerKm: number | null; // parsed from description when an "avg" pace is present
   durationSeconds: number | null; // derived from actualMiles × avg pace, when available
+  // Wellness signals (when the log has them) → readiness inputs.
+  sleepHours?: number | null;
+  restingHr?: number | null;
+  feel?: number | null; // 1-5 subjective
 }
 
 const MI_TO_KM = 1.609344;
@@ -104,6 +108,9 @@ interface FlatCols {
   description?: number;
   phase?: number;
   pace?: number; // "Log Pace Per Mile"
+  sleep?: number; // "Hrs of Sleep"
+  restingHr?: number; // "Morning Heartrate"
+  feel?: number; // "How I felt …"
 }
 
 /** Returns the header row number if this sheet is a flat daily log (has a Date column). */
@@ -131,9 +138,18 @@ function mapFlatColumns(row: ExcelJS.Row): FlatCols {
     else if (t === 'type of workout' || t === 'type') cols.type = c;
     else if (t === 'workout description') cols.description = c;
     else if (t === 'log pace per mile') cols.pace = c;
+    else if (t.includes('hrs of sleep') || t === 'sleep') cols.sleep = c;
+    else if (t.includes('morning heartrate') || t.includes('resting')) cols.restingHr = c;
+    else if (t.includes('how i felt')) cols.feel = c;
     else if (t.includes('phase')) cols.phase = c;
   });
   return cols as FlatCols;
+}
+
+/** A positive number from a cell, else null (0/blank treated as "not logged"). */
+function positiveNumber(cell: ExcelJS.Cell): number | null {
+  const n = numberFrom(cell);
+  return n != null && n > 0 ? n : null;
 }
 
 function mapTypeToSport(type: string): 'run' | 'cross_train' | 'other' {
@@ -206,6 +222,9 @@ function parseFlatSheet(ws: ExcelJS.Worksheet): ParsedDay[] {
         avgPaceSecPerKm != null && actualMiles != null
           ? Math.round(actualMiles * MI_TO_KM * avgPaceSecPerKm)
           : null,
+      sleepHours: cols.sleep ? positiveNumber(row.getCell(cols.sleep)) : null,
+      restingHr: cols.restingHr ? positiveNumber(row.getCell(cols.restingHr)) : null,
+      feel: cols.feel ? positiveNumber(row.getCell(cols.feel)) : null,
     });
   }
   return days;

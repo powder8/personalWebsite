@@ -261,22 +261,32 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
       )
     : [];
 
-  const since = isoDaysAgo(28);
-  const hrvRows = await db
-    .select({ day: hrvRecords.day, value: hrvRecords.overnightAvgMs })
-    .from(hrvRecords)
-    .where(and(eq(hrvRecords.athleteId, id), gte(hrvRecords.day, since)))
-    .orderBy(hrvRecords.day);
-  const rhrRows = await db
-    .select({ day: restingHrRecords.day, value: restingHrRecords.restingHr })
-    .from(restingHrRecords)
-    .where(and(eq(restingHrRecords.athleteId, id), gte(restingHrRecords.day, since)))
-    .orderBy(restingHrRecords.day);
-  const sleepRows = await db
-    .select({ day: sleepRecords.day, value: sleepRecords.totalSleepSeconds })
-    .from(sleepRecords)
-    .where(and(eq(sleepRecords.athleteId, id), gte(sleepRecords.day, since)))
-    .orderBy(sleepRecords.day);
+  // Most-recent ~28 readings of each signal (works for current AND historical
+  // imported athletes whose data may be years old).
+  const hrvRows = (
+    await db
+      .select({ day: hrvRecords.day, value: hrvRecords.overnightAvgMs })
+      .from(hrvRecords)
+      .where(eq(hrvRecords.athleteId, id))
+      .orderBy(desc(hrvRecords.day))
+      .limit(28)
+  ).reverse();
+  const rhrRows = (
+    await db
+      .select({ day: restingHrRecords.day, value: restingHrRecords.restingHr })
+      .from(restingHrRecords)
+      .where(eq(restingHrRecords.athleteId, id))
+      .orderBy(desc(restingHrRecords.day))
+      .limit(28)
+  ).reverse();
+  const sleepRows = (
+    await db
+      .select({ day: sleepRecords.day, value: sleepRecords.totalSleepSeconds })
+      .from(sleepRecords)
+      .where(eq(sleepRecords.athleteId, id))
+      .orderBy(desc(sleepRecords.day))
+      .limit(28)
+  ).reverse();
   const sleepHours = sleepRows.map((d) => ({ day: d.day, value: d.value == null ? null : d.value / 3600 }));
 
   return {
@@ -344,11 +354,4 @@ async function activitySummary(
       sport: r.sport,
     })),
   };
-}
-
-function isoDaysAgo(n: number): string {
-  // relative to TODAY (seed reference), not the wall clock
-  const [y, m, d] = TODAY.split('-').map(Number);
-  const t = Date.UTC(y, m - 1, d) - n * 86400000;
-  return new Date(t).toISOString().slice(0, 10);
 }

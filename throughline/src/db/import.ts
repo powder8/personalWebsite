@@ -4,7 +4,7 @@
  * re-importing the same file does not duplicate rows.
  */
 import type { DB } from './client';
-import { rawEvents, activities } from './schema';
+import { rawEvents, activities, sleepRecords, restingHrRecords, checkIns } from './schema';
 import { payloadHash } from '@/lib/hash';
 import type { ParsedDay } from '@/providers/manual/parseTrainingLog';
 
@@ -16,6 +16,7 @@ export interface ImportResult {
   activities: number;
   dateBugFixes: number;
   pacesParsed: number;
+  wellness: number; // sleep / resting-HR / check-in records written
 }
 
 export async function importParsedDays(
@@ -28,6 +29,7 @@ export async function importParsedDays(
   let actCount = 0;
   let dateBugFixes = 0;
   let pacesParsed = 0;
+  let wellness = 0;
 
   for (const d of days) {
     if (d.assignedMiles?.wasDateBug) dateBugFixes++;
@@ -78,6 +80,32 @@ export async function importParsedDays(
         });
       actCount++;
     }
+
+    // 3) Wellness signals (readiness inputs) — written when the log has them.
+    if (d.sleepHours != null && d.sleepHours > 0) {
+      const r = await db
+        .insert(sleepRecords)
+        .values({ athleteId, day: d.date, totalSleepSeconds: Math.round(d.sleepHours * 3600) })
+        .onConflictDoNothing({ target: [sleepRecords.athleteId, sleepRecords.day] })
+        .returning({ id: sleepRecords.id });
+      if (r.length) wellness++;
+    }
+    if (d.restingHr != null && d.restingHr > 0) {
+      const r = await db
+        .insert(restingHrRecords)
+        .values({ athleteId, day: d.date, restingHr: Math.round(d.restingHr) })
+        .onConflictDoNothing({ target: [restingHrRecords.athleteId, restingHrRecords.day] })
+        .returning({ id: restingHrRecords.id });
+      if (r.length) wellness++;
+    }
+    if (d.feel != null && d.feel > 0) {
+      const r = await db
+        .insert(checkIns)
+        .values({ athleteId, day: d.date, energy: Math.max(0, Math.min(10, Math.round(d.feel * 2))) })
+        .onConflictDoNothing({ target: [checkIns.athleteId, checkIns.day] })
+        .returning({ id: checkIns.id });
+      if (r.length) wellness++;
+    }
   }
 
   return {
@@ -86,5 +114,6 @@ export async function importParsedDays(
     activities: actCount,
     dateBugFixes,
     pacesParsed,
+    wellness,
   };
 }

@@ -88,7 +88,7 @@ export interface MultiImportResult {
 export async function importMultipleSheets(db: DB, input: MultiImportInput): Promise<MultiImportResult> {
   if (!input.files?.length) throw new Error('No files provided.');
   const athleteId = await ensureAthlete(db, input.name.trim(), input.email.trim().toLowerCase());
-  const totals: ImportResult = { days: 0, rawEvents: 0, activities: 0, dateBugFixes: 0, pacesParsed: 0 };
+  const totals: ImportResult = { days: 0, rawEvents: 0, activities: 0, dateBugFixes: 0, pacesParsed: 0, wellness: 0 };
   const perFile: MultiImportResult['perFile'] = [];
 
   for (const f of input.files) {
@@ -104,6 +104,7 @@ export async function importMultipleSheets(db: DB, input: MultiImportInput): Pro
       totals.activities += result.activities;
       totals.dateBugFixes += result.dateBugFixes;
       totals.pacesParsed += result.pacesParsed;
+      totals.wellness += result.wellness;
       perFile.push({ url: f.url, ok: true, result });
     } catch (e) {
       perFile.push({ url: f.url, ok: false, error: e instanceof Error ? e.message : 'Import failed.' });
@@ -125,7 +126,7 @@ export async function importUploadedFiles(
 ): Promise<MultiImportResult> {
   if (!input.files?.length) throw new Error('No files provided.');
   const athleteId = await ensureAthlete(db, input.name.trim(), input.email.trim().toLowerCase());
-  const totals: ImportResult = { days: 0, rawEvents: 0, activities: 0, dateBugFixes: 0, pacesParsed: 0 };
+  const totals: ImportResult = { days: 0, rawEvents: 0, activities: 0, dateBugFixes: 0, pacesParsed: 0, wellness: 0 };
   const perFile: MultiImportResult['perFile'] = [];
 
   for (const f of input.files) {
@@ -138,6 +139,7 @@ export async function importUploadedFiles(
       totals.activities += result.activities;
       totals.dateBugFixes += result.dateBugFixes;
       totals.pacesParsed += result.pacesParsed;
+      totals.wellness += result.wellness;
       perFile.push({ url: f.name, ok: true, result });
     } catch (e) {
       perFile.push({ url: f.name, ok: false, error: e instanceof Error ? e.message : 'Import failed.' });
