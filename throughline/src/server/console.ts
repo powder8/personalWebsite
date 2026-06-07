@@ -163,7 +163,7 @@ export interface AthleteDetail {
   equivalents: EquivalentPerformance[];
   strengthBias: number;
   activitySummary: { count: number; totalMiles: number; firstDay: string | null; lastDay: string | null };
-  recentActivities: { day: string; distanceMiles: number; paceSecPerKm: number | null; sport: string }[];
+  activities: { day: string; distanceMiles: number; paceSecPerKm: number | null; sport: string }[];
   signals: {
     hrv: { day: string; value: number | null }[];
     restingHr: { day: string; value: number | null }[];
@@ -316,7 +316,7 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
 async function activitySummary(
   db: DB,
   athleteId: string,
-): Promise<Pick<AthleteDetail, 'activitySummary' | 'recentActivities'>> {
+): Promise<Pick<AthleteDetail, 'activitySummary' | 'activities'>> {
   const rows = await db
     .select({
       startTime: activities.startTime,
@@ -337,7 +337,7 @@ async function activitySummary(
       firstDay: days.length ? days[days.length - 1] : null,
       lastDay: days.length ? days[0] : null,
     },
-    recentActivities: rows.slice(0, 20).map((r) => ({
+    activities: rows.map((r) => ({
       day: r.startTime.toISOString().slice(0, 10),
       distanceMiles: Math.round(((r.distanceMeters ?? 0) / 1609.344) * 10) / 10,
       paceSecPerKm: r.avgPaceSecPerKm,

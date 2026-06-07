@@ -76,7 +76,11 @@ test('parses a flat daily-log format and picks IMPERIAL columns (not metric)', {
   const easy = days.find((d) => /easy/i.test(d.workout) && d.actualMiles != null)!;
   assert.ok(easy.actualMiles! < 14, `imperial miles expected, got ${easy.actualMiles}`);
 
-  // The "Log Pace Per Mile" column is used: ~7:08/mi ≈ 266 s/km.
-  const withPace = days.find((d) => d.avgPaceSecPerKm != null)!;
-  assert.ok(withPace.avgPaceSecPerKm! > 230 && withPace.avgPaceSecPerKm! < 320);
+  // The "Log Pace Per Mile" column (an Excel time value) is read as the ACTUAL
+  // pace — so paces vary across runs (not all the prescribed pace).
+  const paces = days.map((d) => d.avgPaceSecPerKm).filter((p): p is number => p != null);
+  assert.ok(paces.length > 100, `expected many logged paces, got ${paces.length}`);
+  // sane mile-pace range (~4:00–9:00/mi → s/km), incl. fast speed sessions.
+  assert.ok(paces.every((p) => p > 140 && p < 360), 'paces in a sane mile-pace range');
+  assert.ok(new Set(paces.map((p) => Math.round(p))).size > 20, 'actual paces vary, not a single value');
 });

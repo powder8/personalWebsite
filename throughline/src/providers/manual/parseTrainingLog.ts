@@ -143,12 +143,22 @@ function mapTypeToSport(type: string): 'run' | 'cross_train' | 'other' {
   return 'run';
 }
 
-/** Parse a "Log Pace Per Mile" cell ("7:08") → sec/km. */
+/**
+ * Parse a "Log Pace Per Mile" cell → sec/km. These logs store the ACTUAL pace
+ * as an Excel TIME value (a 1899-epoch Date where hours=minutes-of-pace,
+ * minutes=seconds-of-pace, e.g. 06:52:00 → 6:52/mi). Falls back to a "M:SS"
+ * string if present.
+ */
 function parsePaceCell(cell: ExcelJS.Cell): number | null {
-  const m = cellText(cell).match(/(\d{1,2}):(\d{2})/);
-  if (!m) return null;
-  const secPerMile = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-  return secPerMile > 240 && secPerMile < 900 ? secPerMile / MI_TO_KM : null;
+  const v = cell.value;
+  let secPerMile: number | null = null;
+  if (v instanceof Date) {
+    secPerMile = v.getUTCHours() * 60 + v.getUTCMinutes(); // h=min, m=sec
+  } else {
+    const m = String(typeof v === 'string' ? v : (cell.text ?? '')).match(/(\d{1,2}):(\d{2})/);
+    if (m) secPerMile = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  }
+  return secPerMile != null && secPerMile > 240 && secPerMile < 900 ? secPerMile / MI_TO_KM : null;
 }
 
 function parseFlatSheet(ws: ExcelJS.Worksheet): ParsedDay[] {
@@ -169,10 +179,14 @@ function parseFlatSheet(ws: ExcelJS.Worksheet): ParsedDay[] {
     const logged = cols.logged ? numberFrom(row.getCell(cols.logged)) : null;
     const assigned = cols.assigned ? numberFrom(row.getCell(cols.assigned)) : null;
     const sport = mapTypeToSport(type);
-    // Prefer the dedicated pace column; else parse a steady "@ pace" from text.
+    // Use the dedicated ACTUAL-pace column when present; only fall back to
+    // parsing an assigned "@ pace" from the text when there is no pace column.
     const avgPaceSecPerKm =
-      (cols.pace ? parsePaceCell(row.getCell(cols.pace)) : null) ??
-      (/easy|maintenance|recovery|long|aerobic/i.test(type) ? parseAtPace(description) : null);
+      cols.pace != null
+        ? parsePaceCell(row.getCell(cols.pace))
+        : /easy|maintenance|recovery|long|aerobic/i.test(type)
+          ? parseAtPace(description)
+          : null;
     const actualMiles = logged != null && logged > 0 ? logged : null;
 
     days.push({

@@ -49,7 +49,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
     equivalents,
     strengthBias,
     activitySummary,
-    recentActivities,
+    activities,
     signals,
   } = detail;
 
@@ -194,27 +194,29 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
             activitySummary.firstDay ? ` (${activitySummary.firstDay} → ${activitySummary.lastDay})` : ''
           }`}
         >
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wide text-slate-400">
-              <tr>
-                <th className="py-1 font-medium">Date</th>
-                <th className="py-1 font-medium">Distance</th>
-                <th className="py-1 font-medium">Pace</th>
-                <th className="py-1 font-medium">Sport</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {recentActivities.map((a, i) => (
-                <tr key={`${a.day}-${i}`}>
-                  <td className="py-1 text-slate-600">{a.day}</td>
-                  <td className="py-1 text-slate-700">{a.distanceMiles} mi</td>
-                  <td className="py-1 text-slate-500">{paceMi(a.paceSecPerKm)}</td>
-                  <td className="py-1 capitalize text-slate-500">{a.sport.replace('_', ' ')}</td>
+          <div className="max-h-96 overflow-y-auto rounded border border-slate-100">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
+                <tr>
+                  <th className="px-2 py-1 font-medium">Date</th>
+                  <th className="px-2 py-1 font-medium">Distance</th>
+                  <th className="px-2 py-1 font-medium">Pace</th>
+                  <th className="px-2 py-1 font-medium">Sport</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="mt-2 text-xs text-slate-400">Most recent 20 imported runs.</p>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {activities.map((a, i) => (
+                  <tr key={`${a.day}-${i}`}>
+                    <td className="px-2 py-1 text-slate-600">{a.day}</td>
+                    <td className="px-2 py-1 text-slate-700">{a.distanceMiles} mi</td>
+                    <td className="px-2 py-1 text-slate-500">{paceMi(a.paceSecPerKm)}</td>
+                    <td className="px-2 py-1 capitalize text-slate-500">{a.sport.replace('_', ' ')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-xs text-slate-400">All {activities.length} imported runs — scroll to browse.</p>
         </Card>
       )}
 
