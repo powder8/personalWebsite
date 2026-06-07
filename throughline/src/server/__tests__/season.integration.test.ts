@@ -12,7 +12,7 @@ import { eq } from 'drizzle-orm';
 
 import * as schema from '@/db/schema';
 import { athletes, races, plans } from '@/db/schema';
-import { setupSeason, getSeasonPlan } from '../season';
+import { setupSeason, getSeasonPlan, getUpcomingWeeks } from '../season';
 
 let client: PGlite;
 let db: ReturnType<typeof drizzle<typeof schema>>;
@@ -86,4 +86,17 @@ test('getSeasonPlan returns weeks in order with races', async () => {
   assert.ok(weeks.length > 12);
   for (let i = 1; i < weeks.length; i++) assert.ok(weeks[i].weekStart > weeks[i - 1].weekStart);
   assert.equal(raceRows.length, 2);
+});
+
+test('getUpcomingWeeks returns the next N weeks with day-by-day sessions', async () => {
+  const upcoming = await getUpcomingWeeks(db, A, INPUT.startDay, 4);
+  assert.ok(upcoming.length > 0 && upcoming.length <= 4);
+  // chronological, all on/after today, and each has sessions
+  let prev = '';
+  for (const w of upcoming) {
+    assert.ok(w.weekStart > prev);
+    prev = w.weekStart;
+    assert.ok(w.weekEnd >= INPUT.startDay);
+    assert.ok(w.sessions.length >= 1);
+  }
 });

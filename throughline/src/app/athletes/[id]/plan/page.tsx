@@ -3,14 +3,25 @@ import { notFound } from 'next/navigation';
 import { getDb } from '@/db';
 import { eq } from 'drizzle-orm';
 import { athletes } from '@/db/schema';
-import { getSeasonPlan } from '@/server/season';
+import { getSeasonPlan, getUpcomingWeeks } from '@/server/season';
 import { SeasonForm } from '@/components/SeasonForm';
 import { Card } from '@/components/ui';
+import { TODAY } from '@/server/console';
+import { secPerKmToMinPerMile } from '@/engine/plan';
 
 export const dynamic = 'force-dynamic';
 
+const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
 function miles(m: number | null): number {
   return m == null ? 0 : Math.round((m / 1609.344) * 10) / 10;
+}
+function pace(sec: number | null): string {
+  return sec == null ? '' : `${secPerKmToMinPerMile(sec)}/mi`;
+}
+function dow(day: string): string {
+  const [y, mo, d] = day.split('-').map(Number);
+  return DOW[((Math.floor(Date.UTC(y, mo - 1, d) / 86400000) % 7) + 3) % 7];
 }
 
 const PHASE_COLOR: Record<string, string> = {
@@ -27,6 +38,7 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
   if (!athlete) notFound();
 
   const { weeks, races } = await getSeasonPlan(db, id);
+  const upcoming = await getUpcomingWeeks(db, id, TODAY, 4);
   const racesByWeek = new Map<string, typeof races>();
   for (const r of races) {
     for (const w of weeks) {
@@ -105,6 +117,48 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
         <Card>
           <p className="text-sm text-slate-500">No plan yet — set up the season below to generate one.</p>
         </Card>
+      )}
+
+      {upcoming.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-slate-700">Next few weeks</h2>
+          {upcoming.map((w) => (
+            <Card
+              key={w.planId}
+              title={`Week of ${w.weekStart} · ${w.phase ?? ''}${w.status === 'draft' ? ' (draft)' : ''}`}
+            >
+              <table className="w-full text-sm">
+                <tbody className="divide-y divide-slate-100">
+                  {w.sessions.map((s) => {
+                    const isToday = s.day === TODAY;
+                    return (
+                      <tr key={s.id} className={isToday ? 'bg-sky-50' : ''}>
+                        <td className="w-12 px-2 py-1.5 font-medium text-slate-500">{dow(s.day)}</td>
+                        <td className="w-16 px-2 py-1.5 text-slate-700">
+                          {s.targetDistanceMeters ? `${miles(s.targetDistanceMeters)} mi` : '—'}
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <span className="capitalize text-slate-800">{s.sessionType}</span>
+                          {s.targetPaceFastSecPerKm != null && (
+                            <span className="ml-2 text-xs text-slate-400">
+                              {pace(s.targetPaceFastSecPerKm)}–{pace(s.targetPaceSlowSecPerKm)}
+                            </span>
+                          )}
+                          {s.pinned && (
+                            <span className="ml-2 rounded bg-slate-200 px-1 text-[10px] font-medium text-slate-600">
+                              pinned
+                            </span>
+                          )}
+                          {s.description && <p className="text-xs text-slate-500">{s.description}</p>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </Card>
+          ))}
+        </div>
       )}
 
       <Card title="Set up / regenerate season">

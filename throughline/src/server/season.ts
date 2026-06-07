@@ -5,9 +5,9 @@
  *
  * db is passed in so this works against Neon, local PGlite, and tests.
  */
-import { eq } from 'drizzle-orm';
+import { and, eq, gte } from 'drizzle-orm';
 import type { DB } from '@/db';
-import { athletes, races, plans } from '@/db/schema';
+import { athletes, races, plans, plannedSessions } from '@/db/schema';
 import {
   generatePlan,
   resolvePaceZones,
@@ -131,4 +131,69 @@ export async function getSeasonPlan(
     .orderBy(plans.weekStart);
   const raceRows = await db.select().from(races).where(eq(races.athleteId, athleteId)).orderBy(races.date);
   return { weeks: weekRows, races: raceRows };
+}
+
+export interface UpcomingWeek {
+  planId: string;
+  weekStart: string;
+  weekEnd: string;
+  phase: string | null;
+  cycle: number | null;
+  status: string;
+  weeklyTargetMeters: number | null;
+  rationale: string | null;
+  sessions: typeof plannedSessions.$inferSelect[];
+}
+
+/**
+ * The current and next `count` weeks, with their day-by-day sessions — the
+ * "look a few weeks ahead" view. Prefers the published plan for a week, falling
+ * back to the draft; skips superseded.
+ */
+export async function getUpcomingWeeks(
+  db: DB,
+  athleteId: string,
+  today: string,
+  count = 4,
+): Promise<UpcomingWeek[]> {
+  const rows = await db
+    .select()
+    .from(plans)
+    .where(and(eq(plans.athleteId, athleteId), gte(plans.weekEnd, today)))
+    .orderBy(plans.weekStart);
+
+  // One plan per week: prefer published, else draft (ignore superseded).
+  const byWeek = new Map<string, typeof plans.$inferSelect>();
+  for (const p of rows) {
+    if (p.status === 'superseded') continue;
+    const existing = byWeek.get(p.weekStart);
+    if (!existing || (p.status === 'published' && existing.status !== 'published')) {
+      byWeek.set(p.weekStart, p);
+    }
+  }
+
+  const chosen = Array.from(byWeek.values())
+    .sort((a, b) => a.weekStart.localeCompare(b.weekStart))
+    .slice(0, count);
+
+  const out: UpcomingWeek[] = [];
+  for (const p of chosen) {
+    const sessions = await db
+      .select()
+      .from(plannedSessions)
+      .where(eq(plannedSessions.planId, p.id))
+      .orderBy(plannedSessions.day);
+    out.push({
+      planId: p.id,
+      weekStart: p.weekStart,
+      weekEnd: p.weekEnd,
+      phase: p.phase,
+      cycle: p.cycle,
+      status: p.status,
+      weeklyTargetMeters: p.weeklyTargetMeters,
+      rationale: p.rationale,
+      sessions,
+    });
+  }
+  return out;
 }
