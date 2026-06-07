@@ -103,12 +103,30 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
             <ul className="space-y-2 text-sm">
               {raceWindows.map((w) => (
                 <li key={w.kind} className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <span className="font-medium text-slate-800">{w.label}</span>
                     <span className="ml-2 text-xs text-slate-500">
-                      {w.fromDate} → {w.toDate} · {w.suggestedDistances.join('/')}
+                      {w.fromDate} → {w.toDate}
                     </span>
-                    <p className="text-xs text-slate-500">{w.rationale}</p>
+                    <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-600">
+                      <span>
+                        <span className="text-slate-400">distance</span> {w.primaryDistance}
+                        {w.suggestedDistances.length > 1 && (
+                          <span className="text-slate-400"> (or {w.suggestedDistances.slice(1).join('/')})</span>
+                        )}
+                      </span>
+                      {w.targetPaceLabel && (
+                        <span>
+                          <span className="text-slate-400">target pace</span> {w.targetPaceLabel}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      <span className="text-slate-400">course:</span> {w.courseProfile}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      <span className="text-slate-400">effort:</span> {w.effortNote}
+                    </p>
                   </div>
                   {w.filledBy ? (
                     <span className="whitespace-nowrap rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">

@@ -6,6 +6,7 @@ import 'server-only';
 import { and, eq, gte, lte, desc } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { suggestRaceWindows, annotateWindows, type RaceWindow } from '@/engine/plan';
+import { getAthleteZones } from '@/db/paceConfig';
 import {
   athletes,
   readinessAssessments,
@@ -188,13 +189,16 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
     .orderBy(desc(injuryRecords.onsetDate));
   const raceList = await db.select().from(races).where(eq(races.athleteId, id)).orderBy(races.date);
 
-  // Advise tune-up windows on the path to the goal race (from today).
+  // Advise tune-up windows on the path to the goal race (from today), with
+  // personalized target paces from the athlete's resolved zones.
   const goal = raceList.find((r) => r.priority === 'goal');
+  const zones = (await getAthleteZones(db, id)) ?? undefined;
   const raceWindows = goal
     ? annotateWindows(
         suggestRaceWindows(
           { date: goal.date, distanceMeters: goal.distanceMeters, distanceLabel: goal.distanceLabel },
           TODAY,
+          zones,
         ),
         raceList.filter((r) => r.id !== goal.id),
       )

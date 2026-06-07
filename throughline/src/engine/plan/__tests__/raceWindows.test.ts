@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { suggestRaceWindows, annotateWindows } from '../index';
+import { suggestRaceWindows, annotateWindows, buildZonesFromVdot, vdotFromRace, midpoint } from '../index';
 
 const startDay = '2026-01-05';
 const goalMarathon = { date: '2026-06-07', distanceLabel: 'Marathon' }; // ~22 weeks out
@@ -45,6 +45,30 @@ test('distances scale with goal class (half goal → shorter tune-ups)', () => {
   const w = suggestRaceWindows({ date: '2026-06-07', distanceLabel: 'Half' }, startDay);
   const spec = w.find((x) => x.kind === 'specificity_tuneup')!;
   assert.ok(!spec.suggestedDistances.includes('Half'), 'half goal should not tune up with a half');
+});
+
+test('each window carries a primary distance, course profile, and effort note', () => {
+  const w = suggestRaceWindows(goalMarathon, startDay);
+  for (const win of w) {
+    assert.ok(win.primaryDistance.length > 0);
+    assert.ok(win.suggestedDistances.includes(win.primaryDistance));
+    assert.ok(win.courseProfile.length > 0);
+    assert.ok(win.effortNote.length > 0);
+    assert.equal(win.targetPace, null, 'no pace without zones');
+  }
+});
+
+test('with zones, windows get a personalized target pace; shorter races are faster', () => {
+  const zones = buildZonesFromVdot(vdotFromRace({ distanceMeters: 21097.5, timeSeconds: 73 * 60 }));
+  const w = suggestRaceWindows(goalMarathon, startDay, zones);
+  const sharp = w.find((x) => x.kind === 'final_sharpener')!; // short → fast
+  const spec = w.find((x) => x.kind === 'specificity_tuneup')!; // Half → slower
+  assert.ok(sharp.targetPace && sharp.targetPaceLabel?.includes('/mi'));
+  assert.ok(spec.targetPace);
+  assert.ok(
+    midpoint(sharp.targetPace!) < midpoint(spec.targetPace!),
+    'a short sharpener targets a faster pace than a half tune-up',
+  );
 });
 
 test('annotateWindows marks windows already filled by a scheduled race', () => {
