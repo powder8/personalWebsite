@@ -6,6 +6,8 @@ import { secPerKmToMinPerMile } from '@/engine/plan';
 import { EscalationActions } from '@/components/EscalationActions';
 import { ESCALATION_LABELS } from '@/server/escalations';
 import { PaceAdjustForm } from '@/components/PaceAdjustForm';
+import { AdjustmentForm } from '@/components/AdjustmentForm';
+import { PostButton } from '@/components/PostButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,9 +42,16 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
     raceWindows,
     escalations,
     upcomingWeeks,
+    directives,
     paceZones,
     signals,
   } = detail;
+
+  const ADJ_LABEL: Record<string, string> = {
+    pace_adjust: 'Slower paces',
+    reduce_volume: 'Reduced volume',
+    unavailable: 'Unavailable (rest)',
+  };
 
   return (
     <div className="space-y-5">
@@ -202,6 +211,11 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
                             pinned
                           </span>
                         )}
+                        {s.adjustments.length > 0 && (
+                          <span className="ml-2 rounded bg-amber-50 px-1 text-[10px] font-medium text-amber-700">
+                            {s.adjustments.join('; ')}
+                          </span>
+                        )}
                         <p className="text-xs text-slate-500">{s.description}</p>
                       </td>
                     </tr>
@@ -218,6 +232,34 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
         ) : (
           <p className="text-sm text-slate-500">No published plan for this week.</p>
         )}
+      </Card>
+
+      {/* Windowed adjustments + availability */}
+      <Card title="Adjustments & availability">
+        {directives.length > 0 && (
+          <ul className="mb-3 space-y-1.5 text-sm">
+            {directives.map((d) => (
+              <li key={d.id} className="flex items-center justify-between gap-3">
+                <div>
+                  <span className="font-medium text-slate-800">{ADJ_LABEL[d.type] ?? d.type}</span>
+                  {d.type === 'pace_adjust' && d.deltaSecPerMile != null && (
+                    <span className="text-slate-500"> {d.deltaSecPerMile > 0 ? '+' : ''}{d.deltaSecPerMile}s/mi</span>
+                  )}
+                  {d.type === 'reduce_volume' && d.factor != null && (
+                    <span className="text-slate-500"> → {Math.round(d.factor * 100)}%</span>
+                  )}
+                  <span className="ml-2 text-xs text-slate-500">
+                    {d.from}
+                    {d.to ? ` → ${d.to}` : ' → ongoing'}
+                    {d.label ? ` · ${d.label}` : ''}
+                  </span>
+                </div>
+                <PostButton url={`/api/directives/${d.id}`} label="Remove" />
+              </li>
+            ))}
+          </ul>
+        )}
+        <AdjustmentForm athleteId={athlete.id} today={TODAY} />
       </Card>
 
       {/* Look ahead: the next few weeks (beyond the current one) */}
@@ -245,6 +287,11 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
                             {s.targetPaceFastSecPerKm != null && (
                               <span className="ml-2 text-xs text-slate-400">
                                 {pace(s.targetPaceFastSecPerKm)}–{pace(s.targetPaceSlowSecPerKm)}
+                              </span>
+                            )}
+                            {s.adjustments.length > 0 && (
+                              <span className="ml-2 rounded bg-amber-50 px-1 text-[10px] font-medium text-amber-700">
+                                {s.adjustments.join('; ')}
                               </span>
                             )}
                           </td>

@@ -9,6 +9,8 @@ import { suggestRaceWindows, annotateWindows, paceRangeLabel, type RaceWindow } 
 import { getAthleteZones } from '@/db/paceConfig';
 import { listEscalationsForAthlete, type EscalationRow } from '@/server/escalations';
 import { getUpcomingWeeks, type UpcomingWeek } from '@/server/season';
+import { listActiveDirectives, type DirectiveRow } from '@/server/directives';
+import { applyDirectives } from '@/engine/plan';
 import {
   athletes,
   readinessAssessments,
@@ -129,13 +131,15 @@ async function getTodaySession(athleteId: string) {
   return session ? { sessionType: session.sessionType, description: session.description } : null;
 }
 
+export type DisplaySession = typeof plannedSessions.$inferSelect & { adjustments: string[] };
+
 export interface AthleteDetail {
   athlete: typeof athletes.$inferSelect;
   readinessToday: typeof readinessAssessments.$inferSelect | null;
   readinessHistory: typeof readinessAssessments.$inferSelect[];
   currentWeek: {
     plan: typeof plans.$inferSelect;
-    sessions: typeof plannedSessions.$inferSelect[];
+    sessions: DisplaySession[];
   } | null;
   checkIns: typeof checkIns.$inferSelect[];
   notes: typeof athleteNotes.$inferSelect[];
@@ -143,7 +147,8 @@ export interface AthleteDetail {
   races: typeof races.$inferSelect[];
   raceWindows: (RaceWindow & { filledBy: typeof races.$inferSelect | null })[];
   escalations: EscalationRow[];
-  upcomingWeeks: UpcomingWeek[];
+  upcomingWeeks: (Omit<UpcomingWeek, 'sessions'> & { sessions: DisplaySession[] })[];
+  directives: DirectiveRow[];
   paceZones: { key: string; label: string }[];
   signals: {
     hrv: { day: string; value: number | null }[];
@@ -166,6 +171,29 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
 
   const readinessToday = history.find((h) => h.day === TODAY) ?? null;
 
+  // Active windowed adjustments (directives) overlaid on displayed sessions.
+  const directiveRows = await listActiveDirectives(db, id);
+  const overlay = (s: typeof plannedSessions.$inferSelect): DisplaySession => {
+    const adj = applyDirectives(
+      {
+        day: s.day,
+        sessionType: s.sessionType,
+        distanceMeters: s.targetDistanceMeters,
+        paceFastSecPerKm: s.targetPaceFastSecPerKm,
+        paceSlowSecPerKm: s.targetPaceSlowSecPerKm,
+      },
+      directiveRows,
+    );
+    return {
+      ...s,
+      sessionType: adj.sessionType as typeof s.sessionType,
+      targetDistanceMeters: adj.distanceMeters,
+      targetPaceFastSecPerKm: adj.paceFastSecPerKm,
+      targetPaceSlowSecPerKm: adj.paceSlowSecPerKm,
+      adjustments: adj.adjustments,
+    };
+  };
+
   const [plan] = await db
     .select()
     .from(plans)
@@ -186,7 +214,7 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
       .from(plannedSessions)
       .where(eq(plannedSessions.planId, plan.id))
       .orderBy(plannedSessions.day);
-    currentWeek = { plan, sessions };
+    currentWeek = { plan, sessions: sessions.map(overlay) };
   }
 
   const recentCheckIns = await db
@@ -248,7 +276,11 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
     races: raceList,
     raceWindows,
     escalations: await listEscalationsForAthlete(db, id),
-    upcomingWeeks: await getUpcomingWeeks(db, id, TODAY, 4),
+    upcomingWeeks: (await getUpcomingWeeks(db, id, TODAY, 4)).map((w) => ({
+      ...w,
+      sessions: w.sessions.map(overlay),
+    })),
+    directives: directiveRows,
     paceZones: zones
       ? (['recovery', 'easy', 'maintenance', 'marathon', 'threshold', 'interval', 'rep'] as const).map(
           (k) => ({ key: k, label: paceRangeLabel(zones.zones[k]) }),
