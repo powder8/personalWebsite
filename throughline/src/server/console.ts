@@ -5,7 +5,16 @@ import 'server-only';
  */
 import { and, eq, gte, lte, desc } from 'drizzle-orm';
 import { getDb } from '@/db';
-import { suggestRaceWindows, annotateWindows, paceRangeLabel, type RaceWindow } from '@/engine/plan';
+import {
+  suggestRaceWindows,
+  annotateWindows,
+  paceRangeLabel,
+  vdotFromThreshold,
+  equivalentPerformances,
+  type RaceWindow,
+  type EquivalentPerformance,
+  type AthletePaceConfig,
+} from '@/engine/plan';
 import { getAthleteZones } from '@/db/paceConfig';
 import { listEscalationsForAthlete, type EscalationRow } from '@/server/escalations';
 import { getUpcomingWeeks, type UpcomingWeek } from '@/server/season';
@@ -150,6 +159,9 @@ export interface AthleteDetail {
   upcomingWeeks: (Omit<UpcomingWeek, 'sessions'> & { sessions: DisplaySession[] })[];
   directives: DirectiveRow[];
   paceZones: { key: string; label: string }[];
+  vdot: number | null;
+  equivalents: EquivalentPerformance[];
+  strengthBias: number;
   signals: {
     hrv: { day: string; value: number | null }[];
     restingHr: { day: string; value: number | null }[];
@@ -286,6 +298,9 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
           (k) => ({ key: k, label: paceRangeLabel(zones.zones[k]) }),
         )
       : [],
+    vdot: zones ? Math.round(vdotFromThreshold(zones.thresholdSecPerKm) * 10) / 10 : null,
+    equivalents: zones ? equivalentPerformances(vdotFromThreshold(zones.thresholdSecPerKm)) : [],
+    strengthBias: ((athlete.paceConfig as AthletePaceConfig | null) ?? {}).strengthBias ?? 0,
     signals: { hrv: hrvRows, restingHr: rhrRows, sleepHours },
   };
 }

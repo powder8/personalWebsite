@@ -42,6 +42,51 @@ export function paceForVdotFraction(vdot: number, fraction: number): number {
   return 60000 / v; // sec per km
 }
 
+/**
+ * Predict an equivalent race time (seconds) at a distance for a given VDOT —
+ * the Daniels "equivalent race performance" algorithm. Solves the implicit
+ * Daniels–Gilbert relation numerically (VDOT decreases as the time for a fixed
+ * distance grows, so a bounded binary search converges).
+ */
+export function predictRaceTimeSeconds(vdot: number, distanceMeters: number): number {
+  const vdotAt = (tMin: number) =>
+    vo2AtVelocity(distanceMeters / tMin) / pctMaxForDuration(tMin);
+  let lo = 0.5; // minutes (very fast)
+  let hi = 600; // minutes (very slow)
+  for (let i = 0; i < 80; i++) {
+    const mid = (lo + hi) / 2;
+    if (vdotAt(mid) > vdot) lo = mid;
+    else hi = mid;
+  }
+  return Math.round(((lo + hi) / 2) * 60);
+}
+
+export const STANDARD_DISTANCES: { label: string; meters: number }[] = [
+  { label: 'Mile', meters: 1609.344 },
+  { label: '3K', meters: 3000 },
+  { label: '5K', meters: 5000 },
+  { label: '10K', meters: 10000 },
+  { label: 'Half', meters: 21097.5 },
+  { label: 'Marathon', meters: 42195 },
+];
+
+export interface EquivalentPerformance {
+  label: string;
+  meters: number;
+  timeSeconds: number;
+}
+
+export function equivalentPerformances(
+  vdot: number,
+  distances = STANDARD_DISTANCES,
+): EquivalentPerformance[] {
+  return distances.map((d) => ({
+    label: d.label,
+    meters: d.meters,
+    timeSeconds: predictRaceTimeSeconds(vdot, d.meters),
+  }));
+}
+
 /** Per-zone %VDOT bands (fast bound = higher %). The overall-model knobs. */
 export type VdotZoneModel = Record<ZoneKey, { fast: number; slow: number }>;
 

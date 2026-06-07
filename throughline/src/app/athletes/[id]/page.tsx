@@ -8,6 +8,7 @@ import { ESCALATION_LABELS } from '@/server/escalations';
 import { PaceAdjustForm } from '@/components/PaceAdjustForm';
 import { AdjustmentForm } from '@/components/AdjustmentForm';
 import { PostButton } from '@/components/PostButton';
+import { StrengthControl } from '@/components/StrengthControl';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +45,9 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
     upcomingWeeks,
     directives,
     paceZones,
+    vdot,
+    equivalents,
+    strengthBias,
     signals,
   } = detail;
 
@@ -311,9 +315,29 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
         </Card>
       )}
 
+      {/* Equivalent race performances (Daniels VDOT) */}
+      {equivalents.length > 0 && (
+        <Card title={`Equivalent performances${vdot != null ? ` · VDOT ${vdot}` : ''}`}>
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+            {equivalents.map((e) => (
+              <span key={e.label}>
+                <span className="text-slate-400">{e.label}</span>{' '}
+                <span className="font-medium tabular-nums text-slate-800">{fmtTime(e.timeSeconds)}</span>
+              </span>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            Daniels VDOT race-equivalent times — the cross-effort yardstick for progression.
+          </p>
+        </Card>
+      )}
+
       {/* Adjust this athlete's pace model */}
       {paceZones.length > 0 && (
         <Card title="Adjust paces (individual model)">
+          <div className="mb-3 border-b border-slate-100 pb-3">
+            <StrengthControl athleteId={athlete.id} bias={strengthBias} />
+          </div>
           <PaceAdjustForm athleteId={athlete.id} zones={paceZones} />
         </Card>
       )}

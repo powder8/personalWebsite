@@ -85,6 +85,23 @@ export async function adjustAthleteZones(
   return { updatedSessions, reasonCode };
 }
 
+/** Set the athlete's endurance↔speed strength bias and re-apply to future sessions. */
+export async function setStrengthBias(
+  db: DB,
+  athleteId: string,
+  bias: number,
+  opts: { today: string },
+): Promise<{ updatedSessions: number }> {
+  const [athlete] = await db.select().from(athletes).where(eq(athletes.id, athleteId)).limit(1);
+  if (!athlete) throw new Error(`setStrengthBias: athlete ${athleteId} not found`);
+  const cfg: AthletePaceConfig = { ...((athlete.paceConfig as AthletePaceConfig | null) ?? {}) };
+  cfg.strengthBias = Math.max(-1, Math.min(1, bias));
+  await setAthletePaceConfig(db, athleteId, cfg);
+  const zones = await getAthleteZones(db, athleteId);
+  const updatedSessions = zones ? await reapplyZonesToFuturePlan(db, athleteId, opts.today, zones) : 0;
+  return { updatedSessions };
+}
+
 /** Recompute future sessions' pace bounds from zones. Skips pinned + zoneless. */
 export async function reapplyZonesToFuturePlan(
   db: DB,

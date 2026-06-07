@@ -10,6 +10,8 @@ import {
   buildZones,
   estimateThresholdSecPerKm,
   midpoint,
+  predictRaceTimeSeconds,
+  equivalentPerformances,
   DEFAULT_GLOBAL_MODEL,
   type ZoneKey,
 } from '../index';
@@ -76,6 +78,42 @@ test('individual can switch model kind to threshold-offset', () => {
   const offset = resolvePaceZones({ kind: 'threshold_offset', race: MOIRA });
   // Both produce a full set of zones; maintenance exists in both.
   assert.ok(midpoint(vdot.zones.maintenance) > 0 && midpoint(offset.zones.maintenance) > 0);
+});
+
+test('equivalent race times: longer distance = more time; self-consistent with VDOT', () => {
+  const vdot = vdotFromRace(MOIRA); // ~65
+  const perfs = equivalentPerformances(vdot);
+  for (let i = 1; i < perfs.length; i++) {
+    assert.ok(perfs[i].timeSeconds > perfs[i - 1].timeSeconds, 'longer distance takes longer');
+  }
+  // Feeding a predicted time back through vdotFromRace recovers ~the same VDOT.
+  const tenK = perfs.find((p) => p.label === '10K')!;
+  const back = vdotFromRace({ distanceMeters: 10000, timeSeconds: tenK.timeSeconds });
+  assert.ok(Math.abs(back - vdot) < 1.0, `round-trip VDOT ${back} vs ${vdot}`);
+});
+
+test('a faster runner has faster equivalent times at every distance', () => {
+  const fast = equivalentPerformances(65);
+  const slow = equivalentPerformances(45);
+  for (let i = 0; i < fast.length; i++) assert.ok(fast[i].timeSeconds < slow[i].timeSeconds);
+  // sanity: VDOT 50 → 5K in a plausible ~19–20 min window.
+  const fiveK = equivalentPerformances(50).find((p) => p.label === '5K')!;
+  assert.ok(fiveK.timeSeconds > 18 * 60 && fiveK.timeSeconds < 21 * 60, `5K ${fiveK.timeSeconds}s`);
+});
+
+test('strength bias tilts reps and marathon in opposite directions', () => {
+  const balanced = resolvePaceZones({ race: MOIRA, strengthBias: 0 });
+  const speed = resolvePaceZones({ race: MOIRA, strengthBias: 0.6 });
+  const endurance = resolvePaceZones({ race: MOIRA, strengthBias: -0.6 });
+
+  // Speed type: faster reps (smaller s/km), slower marathon (larger s/km).
+  assert.ok(midpoint(speed.zones.rep) < midpoint(balanced.zones.rep));
+  assert.ok(midpoint(speed.zones.marathon) > midpoint(balanced.zones.marathon));
+  // Endurance type: the opposite.
+  assert.ok(midpoint(endurance.zones.rep) > midpoint(balanced.zones.rep));
+  assert.ok(midpoint(endurance.zones.marathon) < midpoint(balanced.zones.marathon));
+  // Easy pace is essentially untouched by strength bias.
+  assert.equal(midpoint(speed.zones.easy), midpoint(balanced.zones.easy));
 });
 
 test('overall-model band edit shifts everyone using the default anchor', () => {

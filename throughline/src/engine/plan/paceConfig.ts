@@ -52,6 +52,31 @@ export interface AthletePaceConfig {
   offsets?: Partial<ZoneModel['offsets']>;
   /** Final per-zone pace nudges, applied after the base zones are built. */
   zoneOverrides?: Partial<Record<ZoneKey, ZoneOverride>>;
+  /**
+   * Endurance↔speed bias in [-1, +1] (McMillan-style strength), applied to the
+   * Daniels base: +1 = speed type (faster short reps, slower marathon-pace);
+   * -1 = endurance type (slower short reps, faster marathon-pace).
+   */
+  strengthBias?: number;
+}
+
+/** Max pace tilt (s/km) at |bias| = 1, per zone. Speed type makes reps faster. */
+const STRENGTH_TILT: Partial<Record<ZoneKey, number>> = {
+  rep: -12, // faster when bias > 0
+  interval: -7,
+  marathon: 9, // slower when bias > 0
+  maintenance: 5,
+};
+
+function applyStrengthBias(zones: PaceZones, bias: number): PaceZones {
+  if (!bias) return zones;
+  const b = Math.max(-1, Math.min(1, bias));
+  const out = { ...zones.zones };
+  for (const k of Object.keys(STRENGTH_TILT) as ZoneKey[]) {
+    const shift = (STRENGTH_TILT[k] ?? 0) * b;
+    out[k] = { fastSecPerKm: out[k].fastSecPerKm + shift, slowSecPerKm: out[k].slowSecPerKm + shift };
+  }
+  return { ...zones, zones: out };
 }
 
 function applyOverride(range: PaceRange, o: ZoneOverride | undefined): PaceRange {
@@ -89,6 +114,9 @@ export function resolvePaceZones(
     const offsets = { ...(global.offsets ?? DEFAULT_ZONE_MODEL.offsets), ...(athlete.offsets ?? {}) };
     base = buildZones(threshold, { offsets });
   }
+
+  // Strength bias (endurance↔speed) tilts short-rep vs marathon paces.
+  if (athlete.strengthBias) base = applyStrengthBias(base, athlete.strengthBias);
 
   // Apply final per-zone nudges (individual level).
   if (athlete.zoneOverrides) {
