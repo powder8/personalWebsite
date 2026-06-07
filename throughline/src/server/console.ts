@@ -5,6 +5,7 @@ import 'server-only';
  */
 import { and, eq, gte, lte, desc } from 'drizzle-orm';
 import { getDb } from '@/db';
+import { suggestRaceWindows, annotateWindows, type RaceWindow } from '@/engine/plan';
 import {
   athletes,
   readinessAssessments,
@@ -127,6 +128,7 @@ export interface AthleteDetail {
   notes: typeof athleteNotes.$inferSelect[];
   injuries: typeof injuryRecords.$inferSelect[];
   races: typeof races.$inferSelect[];
+  raceWindows: (RaceWindow & { filledBy: typeof races.$inferSelect | null })[];
   signals: {
     hrv: { day: string; value: number | null }[];
     restingHr: { day: string; value: number | null }[];
@@ -186,6 +188,18 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
     .orderBy(desc(injuryRecords.onsetDate));
   const raceList = await db.select().from(races).where(eq(races.athleteId, id)).orderBy(races.date);
 
+  // Advise tune-up windows on the path to the goal race (from today).
+  const goal = raceList.find((r) => r.priority === 'goal');
+  const raceWindows = goal
+    ? annotateWindows(
+        suggestRaceWindows(
+          { date: goal.date, distanceMeters: goal.distanceMeters, distanceLabel: goal.distanceLabel },
+          TODAY,
+        ),
+        raceList.filter((r) => r.id !== goal.id),
+      )
+    : [];
+
   const since = isoDaysAgo(28);
   const hrvRows = await db
     .select({ day: hrvRecords.day, value: hrvRecords.overnightAvgMs })
@@ -213,6 +227,7 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
     notes,
     injuries,
     races: raceList,
+    raceWindows,
     signals: { hrv: hrvRows, restingHr: rhrRows, sleepHours },
   };
 }

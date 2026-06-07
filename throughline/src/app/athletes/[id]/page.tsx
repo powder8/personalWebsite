@@ -25,8 +25,18 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
   const detail = await getAthleteDetail(id);
   if (!detail) notFound();
 
-  const { athlete, readinessToday, readinessHistory, currentWeek, checkIns, notes, injuries, races, signals } =
-    detail;
+  const {
+    athlete,
+    readinessToday,
+    readinessHistory,
+    currentWeek,
+    checkIns,
+    notes,
+    injuries,
+    races,
+    raceWindows,
+    signals,
+  } = detail;
 
   return (
     <div className="space-y-5">
@@ -78,6 +88,36 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           </ul>
         ) : (
           <p className="text-sm text-slate-500">No races scheduled.</p>
+        )}
+
+        {raceWindows.length > 0 && (
+          <div className="mt-4 border-t border-slate-100 pt-3">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Suggested race windows
+            </h3>
+            <ul className="space-y-2 text-sm">
+              {raceWindows.map((w) => (
+                <li key={w.kind} className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="font-medium text-slate-800">{w.label}</span>
+                    <span className="ml-2 text-xs text-slate-500">
+                      {w.fromDate} → {w.toDate} · {w.suggestedDistances.join('/')}
+                    </span>
+                    <p className="text-xs text-slate-500">{w.rationale}</p>
+                  </div>
+                  {w.filledBy ? (
+                    <span className="whitespace-nowrap rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                      ✓ {w.filledBy.name}
+                    </span>
+                  ) : (
+                    <span className="whitespace-nowrap rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
+                      open
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </Card>
 

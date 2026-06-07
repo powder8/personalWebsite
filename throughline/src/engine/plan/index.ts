@@ -16,6 +16,7 @@ export * from './adapt';
 export * from './diff';
 export * from './vdot';
 export * from './paceConfig';
+export * from './raceWindows';
 
 import type { PaceZones, PlannedWeek, TemplateSet } from './types';
 import { periodize, type PeriodizationInput } from './periodize';
