@@ -58,7 +58,8 @@ function lerp(a: number, b: number, t: number): number {
 export function periodize(input: PeriodizationInput): WeekPlan[] {
   const downEvery = input.downWeekEvery ?? 4;
   const firstMonday = mondayOnOrAfter(input.startDay);
-  const totalWeeks = Math.max(1, Math.floor(diffDays(input.goalRaceDay, firstMonday) / 7));
+  // +1 so the final week is the week that CONTAINS race day (not the week before).
+  const totalWeeks = Math.max(1, Math.floor(diffDays(input.goalRaceDay, firstMonday) / 7) + 1);
 
   // Phase allocation (backward from race). Scales with build length.
   const taperWeeks = Math.min(totalWeeks <= 6 ? 1 : 3, Math.max(1, Math.round(totalWeeks * 0.12)));

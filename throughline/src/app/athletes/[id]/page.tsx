@@ -47,8 +47,13 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
         <div className="mt-1 flex items-center justify-between">
           <h1 className="text-xl font-semibold text-slate-900">{athlete.fullName}</h1>
           <div className="text-right text-sm text-slate-500">
-            {athlete.goalRace}
-            {athlete.goalRaceDate && <span> · {athlete.goalRaceDate}</span>}
+            <div>
+              {athlete.goalRace}
+              {athlete.goalRaceDate && <span> · {athlete.goalRaceDate}</span>}
+            </div>
+            <Link href={`/athletes/${athlete.id}/plan`} className="text-sky-700 hover:underline">
+              Season plan →
+            </Link>
           </div>
         </div>
       </div>
