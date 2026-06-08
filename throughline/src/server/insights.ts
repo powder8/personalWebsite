@@ -40,6 +40,7 @@ export interface WorkoutMix {
   longRuns: number;
   avgWeeklyMiles: number;
   runDaysPerWeek: number;
+  paceCoverage: number; // % of runs with pace data — intensity mix only trustworthy when high
 }
 
 export interface Suggestion {
@@ -76,21 +77,29 @@ function median(xs: number[]): number {
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
 
-/** Mix stats for a set of runs spanning `weeks` weeks. */
+/**
+ * Mix stats for a set of runs spanning `weeks` weeks. Intensity percentages
+ * (easy/quality) are computed only over runs we can actually classify — those
+ * with pace data, plus long runs (classified by distance) — so a manual log
+ * without per-run pace doesn't masquerade as "all easy". `paceCoverage` reports
+ * how much of the block that was.
+ */
 function mixOf(runs: Run[], weeks: number): WorkoutMix {
-  const n = runs.length || 1;
-  const easy = runs.filter((r) => r.type === 'easy').length;
-  const quality = runs.filter((r) => r.type === 'quality').length;
+  const classifiable = runs.filter((r) => r.paceSecPerKm != null || r.type === 'long');
+  const denom = classifiable.length || 1;
+  const easy = classifiable.filter((r) => r.type === 'easy').length;
+  const quality = classifiable.filter((r) => r.type === 'quality').length;
   const longRuns = runs.filter((r) => r.type === 'long').length;
   const miles = runs.reduce((s, r) => s + r.miles, 0);
   const days = new Set(runs.map((r) => r.day)).size;
   return {
-    easyPct: Math.round((easy / n) * 100),
-    qualityPct: Math.round((quality / n) * 100),
+    easyPct: Math.round((easy / denom) * 100),
+    qualityPct: Math.round((quality / denom) * 100),
     qualityPerWeek: Math.round((quality / weeks) * 10) / 10,
     longRuns,
     avgWeeklyMiles: Math.round(miles / weeks),
     runDaysPerWeek: Math.round((days / weeks) * 10) / 10,
+    paceCoverage: Math.round((classifiable.length / (runs.length || 1)) * 100),
   };
 }
 
@@ -149,7 +158,7 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
     const medPace = median(localPaces);
     const medMiles = median(localMiles);
     let type: WorkoutType;
-    if (r.miles >= Math.max(12, medMiles * 1.6)) type = 'long';
+    if (r.miles >= Math.max(11, medMiles * 1.4)) type = 'long';
     else if (r.paceSecPerKm != null && medPace > 0 && r.paceSecPerKm <= medPace * 0.94) type = 'quality';
     else if (r.paceSecPerKm != null && medPace > 0 && r.paceSecPerKm <= medPace * 0.985) type = 'moderate';
     else type = 'easy';
@@ -200,9 +209,15 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
     observations.push(
       `Your biggest fitness build was the 8 weeks ending ${bestBuild.toDay}: fitness (CTL) rose ${bestBuild.ctlGain}, on ~${bestBuild.mix.avgWeeklyMiles} mi/week across ~${bestBuild.mix.runDaysPerWeek} run-days/week.`,
     );
-    observations.push(
-      `That block's mix: ~${bestBuild.mix.easyPct}% easy and ~${bestBuild.mix.qualityPct}% quality (≈${bestBuild.mix.qualityPerWeek} hard sessions/week), with ${bestBuild.mix.longRuns} long runs (longest ${bestBuild.longestRunMiles} mi).`,
-    );
+    if (bestBuild.mix.paceCoverage >= 50) {
+      observations.push(
+        `That block's mix: ~${bestBuild.mix.easyPct}% easy and ~${bestBuild.mix.qualityPct}% quality (≈${bestBuild.mix.qualityPerWeek} hard sessions/week), with ${bestBuild.mix.longRuns} long runs (longest ${bestBuild.longestRunMiles} mi).`,
+      );
+    } else {
+      observations.push(
+        `${bestBuild.mix.longRuns} long runs that block (longest ${bestBuild.longestRunMiles} mi). The easy/quality mix isn't reliable here — only ${bestBuild.mix.paceCoverage}% of those runs had pace data (a logged era). It'll be precise for GPS/Strava data.`,
+      );
+    }
     if (bestBuild.mix.avgWeeklyMiles > medianWeeklyMiles) {
       observations.push(
         `Volume then was ${Math.round(((bestBuild.mix.avgWeeklyMiles - medianWeeklyMiles) / Math.max(1, medianWeeklyMiles)) * 100)}% above your typical ${medianWeeklyMiles} mi/week — consistent volume tends to be the strongest driver.`,
@@ -215,18 +230,19 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
   const suggestions: Suggestion[] = [];
   if (recent.hasData && bestBuild) {
     const b = bestBuild.mix;
-    if (recent.qualityPerWeek + 0.4 < b.qualityPerWeek && recent.qualityPerWeek < 1.5) {
+    const mixReliable = recent.paceCoverage >= 50; // only advise on mix when we can see it
+    if (mixReliable && b.paceCoverage >= 50 && recent.qualityPerWeek + 0.4 < b.qualityPerWeek && recent.qualityPerWeek < 1.5) {
       suggestions.push({
         basis: 'history',
         text: `Add a weekly quality session (threshold or intervals): your best builds averaged ~${b.qualityPerWeek} hard sessions/week vs ~${recent.qualityPerWeek} lately.`,
       });
-    } else if (recent.qualityPct < 12) {
+    } else if (mixReliable && recent.qualityPct < 12) {
       suggestions.push({
         basis: 'science',
         text: `Your recent mix is ~${recent.easyPct}% easy / ~${recent.qualityPct}% quality — the evidence favors ~80/20, so a weekly tempo or interval session would help.`,
       });
     }
-    if (recent.easyPct < 70) {
+    if (mixReliable && recent.easyPct < 65) {
       suggestions.push({
         basis: 'science',
         text: `Keep most volume easy (~80%): you're at ~${recent.easyPct}% easy lately — slow the easy days or add easy aerobic miles so the hard days land harder.`,

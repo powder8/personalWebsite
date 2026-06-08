@@ -88,12 +88,22 @@ export default async function InsightsPage({ params }: { params: Promise<{ id: s
                 <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Workout mix
                 </div>
-                <MixBar mix={insights.bestBuild.mix} />
-                <p className="mt-2 text-xs text-slate-500">
-                  ~{insights.bestBuild.mix.easyPct}% easy · ~{insights.bestBuild.mix.qualityPct}% quality
-                  (≈{insights.bestBuild.mix.qualityPerWeek} hard/wk) · {insights.bestBuild.mix.longRuns} long
-                  runs.
-                </p>
+                {insights.bestBuild.mix.paceCoverage >= 50 ? (
+                  <>
+                    <MixBar mix={insights.bestBuild.mix} />
+                    <p className="mt-2 text-xs text-slate-500">
+                      ~{insights.bestBuild.mix.easyPct}% easy · ~{insights.bestBuild.mix.qualityPct}% quality
+                      (≈{insights.bestBuild.mix.qualityPerWeek} hard/wk) · {insights.bestBuild.mix.longRuns} long
+                      runs.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    {insights.bestBuild.mix.longRuns} long runs. Intensity mix unavailable — only{' '}
+                    {insights.bestBuild.mix.paceCoverage}% of these runs had pace data (a logged era).
+                    Mix is precise for GPS/Strava data.
+                  </p>
+                )}
               </div>
               {insights.recent?.hasData && (
                 <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
