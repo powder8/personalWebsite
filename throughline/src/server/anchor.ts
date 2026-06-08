@@ -22,8 +22,10 @@ import { vdotCeiling, isCorroborated, type Effort } from '@/server/perf';
 
 // Race-like distances only: long enough that whole-activity time ≈ a real
 // effort, short enough to exclude long slow runs. (~1.9mi to marathon.)
+// Anchor fitness on RACE-ABLE efforts only (~1.9 mi to half-marathon). Longer
+// runs are aerobic, run well under race effort, and would under-estimate VDOT.
 const MIN_M = 3000;
-const MAX_M = 42400;
+const MAX_M = 21100;
 
 export interface AnchorCandidate {
   day: string;
