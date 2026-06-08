@@ -1,12 +1,22 @@
 /**
- * POST /api/feedback — leave a piece of feedback.
- * Body: { author?, path?, category?, body }
+ * GET  /api/feedback — list feedback items (id, author, body, status, …).
+ * POST /api/feedback — leave a piece of feedback. Body: { author?, path?, category?, body }
  */
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
-import { createFeedback } from '@/server/feedback';
+import { createFeedback, listFeedback } from '@/server/feedback';
 
 export const runtime = 'nodejs';
+
+export async function GET() {
+  try {
+    const db = await getDb();
+    const items = await listFeedback(db);
+    return NextResponse.json({ ok: true, items });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 500 });
+  }
+}
 
 export async function POST(req: Request) {
   let body: { author?: string; path?: string; category?: string; body?: string };
