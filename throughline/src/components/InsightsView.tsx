@@ -38,16 +38,29 @@ export function InsightsView({ insights }: { insights: TrainingInsights }) {
           <Stat label="Span" value={`${insights.span.fromDay} → ${insights.span.toDay}`} />
           <Stat label="Runs" value={`${insights.span.runs}`} />
           <Stat label="Total" value={`${insights.span.totalMiles.toLocaleString()} mi`} />
-          <Stat label="Peak fitness (CTL)" value={`${insights.peak.ctl}`} sub={insights.peak.day} />
+          <Stat label="Peak fitness (CTL)" value={`${insights.peak.ctl}`} sub={`${insights.peak.day} · context`} />
+          {insights.careerBest && (
+            <Stat
+              label="Career best (context)"
+              value={`VDOT ${insights.careerBest.vdot}`}
+              sub={`${insights.careerBest.distanceLabel} · ${insights.careerBest.day}`}
+            />
+          )}
         </div>
+        {insights.careerBest && (
+          <p className="mt-3 text-xs text-slate-400">
+            Career peak is shown for context only — it may be a different life stage. Benchmarks and
+            suggestions below use your <span className="font-medium">recent</span> training.
+          </p>
+        )}
       </Card>
 
       {insights.buildProfile && insights.builds.length > 0 && (
-        <Card title="The training behind your best performances" className="border-emerald-200">
+        <Card title="The training behind your recent best performances" className="border-emerald-200">
           <p className="text-sm text-slate-700">
-            The 8-week blocks that led into your{' '}
+            The 8-week blocks (last ~2 years) that led into your{' '}
             <span className="font-medium">{insights.buildProfile.count}</span> best efforts — what they
-            had in common (a repeatable recipe, not one block):
+            had in common (a repeatable recipe, achievable now — not a pro-era peak):
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Tile label="Typical volume" value={`${insights.buildProfile.medianWeeklyMiles}`} unit="mi/week" emphasis />

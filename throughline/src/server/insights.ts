@@ -24,6 +24,8 @@ const MI = 1609.344;
 const ASSUMED_EASY_SEC_PER_KM = 330;
 const BUILD_DAYS = 56; // 8-week window for "best build"
 const RECENT_DAYS = 42; // 6-week window for "recent training"
+const BENCHMARK_DAYS = 730; // productive blocks within ~2 years drive current benchmarks
+// (older peaks — e.g. a pro-era best — are shown as context, not a target).
 
 export type WorkoutType = 'easy' | 'moderate' | 'quality' | 'long';
 
@@ -78,7 +80,9 @@ export interface BuildProfile {
 export interface TrainingInsights {
   span: { fromDay: string; toDay: string; runs: number; totalMiles: number };
   peak: { day: string; ctl: number };
-  builds: BuildBlock[]; // top few non-overlapping productive blocks, biggest first
+  /** Best performance ever — shown as CONTEXT (may be a different life stage), not a target. */
+  careerBest: { vdot: number; distanceLabel: string; day: string } | null;
+  builds: BuildBlock[]; // recent (≤2yr) productive blocks — the actionable benchmark
   buildProfile: BuildProfile | null;
   bestBuild: BuildBlock | null; // = builds[0], kept for the headline highlight
   recent: (WorkoutMix & { weeks: number; hasData: boolean }) | null;
@@ -253,9 +257,22 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
     .sort((a, b) => b.perf.vdot - a.perf.vdot);
   const effortList: Effort[] = performers.map((x) => ({ ts: x.r.ts, vdot: x.perf.vdot }));
 
+  // Career best (CONTEXT only): the top performance ever, which may be a faster
+  // life stage. The benchmark we coach from is recent, not this.
+  const top = performers[0];
+  const careerBest = top
+    ? { vdot: Math.round(top.perf.vdot * 10) / 10, distanceLabel: nearestStandard(top.perf.meters), day: top.r.day }
+    : null;
+
+  // Actionable benchmark = productive blocks within the recency window. A
+  // 10-year-old pro-era peak is not the yardstick for current training.
+  const latestTs = runs.length ? runs[runs.length - 1].ts : 0;
+  const recentCutoff = latestTs - BENCHMARK_DAYS * 86400000;
+
   const builds: BuildBlock[] = [];
   for (const { r, perf } of performers) {
     if (builds.length >= 5) break;
+    if (r.ts < recentCutoff) continue; // recent productive blocks only
     if (!r.isRace && !isCorroborated({ ts: r.ts, vdot: perf.vdot }, effortList)) continue;
     // Keep peaks temporally distinct (one block per ~8-week neighborhood).
     if (builds.some((b) => Math.abs(new Date(b.toDay).getTime() - r.ts) < BUILD_DAYS * 86400000)) continue;
@@ -311,10 +328,15 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
     const p = buildProfile;
     const bp = bestBuild.performance;
     observations.push(
-      `The 8-week blocks that led into your ${p.count} best ${p.count === 1 ? 'performance' : 'performances'}${
+      `Recently (last ~2 years), the 8-week blocks behind your ${p.count} best ${p.count === 1 ? 'performance' : 'performances'}${
         bp ? ` (top: ${bp.distanceLabel} ${bp.timeLabel}, ~VDOT ${bp.vdot}, ${bestBuild.toDay})` : ''
       } shared a pattern: ~${p.medianWeeklyMiles} mi/week on ~${p.medianRunDaysPerWeek} run-days/week.`,
     );
+    if (careerBest && careerBest.day < bestBuild.fromDay && careerBest.vdot > (bestBuild.performance?.vdot ?? 0) + 2) {
+      observations.push(
+        `Career best for context: ~VDOT ${careerBest.vdot} (${careerBest.distanceLabel}, ${careerBest.day}) — a faster era; current benchmarks use recent training, not this.`,
+      );
+    }
     if (p.medianQualityPerWeek != null) {
       observations.push(
         `In the ${p.reliableCount} GPS-tracked of those, the mix was consistently ~${reliable[0].mix.easyPct}% easy with ≈${p.medianQualityPerWeek} quality sessions/week, and ${p.blocksWithLongRuns}/${p.count} included regular long runs (typically up to ${p.typicalLongestRunMiles} mi).`,
@@ -383,6 +405,7 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
       totalMiles: Math.round(runs.reduce((s, r) => s + r.miles, 0)),
     },
     peak: { day: peak.day, ctl: Math.round(peak.ctl) },
+    careerBest,
     builds,
     buildProfile,
     bestBuild,
