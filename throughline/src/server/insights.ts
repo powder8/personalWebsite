@@ -30,6 +30,7 @@ interface Run {
   ts: number; // ms
   miles: number;
   paceSecPerKm: number | null;
+  gps: boolean; // from a GPS provider (Strava/Garmin) → per-run pace is real
   type: WorkoutType;
 }
 
@@ -40,7 +41,7 @@ export interface WorkoutMix {
   longRuns: number;
   avgWeeklyMiles: number;
   runDaysPerWeek: number;
-  paceCoverage: number; // % of runs with pace data — intensity mix only trustworthy when high
+  gpsShare: number; // % of runs from a GPS provider — intensity mix is trustworthy when high
 }
 
 export interface Suggestion {
@@ -81,11 +82,13 @@ function median(xs: number[]): number {
  * Mix stats for a set of runs spanning `weeks` weeks. Intensity percentages
  * (easy/quality) are computed only over runs we can actually classify — those
  * with pace data, plus long runs (classified by distance) — so a manual log
- * without per-run pace doesn't masquerade as "all easy". `paceCoverage` reports
+ * without per-run pace doesn't masquerade as "all easy". `gpsShare` reports
  * how much of the block that was.
  */
 function mixOf(runs: Run[], weeks: number): WorkoutMix {
-  const classifiable = runs.filter((r) => r.paceSecPerKm != null || r.type === 'long');
+  // Intensity classes are only meaningful for GPS runs (real per-run pace) plus
+  // long runs (by distance); a manual log's smooth average paces hide quality.
+  const classifiable = runs.filter((r) => r.gps || r.type === 'long');
   const denom = classifiable.length || 1;
   const easy = classifiable.filter((r) => r.type === 'easy').length;
   const quality = classifiable.filter((r) => r.type === 'quality').length;
@@ -99,7 +102,7 @@ function mixOf(runs: Run[], weeks: number): WorkoutMix {
     longRuns,
     avgWeeklyMiles: Math.round(miles / weeks),
     runDaysPerWeek: Math.round((days / weeks) * 10) / 10,
-    paceCoverage: Math.round((classifiable.length / (runs.length || 1)) * 100),
+    gpsShare: Math.round((runs.filter((r) => r.gps).length / (runs.length || 1)) * 100),
   };
 }
 
@@ -109,6 +112,7 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
     .select({
       startTime: activities.startTime,
       sport: activities.sport,
+      provider: activities.provider,
       distanceMeters: activities.distanceMeters,
       durationSeconds: activities.durationSeconds,
       avgPaceSecPerKm: activities.avgPaceSecPerKm,
@@ -141,6 +145,7 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
       ts: r.startTime.getTime(),
       miles: (r.distanceMeters ?? 0) / MI,
       paceSecPerKm: r.avgPaceSecPerKm,
+      gps: r.provider === 'strava' || r.provider === 'garmin',
     }));
   const WIN = 60 * 86400000;
   const runs: Run[] = rawRuns.map((r, i) => {
@@ -209,13 +214,13 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
     observations.push(
       `Your biggest fitness build was the 8 weeks ending ${bestBuild.toDay}: fitness (CTL) rose ${bestBuild.ctlGain}, on ~${bestBuild.mix.avgWeeklyMiles} mi/week across ~${bestBuild.mix.runDaysPerWeek} run-days/week.`,
     );
-    if (bestBuild.mix.paceCoverage >= 50) {
+    if (bestBuild.mix.gpsShare >= 50) {
       observations.push(
         `That block's mix: ~${bestBuild.mix.easyPct}% easy and ~${bestBuild.mix.qualityPct}% quality (≈${bestBuild.mix.qualityPerWeek} hard sessions/week), with ${bestBuild.mix.longRuns} long runs (longest ${bestBuild.longestRunMiles} mi).`,
       );
     } else {
       observations.push(
-        `${bestBuild.mix.longRuns} long runs that block (longest ${bestBuild.longestRunMiles} mi). The easy/quality mix isn't reliable here — only ${bestBuild.mix.paceCoverage}% of those runs had pace data (a logged era). It'll be precise for GPS/Strava data.`,
+        `${bestBuild.mix.longRuns} long runs that block (longest ${bestBuild.longestRunMiles} mi). The easy/quality mix isn't reliable here — only ${bestBuild.mix.gpsShare}% of those runs came from GPS (this was a logged era; manual logs hide intensity). It'll be precise for GPS/Strava data.`,
       );
     }
     if (bestBuild.mix.avgWeeklyMiles > medianWeeklyMiles) {
@@ -230,8 +235,8 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
   const suggestions: Suggestion[] = [];
   if (recent.hasData && bestBuild) {
     const b = bestBuild.mix;
-    const mixReliable = recent.paceCoverage >= 50; // only advise on mix when we can see it
-    if (mixReliable && b.paceCoverage >= 50 && recent.qualityPerWeek + 0.4 < b.qualityPerWeek && recent.qualityPerWeek < 1.5) {
+    const mixReliable = recent.gpsShare >= 50; // only advise on mix when we can see it
+    if (mixReliable && b.gpsShare >= 50 && recent.qualityPerWeek + 0.4 < b.qualityPerWeek && recent.qualityPerWeek < 1.5) {
       suggestions.push({
         basis: 'history',
         text: `Add a weekly quality session (threshold or intervals): your best builds averaged ~${b.qualityPerWeek} hard sessions/week vs ~${recent.qualityPerWeek} lately.`,

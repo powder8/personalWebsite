@@ -108,7 +108,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
               <span className="font-medium">Most productive block:</span> 8 wks → +
               {insights.bestBuild.ctlGain} fitness on ~{insights.bestBuild.mix.avgWeeklyMiles} mi/wk ·{' '}
               {insights.bestBuild.mix.longRuns} long runs
-              {insights.bestBuild.mix.paceCoverage >= 50
+              {insights.bestBuild.mix.gpsShare >= 50
                 ? ` · ${insights.bestBuild.mix.easyPct}% easy / ${insights.bestBuild.mix.qualityPct}% quality (~${insights.bestBuild.mix.qualityPerWeek} hard/wk)`
                 : ''}
               .
