@@ -49,17 +49,32 @@ export interface Suggestion {
   basis: 'history' | 'science';
 }
 
+export interface BuildBlock {
+  fromDay: string;
+  toDay: string;
+  ctlGain: number;
+  weeks: number;
+  longestRunMiles: number;
+  mix: WorkoutMix;
+}
+
+/** Pattern aggregated ACROSS an athlete's most-productive blocks (not one). */
+export interface BuildProfile {
+  count: number; // number of distinct productive blocks found
+  reliableCount: number; // those with a trustworthy (GPS) intensity mix
+  medianWeeklyMiles: number;
+  medianRunDaysPerWeek: number;
+  medianQualityPerWeek: number | null; // across GPS-tracked blocks only
+  blocksWithLongRuns: number;
+  typicalLongestRunMiles: number;
+}
+
 export interface TrainingInsights {
   span: { fromDay: string; toDay: string; runs: number; totalMiles: number };
   peak: { day: string; ctl: number };
-  bestBuild: {
-    fromDay: string;
-    toDay: string;
-    ctlGain: number;
-    weeks: number;
-    longestRunMiles: number;
-    mix: WorkoutMix;
-  } | null;
+  builds: BuildBlock[]; // top few non-overlapping productive blocks, biggest first
+  buildProfile: BuildProfile | null;
+  bestBuild: BuildBlock | null; // = builds[0], kept for the headline highlight
   recent: (WorkoutMix & { weeks: number; hasData: boolean }) | null;
   baseline: { medianWeeklyMiles: number };
   observations: string[];
@@ -177,27 +192,53 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
   }
   const medianWeeklyMiles = Math.round(median([...weeklyMiles.values()].filter((m) => m > 0)));
 
-  // Best build = 8-week window of largest CTL gain (the ramp).
-  let best: { i: number; gain: number } | null = null;
+  // Productive blocks = the top few NON-OVERLAPPING 8-week windows of CTL gain.
+  // Using several (not one) keeps the "why" a pattern rather than an anecdote.
+  const windows: { i: number; gain: number }[] = [];
   for (let i = BUILD_DAYS; i < ff.length; i++) {
-    const gain = ff[i].ctl - ff[i - BUILD_DAYS].ctl;
-    if (!best || gain > best.gain) best = { i, gain };
+    windows.push({ i, gain: ff[i].ctl - ff[i - BUILD_DAYS].ctl });
   }
-  let bestBuild: TrainingInsights['bestBuild'] = null;
-  if (best && best.gain > 1) {
-    const fromDay = ff[best.i - BUILD_DAYS].day;
-    const toDay = ff[best.i].day;
-    const inWindow = runs.filter((r) => r.day >= fromDay && r.day <= toDay);
-    const longestRunMiles = inWindow.reduce((mx, r) => Math.max(mx, r.miles), 0);
-    bestBuild = {
-      fromDay,
-      toDay,
-      ctlGain: Math.round(best.gain),
-      weeks: BUILD_DAYS / 7,
-      longestRunMiles: Math.round(longestRunMiles * 10) / 10,
-      mix: mixOf(inWindow, BUILD_DAYS / 7),
-    };
+  windows.sort((a, b) => b.gain - a.gain);
+  const topGain = windows[0]?.gain ?? 0;
+  const chosen: { i: number; gain: number }[] = [];
+  for (const w of windows) {
+    if (w.gain <= 1 || w.gain < topGain * 0.4) continue; // meaningful builds only
+    if (chosen.some((c) => Math.abs(c.i - w.i) < BUILD_DAYS)) continue; // non-overlapping
+    chosen.push(w);
+    if (chosen.length >= 5) break;
   }
+  const builds: BuildBlock[] = chosen
+    .sort((a, b) => b.gain - a.gain)
+    .map((w) => {
+      const fromDay = ff[w.i - BUILD_DAYS].day;
+      const toDay = ff[w.i].day;
+      const inWindow = runs.filter((r) => r.day >= fromDay && r.day <= toDay);
+      return {
+        fromDay,
+        toDay,
+        ctlGain: Math.round(w.gain),
+        weeks: BUILD_DAYS / 7,
+        longestRunMiles: Math.round(inWindow.reduce((mx, r) => Math.max(mx, r.miles), 0) * 10) / 10,
+        mix: mixOf(inWindow, BUILD_DAYS / 7),
+      };
+    });
+  const bestBuild = builds[0] ?? null;
+
+  // Aggregate the pattern ACROSS those blocks.
+  const reliable = builds.filter((b) => b.mix.gpsShare >= 50);
+  const buildProfile: BuildProfile | null = builds.length
+    ? {
+        count: builds.length,
+        reliableCount: reliable.length,
+        medianWeeklyMiles: Math.round(median(builds.map((b) => b.mix.avgWeeklyMiles))),
+        medianRunDaysPerWeek: Math.round(median(builds.map((b) => b.mix.runDaysPerWeek)) * 10) / 10,
+        medianQualityPerWeek: reliable.length
+          ? Math.round(median(reliable.map((b) => b.mix.qualityPerWeek)) * 10) / 10
+          : null,
+        blocksWithLongRuns: builds.filter((b) => b.mix.longRuns > 0).length,
+        typicalLongestRunMiles: Math.round(median(builds.map((b) => b.longestRunMiles)) * 10) / 10,
+      }
+    : null;
 
   // Recent training (last 6 weeks of the athlete's data).
   const lastTs = runs.length ? runs[runs.length - 1].ts : 0;
@@ -208,61 +249,58 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
     hasData: recentRuns.length >= 4,
   };
 
-  // --- observations ---
+  // --- observations (pattern across blocks, not one anecdote) ---
   const observations: string[] = [];
-  if (bestBuild) {
+  if (buildProfile && bestBuild) {
+    const p = buildProfile;
     observations.push(
-      `Your biggest fitness build was the 8 weeks ending ${bestBuild.toDay}: fitness (CTL) rose ${bestBuild.ctlGain}, on ~${bestBuild.mix.avgWeeklyMiles} mi/week across ~${bestBuild.mix.runDaysPerWeek} run-days/week.`,
+      `Across your ${p.count} most productive ${p.count === 1 ? 'block' : 'blocks'}, you typically ran ~${p.medianWeeklyMiles} mi/week on ~${p.medianRunDaysPerWeek} run-days/week (biggest: +${bestBuild.ctlGain} CTL, ending ${bestBuild.toDay}).`,
     );
-    if (bestBuild.mix.gpsShare >= 50) {
+    if (p.medianQualityPerWeek != null) {
       observations.push(
-        `That block's mix: ~${bestBuild.mix.easyPct}% easy and ~${bestBuild.mix.qualityPct}% quality (≈${bestBuild.mix.qualityPerWeek} hard sessions/week), with ${bestBuild.mix.longRuns} long runs (longest ${bestBuild.longestRunMiles} mi).`,
+        `In the ${p.reliableCount} GPS-tracked of those, the mix was consistently ~${reliable[0].mix.easyPct}% easy with ≈${p.medianQualityPerWeek} quality sessions/week, and ${p.blocksWithLongRuns}/${p.count} included regular long runs (typically up to ${p.typicalLongestRunMiles} mi).`,
       );
     } else {
       observations.push(
-        `${bestBuild.mix.longRuns} long runs that block (longest ${bestBuild.longestRunMiles} mi). The easy/quality mix isn't reliable here — only ${bestBuild.mix.gpsShare}% of those runs came from GPS (this was a logged era; manual logs hide intensity). It'll be precise for GPS/Strava data.`,
-      );
-    }
-    if (bestBuild.mix.avgWeeklyMiles > medianWeeklyMiles) {
-      observations.push(
-        `Volume then was ${Math.round(((bestBuild.mix.avgWeeklyMiles - medianWeeklyMiles) / Math.max(1, medianWeeklyMiles)) * 100)}% above your typical ${medianWeeklyMiles} mi/week — consistent volume tends to be the strongest driver.`,
+        `Those blocks each carried ${p.blocksWithLongRuns ? 'regular long runs and ' : ''}high volume; their easy/quality split is from a logged era so isn't precise (it will be for GPS/Strava data).`,
       );
     }
   }
   observations.push(`Highest fitness on record (CTL ${Math.round(peak.ctl)}) was around ${peak.day}.`);
 
-  // --- suggestions (history + science), capped ---
+  // --- suggestions: each "why" backed by a PATTERN across blocks or named science ---
   const suggestions: Suggestion[] = [];
-  if (recent.hasData && bestBuild) {
-    const b = bestBuild.mix;
-    const mixReliable = recent.gpsShare >= 50; // only advise on mix when we can see it
-    if (mixReliable && b.gpsShare >= 50 && recent.qualityPerWeek + 0.4 < b.qualityPerWeek && recent.qualityPerWeek < 1.5) {
+  if (recent.hasData && buildProfile) {
+    const p = buildProfile;
+    const mixReliable = recent.gpsShare >= 50;
+
+    if (mixReliable && p.medianQualityPerWeek != null && recent.qualityPerWeek + 0.4 < p.medianQualityPerWeek && recent.qualityPerWeek < 1.5) {
       suggestions.push({
         basis: 'history',
-        text: `Add a weekly quality session (threshold or intervals): your best builds averaged ~${b.qualityPerWeek} hard sessions/week vs ~${recent.qualityPerWeek} lately.`,
+        text: `Add a weekly quality session. Across your ${p.reliableCount} strongest GPS-tracked builds you averaged ≈${p.medianQualityPerWeek} threshold/interval sessions a week; you're at ~${recent.qualityPerWeek} lately.`,
       });
     } else if (mixReliable && recent.qualityPct < 12) {
       suggestions.push({
         basis: 'science',
-        text: `Your recent mix is ~${recent.easyPct}% easy / ~${recent.qualityPct}% quality — the evidence favors ~80/20, so a weekly tempo or interval session would help.`,
+        text: `Your recent mix is ~${recent.easyPct}% easy / ~${recent.qualityPct}% quality. A polarized ~80/20 distribution is repeatedly linked to better endurance gains in trained runners (Seiler; Stöggl & Sperlich, 2014) — a weekly tempo or interval session would help.`,
       });
     }
     if (mixReliable && recent.easyPct < 65) {
       suggestions.push({
         basis: 'science',
-        text: `Keep most volume easy (~80%): you're at ~${recent.easyPct}% easy lately — slow the easy days or add easy aerobic miles so the hard days land harder.`,
+        text: `Keep most volume easy (~80%): you're at ~${recent.easyPct}% easy lately. Running easy days truly easy is what lets the hard days be hard (Seiler's intensity-distribution work) — slow them or add easy aerobic miles.`,
       });
     }
-    if (b.avgWeeklyMiles > 0 && recent.avgWeeklyMiles < b.avgWeeklyMiles * 0.75) {
+    if (p.medianWeeklyMiles > 0 && recent.avgWeeklyMiles < p.medianWeeklyMiles * 0.75) {
       suggestions.push({
         basis: 'history',
-        text: `Your productive builds ran ~${b.avgWeeklyMiles} mi/week; you're ~${recent.avgWeeklyMiles} lately — build gradually (about +10%/week) toward that range.`,
+        text: `Build volume gradually toward ~${p.medianWeeklyMiles} mi/week — the level your ${p.count} most productive blocks shared. You're ~${recent.avgWeeklyMiles} lately; progress about +10%/week to manage injury risk.`,
       });
     }
-    if (recent.longRuns === 0 && b.longRuns > 0) {
+    if (recent.longRuns === 0 && p.blocksWithLongRuns >= Math.ceil(p.count / 2)) {
       suggestions.push({
         basis: 'history',
-        text: `Reintroduce a weekly long run — they were a staple of your strongest blocks (up to ${bestBuild.longestRunMiles} mi).`,
+        text: `Reintroduce a weekly long run — they featured in ${p.blocksWithLongRuns} of your ${p.count} best blocks (typically up to ${p.typicalLongestRunMiles} mi).`,
       });
     }
   } else if (!recent.hasData) {
@@ -280,6 +318,8 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
       totalMiles: Math.round(runs.reduce((s, r) => s + r.miles, 0)),
     },
     peak: { day: peak.day, ctl: Math.round(peak.ctl) },
+    builds,
+    buildProfile,
     bestBuild,
     recent,
     baseline: { medianWeeklyMiles },

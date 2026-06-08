@@ -71,40 +71,51 @@ export default async function InsightsPage({ params }: { params: Promise<{ id: s
             </div>
           </Card>
 
-          {insights.bestBuild && (
-            <Card title="Your biggest build" className="border-emerald-200">
+          {insights.buildProfile && insights.builds.length > 0 && (
+            <Card title="Your most productive blocks" className="border-emerald-200">
               <p className="text-sm text-slate-700">
-                The <span className="font-medium">{insights.bestBuild.weeks}-week</span> block ending{' '}
-                <span className="font-medium">{insights.bestBuild.toDay}</span> drove your largest
-                fitness gain.
+                The pattern across your{' '}
+                <span className="font-medium">{insights.buildProfile.count}</span> biggest 8-week
+                fitness builds — what they had in common, not a single block:
               </p>
               <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Tile label="Fitness gain" value={`+${insights.bestBuild.ctlGain}`} unit="CTL" emphasis />
-                <Tile label="Volume" value={`${insights.bestBuild.mix.avgWeeklyMiles}`} unit="mi/week" />
-                <Tile label="Frequency" value={`${insights.bestBuild.mix.runDaysPerWeek}`} unit="run-days/wk" />
-                <Tile label="Longest run" value={`${insights.bestBuild.longestRunMiles}`} unit="mi" />
+                <Tile label="Typical volume" value={`${insights.buildProfile.medianWeeklyMiles}`} unit="mi/week" emphasis />
+                <Tile label="Frequency" value={`${insights.buildProfile.medianRunDaysPerWeek}`} unit="run-days/wk" />
+                <Tile
+                  label="Quality"
+                  value={insights.buildProfile.medianQualityPerWeek != null ? `${insights.buildProfile.medianQualityPerWeek}` : '—'}
+                  unit="hard sessions/wk"
+                />
+                <Tile label="Long runs" value={`${insights.buildProfile.blocksWithLongRuns}/${insights.buildProfile.count}`} unit="blocks" />
               </div>
-              <div className="mt-3">
-                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Workout mix
-                </div>
-                {insights.bestBuild.mix.gpsShare >= 50 ? (
-                  <>
-                    <MixBar mix={insights.bestBuild.mix} />
-                    <p className="mt-2 text-xs text-slate-500">
-                      ~{insights.bestBuild.mix.easyPct}% easy · ~{insights.bestBuild.mix.qualityPct}% quality
-                      (≈{insights.bestBuild.mix.qualityPerWeek} hard/wk) · {insights.bestBuild.mix.longRuns} long
-                      runs.
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-xs text-slate-500">
-                    {insights.bestBuild.mix.longRuns} long runs. Intensity mix unavailable — only{' '}
-                    {insights.bestBuild.mix.gpsShare}% of these runs came from GPS (a logged era; manual
-                    logs hide intensity). Mix is precise for GPS/Strava data.
-                  </p>
-                )}
+
+              <div className="mt-4 overflow-hidden rounded border border-slate-100">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
+                    <tr>
+                      <th className="px-2 py-1 font-medium">Block (8 wks ending)</th>
+                      <th className="px-2 py-1 font-medium">Fitness gain</th>
+                      <th className="px-2 py-1 font-medium">Volume</th>
+                      <th className="px-2 py-1 font-medium">Mix</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {insights.builds.map((b) => (
+                      <tr key={b.toDay}>
+                        <td className="px-2 py-1.5 text-slate-600">{b.toDay}</td>
+                        <td className="px-2 py-1.5 font-medium text-emerald-700">+{b.ctlGain} CTL</td>
+                        <td className="px-2 py-1.5 text-slate-700">{b.mix.avgWeeklyMiles} mi/wk</td>
+                        <td className="px-2 py-1.5 text-slate-500">
+                          {b.mix.gpsShare >= 50
+                            ? `${b.mix.easyPct}% easy / ${b.mix.qualityPct}% quality · ${b.mix.longRuns} long`
+                            : `${b.mix.longRuns} long · mix n/a (logged)`}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
+
               {insights.recent?.hasData && (
                 <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
                   Lately (6 wks): {insights.recent.avgWeeklyMiles} mi/wk · ~{insights.recent.easyPct}% easy
@@ -131,17 +142,6 @@ export default async function InsightsPage({ params }: { params: Promise<{ id: s
           </Card>
         </>
       )}
-    </div>
-  );
-}
-
-function MixBar({ mix }: { mix: { easyPct: number; qualityPct: number } }) {
-  const moderate = Math.max(0, 100 - mix.easyPct - mix.qualityPct);
-  return (
-    <div className="flex h-3 w-full overflow-hidden rounded bg-slate-100">
-      <div className="bg-sky-400" style={{ width: `${mix.easyPct}%` }} title={`easy ${mix.easyPct}%`} />
-      <div className="bg-slate-300" style={{ width: `${moderate}%` }} title={`moderate ${moderate}%`} />
-      <div className="bg-rose-400" style={{ width: `${mix.qualityPct}%` }} title={`quality ${mix.qualityPct}%`} />
     </div>
   );
 }

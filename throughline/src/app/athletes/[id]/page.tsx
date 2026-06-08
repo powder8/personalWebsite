@@ -101,15 +101,20 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Insights — lead with it; this is the differentiator */}
-      {insights && (insights.bestBuild || insights.suggestions.length > 0) && (
+      {insights && (insights.buildProfile || insights.suggestions.length > 0) && (
         <Card title="Insights" className="border-sky-200 bg-sky-50/40">
-          {insights.bestBuild && (
+          {insights.buildProfile && (
             <div className="text-sm text-slate-700">
-              <span className="font-medium">Most productive block:</span> 8 wks → +
-              {insights.bestBuild.ctlGain} fitness on ~{insights.bestBuild.mix.avgWeeklyMiles} mi/wk ·{' '}
-              {insights.bestBuild.mix.longRuns} long runs
-              {insights.bestBuild.mix.gpsShare >= 50
-                ? ` · ${insights.bestBuild.mix.easyPct}% easy / ${insights.bestBuild.mix.qualityPct}% quality (~${insights.bestBuild.mix.qualityPerWeek} hard/wk)`
+              <span className="font-medium">
+                Across your {insights.buildProfile.count} most productive blocks:
+              </span>{' '}
+              typically ~{insights.buildProfile.medianWeeklyMiles} mi/wk on ~
+              {insights.buildProfile.medianRunDaysPerWeek} run-days/wk
+              {insights.buildProfile.medianQualityPerWeek != null
+                ? `, ~${insights.buildProfile.medianQualityPerWeek} quality sessions/wk`
+                : ''}
+              {insights.buildProfile.blocksWithLongRuns > 0
+                ? `, long runs in ${insights.buildProfile.blocksWithLongRuns}/${insights.buildProfile.count}`
                 : ''}
               .
             </div>
