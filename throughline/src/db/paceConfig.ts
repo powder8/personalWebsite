@@ -10,6 +10,7 @@ import {
   resolvePaceZones,
   vdotFromRace,
   vdotFromThreshold,
+  ageFromDob,
   DEFAULT_GLOBAL_MODEL,
   type GlobalPaceModel,
   type AthletePaceConfig,
@@ -73,6 +74,11 @@ export async function getAthleteZones(db: DB, athleteId: string): Promise<PaceZo
   const [athlete] = await db.select().from(athletes).where(eq(athletes.id, athleteId)).limit(1);
   if (!athlete) return null;
   const cfg: AthletePaceConfig = { ...((athlete.paceConfig as AthletePaceConfig | null) ?? {}) };
+
+  // Masters threshold easing: derive age from DOB (as of today).
+  const today = new Date().toISOString().slice(0, 10);
+  const age = ageFromDob(athlete.dateOfBirth, today);
+  if (age != null) cfg.ageYears = age;
 
   // Fall back to the intake threshold as the anchor if none is configured.
   if (cfg.vdot == null && cfg.thresholdSecPerKm == null && cfg.race == null) {
