@@ -84,10 +84,11 @@ async function buildContext(db: DB, athleteId: string): Promise<string | null> {
     );
   }
   if (vdot != null) {
+    const anchorRace = (athlete.paceConfig as { race?: { distanceMeters: number; timeSeconds: number } } | null)?.race ?? null;
     lines.push(`Fitness anchor: VDOT ${Math.round(vdot * 10) / 10} (from RECENT data).`);
     lines.push(
       'Equivalent race times now: ' +
-        equivalentPerformances(vdot).map((e) => `${e.label} ${fmtTime(e.timeSeconds)}`).join(', ') +
+        equivalentPerformances(vdot, undefined, anchorRace).map((e) => `${e.label} ${fmtTime(e.timeSeconds)}`).join(', ') +
         '.',
     );
   }

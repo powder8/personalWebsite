@@ -92,6 +92,20 @@ test('equivalent race times: longer distance = more time; self-consistent with V
   assert.ok(Math.abs(back - vdot) < 1.0, `round-trip VDOT ${back} vs ${vdot}`);
 });
 
+test('equivalent times snap the anchor distance to the exact entered time', () => {
+  // A 2:58:56 marathon: the VDOT-derived marathon equivalent rounds off, but the
+  // anchor distance should report the EXACT time the athlete actually ran.
+  const anchor = { distanceMeters: 42195, timeSeconds: 2 * 3600 + 58 * 60 + 56 };
+  const vdot = vdotFromRace(anchor);
+  const snapped = equivalentPerformances(vdot, undefined, anchor);
+  const marathon = snapped.find((p) => p.label === 'Marathon')!;
+  assert.equal(marathon.timeSeconds, anchor.timeSeconds, 'marathon shows exact entered time');
+  // Non-anchor distances stay VDOT-predicted (not equal to the marathon time).
+  const fiveK = snapped.find((p) => p.label === '5K')!;
+  const predicted = equivalentPerformances(vdot).find((p) => p.label === '5K')!;
+  assert.equal(fiveK.timeSeconds, predicted.timeSeconds, '5K unaffected by the snap');
+});
+
 test('a faster runner has faster equivalent times at every distance', () => {
   const fast = equivalentPerformances(65);
   const slow = equivalentPerformances(45);

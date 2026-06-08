@@ -25,9 +25,17 @@ questions in plain language.
   - ✅ **Recency:** anchor + insights benchmark use recent (~2yr) data; career
     best shown as labeled context. Glitch guards (ceiling + corroboration);
     races exempt (bypass guards, surfaced as major efforts).
-  - ⏳ **Age-grading:** VDOT ignores age. Add athlete DOB → WMA age factors to
-    (a) compare performances fairly across a career and (b) set age-appropriate
-    current potential. Needs a DOB profile field.
+  - ⏳ **Age-grading / masters defaults:** VDOT ignores age. Add athlete DOB →
+    WMA age factors to (a) compare performances fairly across a career and
+    (b) set age-appropriate current potential. Needs a DOB profile field.
+    **Heather's ask (feedback):** masters athletes should default to a more
+    conservative threshold (~15s/mi slower than the raw VDOT-derived pace).
+    Build this on top of DOB: when age ≥ ~40, ease the threshold (and likely
+    recovery cadence) by a masters factor. Deferred because it's a coaching-
+    model change that needs the DOB field + Heather's sign-off on the factor,
+    not a guess. The exact-anchor VDOT/equivalent half of that feedback IS
+    shipped (equivalentPerformances snaps the anchor distance to the entered
+    time, e.g. a 2:58:56 marathon reads 2:58:56).
   - ⏳ **Course / elevation:** a hilly or high-altitude race time understates
     fitness. Capture Strava `total_elevation_gain` / grade-adjusted pace →
     normalize race times before VDOT. Needs an elevation column + capture.

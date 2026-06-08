@@ -10,6 +10,7 @@ import {
   annotateWindows,
   paceRangeLabel,
   equivalentPerformances,
+  STANDARD_DISTANCES,
   type RaceWindow,
   type EquivalentPerformance,
   type AthletePaceConfig,
@@ -315,9 +316,10 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
       : [],
     ...(await (async () => {
       const v = await getAthleteVdot(db, id);
+      const anchorRace = ((athlete.paceConfig as AthletePaceConfig | null) ?? {}).race ?? null;
       return {
         vdot: v != null ? Math.round(v * 10) / 10 : null,
-        equivalents: v != null ? equivalentPerformances(v) : [],
+        equivalents: v != null ? equivalentPerformances(v, STANDARD_DISTANCES, anchorRace) : [],
         anchorSuggestions: await suggestAnchorCandidates(db, id),
       };
     })()),

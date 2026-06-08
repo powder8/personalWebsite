@@ -79,12 +79,24 @@ export interface EquivalentPerformance {
 export function equivalentPerformances(
   vdot: number,
   distances = STANDARD_DISTANCES,
+  /**
+   * The race the VDOT was derived from. When it matches one of the output
+   * distances, show the athlete's EXACT time there instead of the VDOT-rounded
+   * prediction (a 2:58:56 marathon anchor should read 2:58:56, not 2:58:29).
+   */
+  anchor?: { distanceMeters: number; timeSeconds: number } | null,
 ): EquivalentPerformance[] {
-  return distances.map((d) => ({
-    label: d.label,
-    meters: d.meters,
-    timeSeconds: predictRaceTimeSeconds(vdot, d.meters),
-  }));
+  return distances.map((d) => {
+    const isAnchorDistance =
+      anchor != null &&
+      anchor.distanceMeters > 0 &&
+      Math.abs(d.meters - anchor.distanceMeters) / anchor.distanceMeters < 0.005;
+    return {
+      label: d.label,
+      meters: d.meters,
+      timeSeconds: isAnchorDistance ? Math.round(anchor!.timeSeconds) : predictRaceTimeSeconds(vdot, d.meters),
+    };
+  });
 }
 
 /** Per-zone %VDOT bands (fast bound = higher %). The overall-model knobs. */
