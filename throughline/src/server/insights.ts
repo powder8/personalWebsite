@@ -17,6 +17,7 @@ import { activities } from '@/db/schema';
 import { computeFitnessFatigue } from '@/engine/fitnessFatigue';
 import { estimateLoad } from '@/engine/load';
 import { vdotFromRace, STANDARD_DISTANCES } from '@/engine/plan';
+import { vdotCeiling, isCorroborated, type Effort } from '@/server/perf';
 import type { DailyReading } from '@/engine/types';
 
 const MI = 1609.344;
@@ -240,27 +241,19 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
     .map((r) => ({ r, perf: runPerformance(r) }))
     .filter((x): x is { r: Run; perf: NonNullable<ReturnType<typeof runPerformance>> } => x.perf != null);
 
-  // Robust anomaly cap: GPS glitches (short distance / dropped time) produce
-  // VDOTs far above the athlete's real range. Reject efforts beyond
-  // median + 4·MAD of their own VDOT distribution (median absolute deviation is
-  // outlier-resistant, so a few glitches don't move the bar).
-  const vdotVals = allPerformers.map((x) => x.perf.vdot);
-  const vMed = median(vdotVals);
-  const vMad = median(vdotVals.map((v) => Math.abs(v - vMed))) || 1;
-  const vCeiling = vMed + 4 * vMad;
+  // Reject GPS glitches with the shared guards (same logic the anchor uses):
+  // a robust ceiling drops egregious spikes, then corroboration requires the
+  // peak to be backed by another strong effort nearby.
+  const ceiling = vdotCeiling(allPerformers.map((x) => x.perf.vdot));
   const performers = allPerformers
-    .filter((x) => x.perf.vdot <= vCeiling)
+    .filter((x) => x.perf.vdot <= ceiling)
     .sort((a, b) => b.perf.vdot - a.perf.vdot);
+  const effortList: Effort[] = performers.map((x) => ({ ts: x.r.ts, vdot: x.perf.vdot }));
 
   const builds: BuildBlock[] = [];
   for (const { r, perf } of performers) {
     if (builds.length >= 5) break;
-    // Also require corroboration: a real peak has another strong effort within
-    // ~4 weeks (within 5 VDOT points); a lone spike is likely still a glitch.
-    const corroborated = performers.some(
-      (o) => o.r.ts !== r.ts && Math.abs(o.r.ts - r.ts) <= 28 * 86400000 && o.perf.vdot >= perf.vdot - 5,
-    );
-    if (!corroborated) continue;
+    if (!isCorroborated({ ts: r.ts, vdot: perf.vdot }, effortList)) continue;
     // Keep peaks temporally distinct (one block per ~8-week neighborhood).
     if (builds.some((b) => Math.abs(new Date(b.toDay).getTime() - r.ts) < BUILD_DAYS * 86400000)) continue;
     const fromDay = new Date(r.ts - BUILD_DAYS * 86400000).toISOString().slice(0, 10);
@@ -360,6 +353,12 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
         text: `Build volume gradually toward ~${p.medianWeeklyMiles} mi/week — the level your ${p.count} most productive blocks shared. You're ~${recent.avgWeeklyMiles} lately; progress about +10%/week to manage injury risk.`,
       });
     }
+    if (recent.runDaysPerWeek + 0.7 < p.medianRunDaysPerWeek) {
+      suggestions.push({
+        basis: 'history',
+        text: `Run more frequently: your most productive blocks averaged ~${p.medianRunDaysPerWeek} run-days/week vs ~${recent.runDaysPerWeek} lately. Consistent frequency (more easy days) is the steadiest driver of fitness.`,
+      });
+    }
     if (recent.longRuns === 0 && p.blocksWithLongRuns >= Math.ceil(p.count / 2)) {
       suggestions.push({
         basis: 'history',
@@ -387,6 +386,6 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
     recent,
     baseline: { medianWeeklyMiles },
     observations,
-    suggestions: suggestions.slice(0, 3),
+    suggestions: suggestions.slice(0, 6),
   };
 }

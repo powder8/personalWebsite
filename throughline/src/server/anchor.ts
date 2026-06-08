@@ -18,6 +18,7 @@ import {
   setAthletePaceConfig,
 } from '@/db/paceConfig';
 import { reapplyZonesToFuturePlan } from '@/server/paceAdjust';
+import { vdotCeiling, isCorroborated, type Effort } from '@/server/perf';
 
 // Race-like distances only: long enough that whole-activity time ≈ a real
 // effort, short enough to exclude long slow runs. (~1.9mi to marathon.)
@@ -102,7 +103,7 @@ export async function suggestAnchorCandidates(
       ),
     );
 
-  const scored: AnchorCandidate[] = [];
+  const scored: (AnchorCandidate & { ts: number; rawVdot: number })[] = [];
   for (const r of rows) {
     const m = r.distanceMeters ?? 0;
     const t = r.durationSeconds ?? 0;
@@ -118,15 +119,26 @@ export async function suggestAnchorCandidates(
       distanceLabel: nearestStandard(m),
       timeLabel: fmtTime(t),
       paceLabel: paceMinPerMile(m, t),
+      ts: r.startTime.getTime(),
+      rawVdot: raw,
       // store a tiny boost for race-titled efforts via sort key below
       vdot: Math.round((raw + (isRace ? 0.0001 : 0)) * 10) / 10,
     });
   }
 
-  scored.sort((a, b) => b.vdot - a.vdot || b.day.localeCompare(a.day));
+  // Reject GPS glitches: drop efforts beyond a robust ceiling, and require each
+  // to be corroborated by another strong effort nearby. A single mismeasured
+  // run shouldn't define fitness.
+  const efforts: Effort[] = scored.map((s) => ({ ts: s.ts, vdot: s.rawVdot }));
+  const ceiling = vdotCeiling(efforts.map((e) => e.vdot));
+  const guarded = scored.filter(
+    (s) => s.rawVdot <= ceiling && isCorroborated({ ts: s.ts, vdot: s.rawVdot }, efforts),
+  );
+
+  guarded.sort((a, b) => b.vdot - a.vdot || b.day.localeCompare(a.day));
   // De-dupe near-identical VDOTs so the list shows genuinely different options.
   const out: AnchorCandidate[] = [];
-  for (const c of scored) {
+  for (const c of guarded) {
     if (out.some((o) => Math.abs(o.vdot - c.vdot) < 0.5)) continue;
     out.push(c);
     if (out.length >= limit) break;
