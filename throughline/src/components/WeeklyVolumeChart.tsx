@@ -7,8 +7,21 @@ import { secPerKmToMinPerMile } from '@/engine/plan';
 import type { TrainingSummary, EffortKind } from '@/server/weeklyVolume';
 
 const W = 640;
-const H = 150;
+const H = 160;
+const PAD_T = 8; // headroom above the tallest bar
 const PAD_B = 18; // room for week labels
+const PAD_L = 30; // left axis (miles) labels
+const PAD_R_BASE = 10;
+const PAD_R_ELEV = 34; // right axis (elevation) labels when present
+
+/** A "nice" rounded-up axis maximum (1/2/5 × 10^k) so tick labels are clean. */
+function niceTop(v: number): number {
+  if (v <= 0) return 1;
+  const pow = Math.pow(10, Math.floor(Math.log10(v)));
+  const norm = v / pow;
+  const nice = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
+  return nice * pow;
+}
 
 const KIND_LABEL: Record<EffortKind, string> = { race: 'Race', workout: 'Workout', long_run: 'Long run' };
 const KIND_STYLE: Record<EffortKind, string> = {
@@ -30,35 +43,70 @@ export function WeeklyVolumeChart({ summary }: { summary: TrainingSummary }) {
   }
 
   const n = weeks.length;
-  const plotH = H - PAD_B;
-  const milesMax = Math.max(...weeks.map((w) => w.miles), 1);
-  const elevMax = Math.max(...weeks.map((w) => w.elevationFt), 1);
-  const slot = W / n;
+  const showElev = hasElevation && weeks.some((w) => w.elevationFt > 0);
+  const padR = showElev ? PAD_R_ELEV : PAD_R_BASE;
+  const plotW = W - PAD_L - padR;
+  const plotBottom = H - PAD_B;
+  const plotTop = PAD_T;
+  const plotHeight = plotBottom - plotTop;
+
+  const milesTop = niceTop(Math.max(...weeks.map((w) => w.miles), 1));
+  const elevTop = niceTop(Math.max(...weeks.map((w) => w.elevationFt), 1));
+  const slot = plotW / n;
   const barW = slot * 0.62;
 
-  const elevPts = weeks.map((w, i) => ({
-    x: i * slot + slot / 2,
-    y: plotH - (w.elevationFt / elevMax) * (plotH - 6) - 2,
-  }));
-  const elevPath = elevPts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+  const cx = (i: number) => PAD_L + i * slot + slot / 2;
+  const yMiles = (v: number) => plotBottom - (v / milesTop) * plotHeight;
+  const yElev = (v: number) => plotBottom - (v / elevTop) * plotHeight;
+  const ticks = [0, 0.5, 1]; // fractions of the top → gridlines + labels
 
+  const elevPath = weeks
+    .map((w, i) => `${i === 0 ? 'M' : 'L'} ${cx(i).toFixed(1)} ${yElev(w.elevationFt).toFixed(1)}`)
+    .join(' ');
   const peakMiles = Math.max(...weeks.map((w) => w.miles));
 
   return (
     <div className="space-y-4">
       <div>
         <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Weekly mileage and elevation, last 12 weeks">
+          {/* horizontal gridlines + left (miles) and right (elevation) axis labels */}
+          {ticks.map((t) => {
+            const y = plotBottom - t * plotHeight;
+            return (
+              <g key={t}>
+                <line x1={PAD_L} x2={W - padR} y1={y} y2={y} stroke="#e2e8f0" strokeWidth={1} />
+                <text x={PAD_L - 4} y={y + 3} textAnchor="end" className="fill-slate-400" fontSize={9}>
+                  {Math.round(t * milesTop)}
+                </text>
+                {showElev && (
+                  <text x={W - padR + 4} y={y + 3} textAnchor="start" className="fill-orange-400" fontSize={9}>
+                    {Math.round(t * elevTop)}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+          {/* axis captions */}
+          <text x={PAD_L - 4} y={plotTop - 1} textAnchor="end" className="fill-slate-400" fontSize={8}>
+            mi
+          </text>
+          {showElev && (
+            <text x={W - padR + 4} y={plotTop - 1} textAnchor="start" className="fill-orange-400" fontSize={8}>
+              ft
+            </text>
+          )}
+
           {/* mileage bars */}
           {weeks.map((w, i) => {
-            const h = (w.miles / milesMax) * (plotH - 6);
-            const x = i * slot + (slot - barW) / 2;
+            const y = yMiles(w.miles);
+            const x = PAD_L + i * slot + (slot - barW) / 2;
             return (
               <rect
                 key={w.weekStart}
                 x={x.toFixed(1)}
-                y={(plotH - h - 2).toFixed(1)}
+                y={y.toFixed(1)}
                 width={barW.toFixed(1)}
-                height={Math.max(0, h).toFixed(1)}
+                height={Math.max(0, plotBottom - y).toFixed(1)}
                 rx={1.5}
                 fill="#0ea5e9"
                 fillOpacity={0.7}
@@ -66,20 +114,11 @@ export function WeeklyVolumeChart({ summary }: { summary: TrainingSummary }) {
             );
           })}
           {/* elevation line */}
-          {hasElevation && elevMax > 1 && (
-            <path d={elevPath} fill="none" stroke="#f97316" strokeWidth={1.5} strokeLinejoin="round" />
-          )}
+          {showElev && <path d={elevPath} fill="none" stroke="#f97316" strokeWidth={1.5} strokeLinejoin="round" />}
           {/* week labels: every other week to avoid crowding */}
           {weeks.map((w, i) =>
             i % 2 === 0 ? (
-              <text
-                key={w.weekStart}
-                x={(i * slot + slot / 2).toFixed(1)}
-                y={H - 5}
-                textAnchor="middle"
-                className="fill-slate-400"
-                fontSize={9}
-              >
+              <text key={w.weekStart} x={cx(i).toFixed(1)} y={H - 5} textAnchor="middle" className="fill-slate-400" fontSize={9}>
                 {fmtMonthDay(w.weekStart)}
               </text>
             ) : null,

@@ -13,7 +13,6 @@ import {
   predictRaceTimeSeconds,
   equivalentPerformances,
   ageFromDob,
-  mastersThresholdEaseSecPerMile,
   DEFAULT_GLOBAL_MODEL,
   type ZoneKey,
 } from '../index';
@@ -122,22 +121,6 @@ test('ageFromDob computes whole years, respecting the month/day boundary', () =>
   assert.equal(ageFromDob('1985-06-16', '2026-06-15'), 40); // birthday tomorrow
   assert.equal(ageFromDob('1985-06-14', '2026-06-15'), 41); // birthday yesterday
   assert.equal(ageFromDob(null, '2026-06-15'), null);
-});
-
-test('masters threshold easing: 0 under 40, ~15s/mi at 40, grows with age', () => {
-  assert.equal(mastersThresholdEaseSecPerMile(35), 0);
-  assert.equal(mastersThresholdEaseSecPerMile(39), 0);
-  assert.equal(mastersThresholdEaseSecPerMile(40), 15);
-  assert.ok(mastersThresholdEaseSecPerMile(50) > 15);
-});
-
-test('masters athlete gets an eased (slower) threshold zone, others ~unchanged', () => {
-  const base = resolvePaceZones({ race: MOIRA });
-  const masters = resolvePaceZones({ race: MOIRA, ageYears: 50 });
-  assert.ok(masters.zones.threshold.slowSecPerKm > base.zones.threshold.slowSecPerKm, 'threshold eased slower');
-  assert.equal(masters.zones.easy.slowSecPerKm, base.zones.easy.slowSecPerKm, 'easy zone unchanged');
-  // Threshold stays faster (smaller s/km) than marathon pace — no inversion.
-  assert.ok(masters.zones.threshold.slowSecPerKm < masters.zones.marathon.slowSecPerKm);
 });
 
 test('strength bias tilts reps and marathon in opposite directions', () => {

@@ -64,31 +64,6 @@ export interface AthletePaceConfig {
    * -1 = endurance type (slower short reps, faster marathon-pace).
    */
   strengthBias?: number;
-  /**
-   * Athlete age in years (from DOB). When set and ≥ the masters threshold, the
-   * default threshold pace is eased (masters recover/clear lactate slower). Pure
-   * default — a coach override via zoneOverrides still wins.
-   */
-  ageYears?: number;
-}
-
-// --- Masters defaults (Heather's coaching call; tunable here) -----------------
-/** Age at which the masters threshold easing kicks in. */
-export const MASTERS_AGE = 40;
-/** Default threshold easing at the masters boundary (Heather's ~15s/mi). */
-export const MASTERS_THRESHOLD_BASE_SEC_PER_MILE = 15;
-/** Additional easing per year beyond the masters boundary. */
-export const MASTERS_THRESHOLD_PER_YEAR_SEC_PER_MILE = 0.7;
-const SEC_PER_MILE_TO_SEC_PER_KM = 1 / 1.609344;
-
-/**
- * How much slower (s/mi) a masters athlete's default threshold pace should run,
- * given age. 0 below the masters age; a base accommodation at the boundary that
- * grows modestly with age. Heather-tunable.
- */
-export function mastersThresholdEaseSecPerMile(ageYears: number | null | undefined): number {
-  if (ageYears == null || ageYears < MASTERS_AGE) return 0;
-  return MASTERS_THRESHOLD_BASE_SEC_PER_MILE + MASTERS_THRESHOLD_PER_YEAR_SEC_PER_MILE * (ageYears - MASTERS_AGE);
 }
 
 /** Whole-years age from a 'YYYY-MM-DD' DOB as of 'YYYY-MM-DD' today. Null if unknown/invalid. */
@@ -100,23 +75,6 @@ export function ageFromDob(dob: string | null | undefined, today: string): numbe
   let age = ty - by;
   if (tm < bm || (tm === bm && td < bd)) age -= 1;
   return age >= 0 && age < 130 ? age : null;
-}
-
-/** Ease the threshold zone for masters, clamped so it never crosses marathon pace. */
-function applyMastersEase(zones: PaceZones, ageYears: number | undefined): PaceZones {
-  const easeMi = mastersThresholdEaseSecPerMile(ageYears);
-  if (easeMi <= 0) return zones;
-  const ease = easeMi * SEC_PER_MILE_TO_SEC_PER_KM; // s/km, positive = slower
-  const t = zones.zones.threshold;
-  const m = zones.zones.marathon;
-  // Threshold must stay at least 1 s/km faster (smaller) than marathon pace.
-  const capFast = m.fastSecPerKm - 1;
-  const capSlow = m.slowSecPerKm - 1;
-  const threshold = {
-    fastSecPerKm: Math.min(t.fastSecPerKm + ease, capFast),
-    slowSecPerKm: Math.min(t.slowSecPerKm + ease, capSlow),
-  };
-  return { ...zones, zones: { ...zones.zones, threshold } };
 }
 
 /** Max pace tilt (s/km) at |bias| = 1, per zone. Speed type makes reps faster. */
@@ -176,10 +134,6 @@ export function resolvePaceZones(
 
   // Strength bias (endurance↔speed) tilts short-rep vs marathon paces.
   if (athlete.strengthBias) base = applyStrengthBias(base, athlete.strengthBias);
-
-  // Masters default: ease the threshold pace by age (before coach overrides, so
-  // an explicit zoneOverride still wins).
-  base = applyMastersEase(base, athlete.ageYears);
 
   // Apply final per-zone nudges (individual level).
   if (athlete.zoneOverrides) {

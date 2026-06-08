@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getAthleteDetail, TODAY, type Band } from '@/server/console';
 import { BandBadge, Card, Sparkline } from '@/components/ui';
-import { secPerKmToMinPerMile, purposeLabel, ageFromDob, mastersThresholdEaseSecPerMile } from '@/engine/plan';
+import { secPerKmToMinPerMile, purposeLabel, ageFromDob } from '@/engine/plan';
 import { DobControl } from '@/components/DobControl';
 import { TrainingChat } from '@/components/TrainingChat';
 import { chatConfigured } from '@/server/chat';
@@ -554,21 +554,16 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
         </Card>
       )}
 
-      {/* Profile: date of birth → masters pace defaults / age-grading */}
+      {/* Profile: date of birth (for future age-grading) */}
       <Card title="Profile">
         <DobControl athleteId={athlete.id} initial={athlete.dateOfBirth} />
         {(() => {
           const age = ageFromDob(athlete.dateOfBirth, TODAY);
-          if (age == null) {
-            return <p className="mt-2 text-xs text-slate-500">Set a date of birth to enable masters pace defaults and age-grading.</p>;
-          }
-          const ease = mastersThresholdEaseSecPerMile(age);
           return (
             <p className="mt-2 text-xs text-slate-500">
-              Age {age}.{' '}
-              {ease > 0
-                ? `Masters default: threshold pace eased ~${Math.round(ease)}s/mi (a coach pace override still wins).`
-                : 'Under masters age — no pace easing applied.'}
+              {age == null
+                ? 'Date of birth is used for age-grading (coming soon). It does not change paces on its own.'
+                : `Age ${age}. Used for age-grading (coming soon); it doesn’t change paces on its own.`}
             </p>
           );
         })()}

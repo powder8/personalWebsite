@@ -3,8 +3,9 @@
 import { useState } from 'react';
 
 /**
- * Set an athlete's date of birth. Drives masters pace defaults (eased threshold
- * for 40+) and future age-grading. Coach-facing, on the athlete detail page.
+ * Set an athlete's date of birth — for future age-grading (comparing
+ * performances fairly across a career). It does not change paces on its own.
+ * Coach-facing, on the athlete detail page.
  */
 export function DobControl({ athleteId, initial }: { athleteId: string; initial: string | null }) {
   const [value, setValue] = useState(initial ?? '');

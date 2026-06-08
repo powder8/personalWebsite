@@ -14,10 +14,10 @@ interface Msg {
 }
 
 const ATHLETE_STARTERS = [
-  'Why is today the session it is?',
+  'What’s my workout today?',
+  'How should today’s run feel?',
   'I need to take Friday off',
-  'Paces feel too hard this week',
-  'How is my fitness trending?',
+  'Am I on track for my goal race?',
 ];
 const COACH_STARTERS = [
   'How is this athlete trending?',
