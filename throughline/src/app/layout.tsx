@@ -80,6 +80,19 @@ export default async function RootLayout({
         </header>
         <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-6">{children}</main>
         <FeedbackWidget />
+        {/* GoatCounter (shared badoo.goatcounter.com). Server-rendered inline so
+            it's in the SSR HTML and runs on first load: set the UUID-masking
+            path filter, then inject count.js. SPA navigations are counted by
+            <Analytics />. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "window.goatcounter={path:function(p){return p.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,':id')}};" +
+              "(function(){var s=document.createElement('script');s.async=true;" +
+              "s.dataset.goatcounter='https://badoo.goatcounter.com/count';" +
+              "s.src='//gc.zgo.at/count.js';document.head.appendChild(s);})();",
+          }}
+        />
         <Analytics />
       </body>
     </html>
