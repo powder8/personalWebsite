@@ -87,6 +87,9 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
               <Link href={`/me/${athlete.id}`} className="text-sky-700 hover:underline">
                 Athlete view →
               </Link>
+              <Link href={`/athletes/${athlete.id}/insights`} className="text-sky-700 hover:underline">
+                Insights →
+              </Link>
               <Link href={`/athletes/${athlete.id}/plan`} className="text-sky-700 hover:underline">
                 Season plan →
               </Link>
