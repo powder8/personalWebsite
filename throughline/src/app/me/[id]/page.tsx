@@ -8,6 +8,8 @@ import { CheckInForm } from '@/components/CheckInForm';
 import { AvailabilityForm } from '@/components/AvailabilityForm';
 import { CalendarSubscribe } from '@/components/CalendarSubscribe';
 import { ConnectStrava } from '@/components/ConnectStrava';
+import { TrainingChat } from '@/components/TrainingChat';
+import { chatConfigured } from '@/server/chat';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,6 +74,11 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
           </div>
         )}
       </div>
+
+      {/* Ask about your training (grounded chat) */}
+      <Card title="Ask about your training">
+        <TrainingChat athleteId={athlete.id} configured={chatConfigured()} />
+      </Card>
 
       {/* Today */}
       <Card title="Today">
