@@ -3,9 +3,11 @@
 import { useState } from 'react';
 
 /**
- * Strava connection control. Shows Connect when unlinked, or Connected + a
- * "Sync now" pull when linked. The OAuth redirect is a plain link (server
- * route); sync is a fetch.
+ * Strava connection control. Connect when unlinked; once linked, run a chunked
+ * import. The import calls the resumable sync endpoint in a loop (each call
+ * handles a bounded number of pages and returns a cursor), so it works for any
+ * history size — 200 activities or 20,000 — without hitting a request timeout,
+ * and shows live progress.
  */
 export function ConnectStrava({
   athleteId,
@@ -18,23 +20,36 @@ export function ConnectStrava({
   configured: boolean;
   lastActivityDay?: string | null;
 }) {
-  const [pending, setPending] = useState(false);
+  const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  async function sync() {
-    setPending(true);
-    setMsg(null);
+  async function run(full: boolean) {
+    setRunning(true);
+    setMsg(full ? 'Importing your history…' : 'Syncing…');
+    let total = 0;
+    let url = `/api/athletes/${athleteId}/strava/sync${full ? '?full=1' : ''}`;
     try {
-      const res = await fetch(`/api/athletes/${athleteId}/strava/sync`, { method: 'POST' });
-      const json = await res.json();
-      if (json.ok) {
-        setMsg(`Synced — ${json.imported} new of ${json.fetched} fetched.`);
-        setTimeout(() => window.location.reload(), 1000);
-      } else setMsg(json.error ?? 'Sync failed.');
+      // Safety cap on iterations (covers ~40k activities at 1000/call).
+      for (let i = 0; i < 60; i++) {
+        const res = await fetch(url, { method: 'POST' });
+        const j = await res.json();
+        if (!j.ok) {
+          setMsg(j.error ?? 'Sync failed.');
+          break;
+        }
+        total += j.fetched ?? 0;
+        if (j.done || j.nextAfter == null) {
+          setMsg(`Done — ${total} activities synced.`);
+          setTimeout(() => window.location.reload(), 1200);
+          break;
+        }
+        setMsg(`Imported ${total} activities…`);
+        url = `/api/athletes/${athleteId}/strava/sync?after=${j.nextAfter}`;
+      }
     } catch {
-      setMsg('Network error.');
+      setMsg('Network error during sync.');
     } finally {
-      setPending(false);
+      setRunning(false);
     }
   }
 
@@ -62,21 +77,43 @@ export function ConnectStrava({
     );
   }
 
+  const neverImported = !lastActivityDay;
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800 ring-1 ring-inset ring-orange-200">
           Strava connected ✓
         </span>
         {lastActivityDay && <span className="text-xs text-slate-400">last activity {lastActivityDay}</span>}
-        <button
-          type="button"
-          onClick={sync}
-          disabled={pending}
-          className="rounded border border-slate-300 px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-        >
-          {pending ? 'Syncing…' : 'Sync now'}
-        </button>
+        {neverImported ? (
+          <button
+            type="button"
+            onClick={() => run(true)}
+            disabled={running}
+            className="rounded bg-sky-700 px-3 py-1 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
+          >
+            {running ? 'Importing…' : 'Import Strava history'}
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => run(false)}
+              disabled={running}
+              className="rounded border border-slate-300 px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {running ? 'Working…' : 'Sync now'}
+            </button>
+            <button
+              type="button"
+              onClick={() => run(true)}
+              disabled={running}
+              className="rounded border border-slate-200 px-3 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+            >
+              Re-import all
+            </button>
+          </>
+        )}
       </div>
       {msg && <p className="text-xs text-slate-500">{msg}</p>}
     </div>

@@ -5,13 +5,11 @@
  * derived layer Garmin webhooks feed). Activities are the entry point; HRV /
  * sleep / resting-HR follow when we add a wearable provider.
  */
-import { and, desc, eq, like } from 'drizzle-orm';
+import { and, desc, eq, like, sql } from 'drizzle-orm';
 import type { DB } from '@/db';
 import { connectedAccounts, rawEvents, activities } from '@/db/schema';
-import { getProvider } from '@/providers';
-import { strava, type StravaActivity } from '@/providers/strava';
+import { strava, normalizeActivity, type StravaActivity } from '@/providers/strava';
 import { stravaEnv } from '@/providers/strava/env';
-import { persistNormalizedBatch } from '@/server/ingest';
 import { payloadHash } from '@/lib/hash';
 
 const TOKEN_SKEW_MS = 5 * 60 * 1000; // refresh if expiring within 5 min
@@ -105,51 +103,125 @@ async function lastSyncedAfter(db: DB, athleteId: string, fallbackDays: number):
 }
 
 export interface SyncResult {
-  fetched: number;
-  imported: number; // new raw events (new or updated activities)
+  fetched: number; // activities pulled from Strava this call
+  imported: number; // NEW raw events captured this call
+  done: boolean; // false → more pages remain; call again with `afterOverride: nextAfter`
+  nextAfter: number | null; // unix cursor to continue from
 }
 
 /**
- * Pull activities since the last sync (or `fallbackDays` back on first run),
- * append each to raw_events, and normalize into the activities table.
+ * Ingest a PAGE of activities in two batched writes (instead of ~3 queries per
+ * activity). Raw events are appended (idempotent on the id-hash) with
+ * processedAt set, and activities are upserted by sourceRef using each row's own
+ * incoming values (`excluded.*`). Returns the count of newly-captured events.
+ */
+async function ingestStravaPage(
+  db: DB,
+  athleteId: string,
+  providerUserId: string | null,
+  list: StravaActivity[],
+  source: 'backfill' | 'webhook',
+): Promise<number> {
+  if (list.length === 0) return 0;
+  const now = new Date();
+  const rawValues = list.map((a) => ({
+    athleteId,
+    provider: 'strava' as const,
+    source,
+    eventType: 'activity',
+    providerUserId: providerUserId ?? undefined,
+    payload: a as object,
+    payloadHash: payloadHash(JSON.stringify({ id: a.id })),
+    processedAt: now,
+  }));
+  const insertedRaw = await db
+    .insert(rawEvents)
+    .values(rawValues)
+    .onConflictDoNothing({ target: [rawEvents.provider, rawEvents.eventType, rawEvents.payloadHash] })
+    .returning({ id: rawEvents.id });
+
+  const actValues = list.map((a) => ({ ...normalizeActivity(a), athleteId }));
+  await db
+    .insert(activities)
+    .values(actValues)
+    .onConflictDoUpdate({
+      target: activities.sourceRef,
+      set: {
+        name: sql`excluded.name`,
+        distanceMeters: sql`excluded.distance_meters`,
+        durationSeconds: sql`excluded.duration_seconds`,
+        avgHr: sql`excluded.avg_hr`,
+        maxHr: sql`excluded.max_hr`,
+        avgPaceSecPerKm: sql`excluded.avg_pace_sec_per_km`,
+        cadence: sql`excluded.cadence`,
+        sport: sql`excluded.sport`,
+      },
+    });
+  return insertedRaw.length;
+}
+
+/**
+ * Pull a CHUNK of activities and ingest them. Resumable + batched so it never
+ * blows a serverless time limit regardless of history size:
+ *  - `full`: start `fallbackDays` back (re-pull whole history).
+ *  - `afterOverride`: continue from a prior call's `nextAfter` cursor.
+ *  - otherwise: incremental, starting after the latest synced activity.
+ * Strava returns `after` results oldest-first, so we advance the cursor to the
+ * newest activity seen. `done:false` means call again with `nextAfter`.
  */
 export async function syncStravaActivities(
   db: DB,
   athleteId: string,
-  opts: { fallbackDays?: number; maxPages?: number; source?: 'backfill' | 'webhook'; full?: boolean } = {},
+  opts: {
+    fallbackDays?: number;
+    maxPages?: number;
+    source?: 'backfill' | 'webhook';
+    full?: boolean;
+    afterOverride?: number;
+  } = {},
 ): Promise<SyncResult> {
-  const { fallbackDays = 365, maxPages = 20, source = 'backfill', full = false } = opts;
+  const { fallbackDays = 365, maxPages = 5, source = 'backfill', full = false, afterOverride } = opts;
   const acct = await getStravaAccount(db, athleteId);
   if (!acct) throw new Error('No Strava account connected for this athlete.');
 
   const token = await ensureAccessToken(db, acct);
-  // A full resync re-pulls the whole window (so existing rows get refreshed,
-  // e.g. titles backfilled); incremental sync starts after the latest activity.
-  const after = full
-    ? Math.floor((Date.now() - fallbackDays * 86400000) / 1000)
-    : await lastSyncedAfter(db, athleteId, fallbackDays);
+  const after =
+    afterOverride != null
+      ? afterOverride
+      : full
+        ? Math.floor((Date.now() - fallbackDays * 86400000) / 1000)
+        : await lastSyncedAfter(db, athleteId, fallbackDays);
   const { apiBaseUrl } = stravaEnv();
   const perPage = 200;
 
   let fetched = 0;
   let imported = 0;
+  let maxStart = after;
+  let done = false;
   for (let page = 1; page <= maxPages; page++) {
     const url = `${apiBaseUrl}/athlete/activities?after=${after}&per_page=${perPage}&page=${page}`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) throw new Error(`Strava activities fetch failed (HTTP ${res.status}).`);
     const list = (await res.json()) as StravaActivity[];
-    if (!Array.isArray(list) || list.length === 0) break;
-    fetched += list.length;
-    for (const a of list) {
-      const ok = await ingestStravaActivity(db, athleteId, acct.providerUserId, a, source);
-      if (ok) imported++;
+    if (!Array.isArray(list) || list.length === 0) {
+      done = true;
+      break;
     }
-    if (list.length < perPage) break;
+    fetched += list.length;
+    imported += await ingestStravaPage(db, athleteId, acct.providerUserId, list, source);
+    for (const a of list) {
+      const t = a.start_date ? Math.floor(new Date(a.start_date).getTime() / 1000) : 0;
+      if (t > maxStart) maxStart = t;
+    }
+    if (list.length < perPage) {
+      done = true;
+      break;
+    }
   }
-  return { fetched, imported };
+  return { fetched, imported, done, nextAfter: done ? null : maxStart };
 }
 
-/** Append one activity to raw_events (idempotent) and normalize it. */
+/** Ingest a single activity (webhook path). */
 export async function ingestStravaActivity(
   db: DB,
   athleteId: string,
@@ -157,30 +229,8 @@ export async function ingestStravaActivity(
   activity: StravaActivity,
   source: 'backfill' | 'webhook',
 ): Promise<boolean> {
-  const hash = payloadHash(JSON.stringify({ id: activity.id }));
-  const [inserted] = await db
-    .insert(rawEvents)
-    .values({
-      athleteId,
-      provider: 'strava',
-      source,
-      eventType: 'activity',
-      providerUserId: providerUserId ?? undefined,
-      payload: activity as object,
-      payloadHash: hash,
-    })
-    .onConflictDoNothing({ target: [rawEvents.provider, rawEvents.eventType, rawEvents.payloadHash] })
-    .returning({ id: rawEvents.id });
-
-  // Normalize regardless (re-fetch via webhook 'update' should refresh the row),
-  // but only count newly-captured raw events as imported.
-  const batch = getProvider('strava').normalize('activity', activity);
-  await persistNormalizedBatch(db, athleteId, inserted?.id ?? null, batch);
-  if (inserted?.id) {
-    await db.update(rawEvents).set({ processedAt: new Date() }).where(eq(rawEvents.id, inserted.id));
-    return true;
-  }
-  return false;
+  const n = await ingestStravaPage(db, athleteId, providerUserId, [activity], source);
+  return n > 0;
 }
 
 /** Fetch a single activity by id (used by webhook events, which carry only ids). */

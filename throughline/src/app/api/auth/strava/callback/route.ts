@@ -6,7 +6,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { getProvider } from '@/providers';
-import { saveStravaTokens, syncStravaActivities } from '@/server/strava';
+import { saveStravaTokens } from '@/server/strava';
 
 export const runtime = 'nodejs';
 
@@ -28,14 +28,9 @@ export async function GET(req: Request) {
     const db = await getDb();
     const tokens = await getProvider('strava').exchangeCode(code);
     await saveStravaTokens(db, athleteId, tokens);
-    // Initial backfill (a year). Best-effort: connection still succeeds if the
-    // pull hits a transient error — the athlete can re-sync.
-    try {
-      await syncStravaActivities(db, athleteId, { fallbackDays: 365 });
-    } catch {
-      /* non-fatal */
-    }
-    return NextResponse.redirect(`${base}/me/${athleteId}?strava=connected`);
+    // No synchronous backfill here — a large history would exceed the request
+    // time limit. The portal kicks off a chunked, resumable import instead.
+    return NextResponse.redirect(`${base}/me/${athleteId}?strava=connected&import=1`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Strava connection failed.';
     return NextResponse.redirect(`${base}/me/${athleteId}?strava=error&msg=${encodeURIComponent(msg)}`);
