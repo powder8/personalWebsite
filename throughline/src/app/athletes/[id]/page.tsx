@@ -200,7 +200,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
       {/* Imported training history */}
       {activitySummary.count > 0 && (
         <Card
-          title={`Training history — ${activitySummary.count} runs · ${activitySummary.totalMiles} mi${
+          title={`Training history — ${activitySummary.count} activities · ${activitySummary.totalMiles} mi${
             activitySummary.firstDay ? ` (${activitySummary.firstDay} → ${activitySummary.lastDay})` : ''
           }`}
         >

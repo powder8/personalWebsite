@@ -116,14 +116,18 @@ export interface SyncResult {
 export async function syncStravaActivities(
   db: DB,
   athleteId: string,
-  opts: { fallbackDays?: number; maxPages?: number; source?: 'backfill' | 'webhook' } = {},
+  opts: { fallbackDays?: number; maxPages?: number; source?: 'backfill' | 'webhook'; full?: boolean } = {},
 ): Promise<SyncResult> {
-  const { fallbackDays = 365, maxPages = 10, source = 'backfill' } = opts;
+  const { fallbackDays = 365, maxPages = 20, source = 'backfill', full = false } = opts;
   const acct = await getStravaAccount(db, athleteId);
   if (!acct) throw new Error('No Strava account connected for this athlete.');
 
   const token = await ensureAccessToken(db, acct);
-  const after = await lastSyncedAfter(db, athleteId, fallbackDays);
+  // A full resync re-pulls the whole window (so existing rows get refreshed,
+  // e.g. titles backfilled); incremental sync starts after the latest activity.
+  const after = full
+    ? Math.floor((Date.now() - fallbackDays * 86400000) / 1000)
+    : await lastSyncedAfter(db, athleteId, fallbackDays);
   const { apiBaseUrl } = stravaEnv();
   const perPage = 200;
 
