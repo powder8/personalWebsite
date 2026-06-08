@@ -27,9 +27,13 @@ test('normalizeActivity derives pace from speed and doubles run cadence', () => 
     max_heartrate: 171.9,
     average_speed: 2.7777778, // 10 km/h → 360 s/km (6:00/mi-ish)
     average_cadence: 85, // per-leg → 170 steps/min
+    total_elevation_gain: 120.5,
+    workout_type: 3, // workout
   };
   const row = normalizeActivity(a);
   assert.equal(row.name, 'Morning Run');
+  assert.equal(row.elevationGainMeters, 120.5);
+  assert.equal(row.workoutType, 3);
   assert.equal(row.sport, 'run');
   assert.equal(row.distanceMeters, 5000);
   assert.equal(row.durationSeconds, 1800); // prefers moving_time
@@ -48,6 +52,7 @@ test('normalizeActivity keeps bike cadence unscaled and tolerates missing fields
   assert.equal(row.cadence, 90);
   assert.equal(row.distanceMeters, null);
   assert.equal(row.avgPaceSecPerKm, null);
+  assert.equal(row.elevationGainMeters, null);
   assert.equal(row.sourceRef, 'strava:x1');
 });
 

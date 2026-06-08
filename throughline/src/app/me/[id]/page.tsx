@@ -12,6 +12,8 @@ import { TrainingChat } from '@/components/TrainingChat';
 import { chatConfigured } from '@/server/chat';
 import { CycleTracking } from '@/components/CycleTracking';
 import { getCycle, computeCycle } from '@/server/cycle';
+import { WeeklyVolumeChart } from '@/components/WeeklyVolumeChart';
+import { getTrainingSummary } from '@/server/weeklyVolume';
 import { getDb } from '@/db';
 
 export const dynamic = 'force-dynamic';
@@ -44,6 +46,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
   const db = await getDb();
   const cycleSettings = await getCycle(db, id);
   const cycleStatus = computeCycle(cycleSettings, portal.today);
+  const trainingSummary = await getTrainingSummary(db, id, portal.today, 12);
 
   const {
     athlete,
@@ -202,6 +205,11 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
           </Link>
         </Card>
       )}
+
+      {/* Last 12 weeks: mileage + elevation + key efforts */}
+      <Card title="Last 12 weeks">
+        <WeeklyVolumeChart summary={trainingSummary} />
+      </Card>
 
       {/* Availability / adjustments */}
       <Card title="Need to adjust your training?">

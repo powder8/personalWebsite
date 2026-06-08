@@ -374,6 +374,7 @@ export const activities = pgTable(
     avgHr: integer('avg_hr'),
     maxHr: integer('max_hr'),
     avgPaceSecPerKm: doublePrecision('avg_pace_sec_per_km'),
+    elevationGainMeters: doublePrecision('elevation_gain_meters'), // total ascent (Strava total_elevation_gain)
     cadence: integer('cadence'),
     trainingLoad: doublePrecision('training_load'), // derived TRIMP/load impulse
     splits: jsonb('splits'), // [{ distanceMeters, durationSeconds, avgHr, paceSecPerKm }]

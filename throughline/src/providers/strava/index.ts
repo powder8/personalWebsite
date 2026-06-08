@@ -24,7 +24,8 @@ export interface StravaActivity {
   max_heartrate?: number;
   average_speed?: number; // m/s
   average_cadence?: number; // per-leg rpm for runs (×2 for steps/min)
-  workout_type?: number; // 0/undefined default, 1 = race (runs)
+  total_elevation_gain?: number; // meters of ascent
+  workout_type?: number; // runs: 0 default, 1 race, 2 long run, 3 workout
 }
 
 interface TokenResponse {
@@ -158,6 +159,7 @@ export function normalizeActivity(a: StravaActivity): NonNullable<NormalizedBatc
     avgHr: a.average_heartrate != null ? Math.round(a.average_heartrate) : null,
     maxHr: a.max_heartrate != null ? Math.round(a.max_heartrate) : null,
     avgPaceSecPerKm: paceFromSpeed(a.average_speed),
+    elevationGainMeters: a.total_elevation_gain ?? null,
     cadence:
       a.average_cadence != null ? Math.round(a.average_cadence * (isRun ? 2 : 1)) : null,
     trainingLoad: null, // derived later by the load model

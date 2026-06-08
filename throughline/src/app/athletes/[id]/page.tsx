@@ -15,6 +15,8 @@ import { getFitnessFatigueSeries } from '@/server/fitness';
 import { getComplianceWeeks, type DayStatus } from '@/server/compliance';
 import { getTrainingInsights } from '@/server/insights';
 import { getCycle, computeCycle } from '@/server/cycle';
+import { WeeklyVolumeChart } from '@/components/WeeklyVolumeChart';
+import { getTrainingSummary } from '@/server/weeklyVolume';
 import { getDb } from '@/db';
 
 export const dynamic = 'force-dynamic';
@@ -40,7 +42,9 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
   const fitness = await getFitnessFatigueSeries(id);
   const compliance = await getComplianceWeeks(id, TODAY);
   const insights = await getTrainingInsights(id);
-  const cycle = computeCycle(await getCycle(await getDb(), id), TODAY);
+  const db = await getDb();
+  const cycle = computeCycle(await getCycle(db, id), TODAY);
+  const trainingSummary = await getTrainingSummary(db, id, TODAY, 12);
 
   const {
     athlete,
@@ -294,6 +298,11 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           <SignalCell label="Resting HR (bpm)" series={signals.restingHr} stroke="#ef4444" />
           <SignalCell label="Sleep (hrs)" series={signals.sleepHours} stroke="#8b5cf6" />
         </div>
+      </Card>
+
+      {/* Last 12 weeks: mileage + elevation + key efforts */}
+      <Card title="Last 12 weeks">
+        <WeeklyVolumeChart summary={trainingSummary} />
       </Card>
 
       {/* Fitness & fatigue (PMC) */}

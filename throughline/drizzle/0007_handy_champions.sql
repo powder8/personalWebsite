@@ -1,0 +1,1 @@
+ALTER TABLE "activities" ADD COLUMN "elevation_gain_meters" double precision;

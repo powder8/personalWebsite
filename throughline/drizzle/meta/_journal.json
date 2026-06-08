@@ -50,6 +50,13 @@
       "when": 1780943342902,
       "tag": "0006_yellow_lenny_balinger",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1780943695004,
+      "tag": "0007_handy_champions",
+      "breakpoints": true
     }
   ]
 }
