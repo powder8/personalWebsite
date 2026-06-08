@@ -24,6 +24,7 @@ export interface StravaActivity {
   max_heartrate?: number;
   average_speed?: number; // m/s
   average_cadence?: number; // per-leg rpm for runs (×2 for steps/min)
+  workout_type?: number; // 0/undefined default, 1 = race (runs)
 }
 
 interface TokenResponse {
@@ -150,6 +151,7 @@ export function normalizeActivity(a: StravaActivity): NonNullable<NormalizedBatc
   return {
     sport,
     name: a.name ?? null,
+    workoutType: a.workout_type ?? null,
     startTime: a.start_date ? new Date(a.start_date) : new Date(0),
     durationSeconds: a.moving_time ?? a.elapsed_time ?? null,
     distanceMeters: a.distance ?? null,

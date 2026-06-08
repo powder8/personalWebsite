@@ -148,6 +148,7 @@ async function ingestStravaPage(
       target: activities.sourceRef,
       set: {
         name: sql`excluded.name`,
+        workoutType: sql`excluded.workout_type`,
         distanceMeters: sql`excluded.distance_meters`,
         durationSeconds: sql`excluded.duration_seconds`,
         avgHr: sql`excluded.avg_hr`,

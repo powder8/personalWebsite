@@ -363,6 +363,7 @@ export const activities = pgTable(
     sport: sportEnum('sport').notNull().default('run'),
     provider: providerEnum('provider').notNull().default('manual'), // source (for cross-source dedup)
     name: text('name'), // activity title from the provider (e.g. Strava "Morning Run")
+    workoutType: integer('workout_type'), // provider workout type (Strava: 1 = race)
     startTime: timestamp('start_time', { withTimezone: true }).notNull(),
     durationSeconds: integer('duration_seconds'), // nullable: manual imports often lack duration
     distanceMeters: doublePrecision('distance_meters'),

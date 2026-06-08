@@ -18,7 +18,7 @@ import {
   setAthletePaceConfig,
 } from '@/db/paceConfig';
 import { reapplyZonesToFuturePlan } from '@/server/paceAdjust';
-import { vdotCeiling, isCorroborated, type Effort } from '@/server/perf';
+import { vdotCeiling, isCorroborated, isRaceEffort, type Effort } from '@/server/perf';
 
 // Race-like distances only: long enough that whole-activity time ≈ a real
 // effort, short enough to exclude long slow runs. (~1.9mi to marathon.)
@@ -76,7 +76,9 @@ export async function suggestAnchorCandidates(
   athleteId: string,
   opts: { days?: number; limit?: number } = {},
 ): Promise<AnchorCandidate[]> {
-  const { days = 120, limit = 3 } = opts;
+  // Wide enough to catch a recent goal race (a marathon block can be months
+  // back), while still recent enough to reflect current fitness.
+  const { days = 270, limit = 3 } = opts;
 
   const [latest] = await db
     .select({ startTime: activities.startTime })
@@ -91,6 +93,7 @@ export async function suggestAnchorCandidates(
     .select({
       startTime: activities.startTime,
       name: activities.name,
+      workoutType: activities.workoutType,
       distanceMeters: activities.distanceMeters,
       durationSeconds: activities.durationSeconds,
     })
@@ -105,14 +108,17 @@ export async function suggestAnchorCandidates(
       ),
     );
 
-  const scored: (AnchorCandidate & { ts: number; rawVdot: number })[] = [];
+  const scored: (AnchorCandidate & { ts: number; rawVdot: number; isRace: boolean })[] = [];
   for (const r of rows) {
     const m = r.distanceMeters ?? 0;
     const t = r.durationSeconds ?? 0;
-    if (m < MIN_M || m > MAX_M || t <= 0) continue;
+    if (m < MIN_M || t <= 0) continue;
+    const isRace = isRaceEffort({ workoutType: r.workoutType, name: r.name, meters: m });
+    // Easy long runs (non-race, > half-marathon) under-estimate fitness, so skip
+    // them — but a marathon RACE is a valid, important anchor.
+    if (!isRace && m > MAX_M) continue;
     const raw = vdotFromRace({ distanceMeters: m, timeSeconds: t });
     if (!Number.isFinite(raw) || raw < 20 || raw > 90) continue;
-    const isRace = /\b(race|5k|10k|half|marathon|parkrun|tt|time trial|pr|pb)\b/i.test(r.name ?? '');
     scored.push({
       day: r.startTime.toISOString().slice(0, 10),
       name: r.name,
@@ -123,21 +129,26 @@ export async function suggestAnchorCandidates(
       paceLabel: paceMinPerMile(m, t),
       ts: r.startTime.getTime(),
       rawVdot: raw,
-      // store a tiny boost for race-titled efforts via sort key below
+      isRace,
+      // nudge race-grade efforts ahead on ties
       vdot: Math.round((raw + (isRace ? 0.0001 : 0)) * 10) / 10,
     });
   }
 
-  // Reject GPS glitches: drop efforts beyond a robust ceiling, and require each
-  // to be corroborated by another strong effort nearby. A single mismeasured
-  // run shouldn't define fitness.
+  // Reject GPS glitches: drop efforts beyond a robust ceiling and require
+  // corroboration — but RACES are exempt (a real race can't be a glitch, and an
+  // isolated peak race must still anchor fitness).
   const efforts: Effort[] = scored.map((s) => ({ ts: s.ts, vdot: s.rawVdot }));
   const ceiling = vdotCeiling(efforts.map((e) => e.vdot));
   const guarded = scored.filter(
-    (s) => s.rawVdot <= ceiling && isCorroborated({ ts: s.ts, vdot: s.rawVdot }, efforts),
+    (s) => s.isRace || (s.rawVdot <= ceiling && isCorroborated({ ts: s.ts, vdot: s.rawVdot }, efforts)),
   );
 
-  guarded.sort((a, b) => b.vdot - a.vdot || b.day.localeCompare(a.day));
+  // Prefer actual races (most representative of fitness), then by VDOT, then
+  // recency — so a recent goal race anchors over a noisy hard training run.
+  guarded.sort(
+    (a, b) => Number(b.isRace) - Number(a.isRace) || b.vdot - a.vdot || b.day.localeCompare(a.day),
+  );
   // De-dupe near-identical VDOTs so the list shows genuinely different options.
   const out: AnchorCandidate[] = [];
   for (const c of guarded) {

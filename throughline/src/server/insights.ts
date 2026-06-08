@@ -17,7 +17,7 @@ import { activities } from '@/db/schema';
 import { computeFitnessFatigue } from '@/engine/fitnessFatigue';
 import { estimateLoad } from '@/engine/load';
 import { vdotFromRace, STANDARD_DISTANCES } from '@/engine/plan';
-import { vdotCeiling, isCorroborated, type Effort } from '@/server/perf';
+import { vdotCeiling, isCorroborated, isRaceEffort, type Effort } from '@/server/perf';
 import type { DailyReading } from '@/engine/types';
 
 const MI = 1609.344;
@@ -34,6 +34,7 @@ interface Run {
   paceSecPerKm: number | null;
   durationSeconds: number | null;
   gps: boolean; // from a GPS provider (Strava/Garmin) → per-run pace is real
+  isRace: boolean; // race-grade effort → exempt from glitch guards
   type: WorkoutType;
 }
 
@@ -166,6 +167,8 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
       startTime: activities.startTime,
       sport: activities.sport,
       provider: activities.provider,
+      name: activities.name,
+      workoutType: activities.workoutType,
       distanceMeters: activities.distanceMeters,
       durationSeconds: activities.durationSeconds,
       avgPaceSecPerKm: activities.avgPaceSecPerKm,
@@ -200,6 +203,7 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
       paceSecPerKm: r.avgPaceSecPerKm,
       durationSeconds: r.durationSeconds,
       gps: r.provider === 'strava' || r.provider === 'garmin',
+      isRace: isRaceEffort({ workoutType: r.workoutType, name: r.name, meters: r.distanceMeters ?? 0 }),
     }));
   const WIN = 60 * 86400000;
   const runs: Run[] = rawRuns.map((r, i) => {
@@ -241,19 +245,18 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
     .map((r) => ({ r, perf: runPerformance(r) }))
     .filter((x): x is { r: Run; perf: NonNullable<ReturnType<typeof runPerformance>> } => x.perf != null);
 
-  // Reject GPS glitches with the shared guards (same logic the anchor uses):
-  // a robust ceiling drops egregious spikes, then corroboration requires the
-  // peak to be backed by another strong effort nearby.
+  // Reject GPS glitches with the shared guards — but RACES are exempt (a real
+  // race can't be a glitch, and an isolated peak race must still surface).
   const ceiling = vdotCeiling(allPerformers.map((x) => x.perf.vdot));
   const performers = allPerformers
-    .filter((x) => x.perf.vdot <= ceiling)
+    .filter((x) => x.r.isRace || x.perf.vdot <= ceiling)
     .sort((a, b) => b.perf.vdot - a.perf.vdot);
   const effortList: Effort[] = performers.map((x) => ({ ts: x.r.ts, vdot: x.perf.vdot }));
 
   const builds: BuildBlock[] = [];
   for (const { r, perf } of performers) {
     if (builds.length >= 5) break;
-    if (!isCorroborated({ ts: r.ts, vdot: perf.vdot }, effortList)) continue;
+    if (!r.isRace && !isCorroborated({ ts: r.ts, vdot: perf.vdot }, effortList)) continue;
     // Keep peaks temporally distinct (one block per ~8-week neighborhood).
     if (builds.some((b) => Math.abs(new Date(b.toDay).getTime() - r.ts) < BUILD_DAYS * 86400000)) continue;
     const fromDay = new Date(r.ts - BUILD_DAYS * 86400000).toISOString().slice(0, 10);
