@@ -5,7 +5,7 @@
  */
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { PGlite } from '@electric-sql/pglite';
@@ -47,7 +47,11 @@ before(async () => {
   db = drizzle(client, { schema });
 
   // Apply the generated migration (split on drizzle's statement breakpoints).
-  const sql = readFileSync(join(process.cwd(), 'drizzle', '0000_init.sql'), 'utf8');
+  const sql = readdirSync(join(process.cwd(), 'drizzle'))
+    .filter((f) => f.endsWith('.sql'))
+    .sort()
+    .map((f) => readFileSync(join(process.cwd(), 'drizzle', f), 'utf8'))
+    .join('\n--> statement-breakpoint\n');
   for (const stmt of sql.split('--> statement-breakpoint')) {
     const trimmed = stmt.trim();
     if (trimmed) await client.exec(trimmed);

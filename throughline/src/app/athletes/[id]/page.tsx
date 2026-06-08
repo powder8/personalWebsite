@@ -209,6 +209,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
               <thead className="sticky top-0 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
                 <tr>
                   <th className="px-2 py-1 font-medium">Date</th>
+                  <th className="px-2 py-1 font-medium">Workout</th>
                   <th className="px-2 py-1 font-medium">Distance</th>
                   <th className="px-2 py-1 font-medium">Pace</th>
                   <th className="px-2 py-1 font-medium">Sport</th>
@@ -218,6 +219,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
                 {activities.map((a, i) => (
                   <tr key={`${a.day}-${i}`}>
                     <td className="px-2 py-1 text-slate-600">{a.day}</td>
+                    <td className="px-2 py-1 text-slate-700">{a.name ?? <span className="text-slate-300">—</span>}</td>
                     <td className="px-2 py-1 text-slate-700">{a.distanceMiles} mi</td>
                     <td className="px-2 py-1 text-slate-500">{paceMi(a.paceSecPerKm)}</td>
                     <td className="px-2 py-1 capitalize text-slate-500">{a.sport.replace('_', ' ')}</td>

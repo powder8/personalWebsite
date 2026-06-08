@@ -29,6 +29,7 @@ test('normalizeActivity derives pace from speed and doubles run cadence', () => 
     average_cadence: 85, // per-leg → 170 steps/min
   };
   const row = normalizeActivity(a);
+  assert.equal(row.name, 'Morning Run');
   assert.equal(row.sport, 'run');
   assert.equal(row.distanceMeters, 5000);
   assert.equal(row.durationSeconds, 1800); // prefers moving_time

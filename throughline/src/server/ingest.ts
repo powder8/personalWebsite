@@ -31,6 +31,7 @@ export async function persistNormalizedBatch(
       .onConflictDoUpdate({
         target: activities.sourceRef,
         set: {
+          name: batch.activities[0].name,
           distanceMeters: batch.activities[0].distanceMeters,
           durationSeconds: batch.activities[0].durationSeconds,
           avgHr: batch.activities[0].avgHr,

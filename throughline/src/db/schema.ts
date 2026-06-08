@@ -361,6 +361,7 @@ export const activities = pgTable(
       onDelete: 'set null',
     }),
     sport: sportEnum('sport').notNull().default('run'),
+    name: text('name'), // activity title from the provider (e.g. Strava "Morning Run")
     startTime: timestamp('start_time', { withTimezone: true }).notNull(),
     durationSeconds: integer('duration_seconds'), // nullable: manual imports often lack duration
     distanceMeters: doublePrecision('distance_meters'),

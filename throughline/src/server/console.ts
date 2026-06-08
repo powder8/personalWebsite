@@ -163,7 +163,7 @@ export interface AthleteDetail {
   equivalents: EquivalentPerformance[];
   strengthBias: number;
   activitySummary: { count: number; totalMiles: number; firstDay: string | null; lastDay: string | null };
-  activities: { day: string; distanceMiles: number; paceSecPerKm: number | null; sport: string }[];
+  activities: { day: string; name: string | null; distanceMiles: number; paceSecPerKm: number | null; sport: string }[];
   signals: {
     hrv: { day: string; value: number | null }[];
     restingHr: { day: string; value: number | null }[];
@@ -330,6 +330,7 @@ async function activitySummary(
   const rows = await db
     .select({
       startTime: activities.startTime,
+      name: activities.name,
       distanceMeters: activities.distanceMeters,
       avgPaceSecPerKm: activities.avgPaceSecPerKm,
       sport: activities.sport,
@@ -349,6 +350,7 @@ async function activitySummary(
     },
     activities: rows.map((r) => ({
       day: r.startTime.toISOString().slice(0, 10),
+      name: r.name,
       distanceMiles: Math.round(((r.distanceMeters ?? 0) / 1609.344) * 10) / 10,
       paceSecPerKm: r.avgPaceSecPerKm,
       sport: r.sport,

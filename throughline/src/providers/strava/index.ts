@@ -149,6 +149,7 @@ export function normalizeActivity(a: StravaActivity): NonNullable<NormalizedBatc
   const isRun = sport === 'run';
   return {
     sport,
+    name: a.name ?? null,
     startTime: a.start_date ? new Date(a.start_date) : new Date(0),
     durationSeconds: a.moving_time ?? a.elapsed_time ?? null,
     distanceMeters: a.distance ?? null,

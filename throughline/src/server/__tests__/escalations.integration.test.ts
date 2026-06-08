@@ -3,7 +3,7 @@
  */
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { PGlite } from '@electric-sql/pglite';
@@ -26,7 +26,11 @@ const A = '66666666-6666-4666-8666-666666666666';
 before(async () => {
   client = new PGlite();
   db = drizzle(client, { schema });
-  const sql = readFileSync(join(process.cwd(), 'drizzle', '0000_init.sql'), 'utf8');
+  const sql = readdirSync(join(process.cwd(), 'drizzle'))
+    .filter((f) => f.endsWith('.sql'))
+    .sort()
+    .map((f) => readFileSync(join(process.cwd(), 'drizzle', f), 'utf8'))
+    .join('\n--> statement-breakpoint\n');
   for (const s of sql.split('--> statement-breakpoint')) {
     const t = s.trim();
     if (t) await client.exec(t);
