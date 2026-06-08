@@ -14,6 +14,8 @@ import { PmcChart, PmcLegend } from '@/components/PmcChart';
 import { getFitnessFatigueSeries } from '@/server/fitness';
 import { getComplianceWeeks, type DayStatus } from '@/server/compliance';
 import { getTrainingInsights } from '@/server/insights';
+import { getCycle, computeCycle } from '@/server/cycle';
+import { getDb } from '@/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +40,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
   const fitness = await getFitnessFatigueSeries(id);
   const compliance = await getComplianceWeeks(id, TODAY);
   const insights = await getTrainingInsights(id);
+  const cycle = computeCycle(await getCycle(await getDb(), id), TODAY);
 
   const {
     athlete,
@@ -609,6 +612,25 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           </tbody>
         </table>
       </Card>
+
+      {/* Cycle phase (only if the athlete opted in; phase only, no dates) */}
+      {cycle.enabled && cycle.phase && (
+        <Card title="Cycle phase" className={cycle.lateLuteal ? 'border-amber-200 bg-amber-50/40' : ''}>
+          <p className="text-sm text-slate-700">
+            <span className="font-medium capitalize">{cycle.phase} phase</span>
+            {cycle.dayInCycle != null && <span className="text-slate-500"> · day {cycle.dayInCycle}</span>}
+            {cycle.daysUntilNext != null && (
+              <span className="text-slate-500"> · next cycle in {cycle.daysUntilNext}d</span>
+            )}
+          </p>
+          {cycle.lateLuteal && (
+            <p className="mt-1 text-xs font-medium text-amber-800">
+              Late luteal — fatigue more likely. Consider easing key sessions / avoiding A-races this window.
+            </p>
+          )}
+          <p className="mt-1 text-[11px] text-slate-400">Athlete opted in. Phase shown for planning; dates stay private to her.</p>
+        </Card>
+      )}
     </div>
   );
 }

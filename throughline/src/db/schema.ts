@@ -484,6 +484,22 @@ export const checkIns = pgTable(
   (t) => [uniqueIndex('check_ins_athlete_day_uq').on(t.athleteId, t.day)],
 );
 
+/**
+ * Opt-in menstrual cycle tracking (athlete-entered). Used to anticipate phases
+ * for race/workout planning — late luteal often brings fatigue, so athletes may
+ * avoid key racing then. One row per athlete.
+ */
+export const cycleTracking = pgTable('cycle_tracking', {
+  athleteId: uuid('athlete_id')
+    .primaryKey()
+    .references(() => athletes.id, { onDelete: 'cascade' }),
+  enabled: boolean('enabled').notNull().default(false),
+  lastStartDate: date('last_start_date'), // first day of the most recent period
+  avgCycleDays: integer('avg_cycle_days').notNull().default(28),
+  avgPeriodDays: integer('avg_period_days').notNull().default(5),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ---------------------------------------------------------------------------
 // Derived athlete state (re-derivable from signals)
 // ---------------------------------------------------------------------------

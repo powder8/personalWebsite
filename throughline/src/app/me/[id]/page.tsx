@@ -10,6 +10,9 @@ import { CalendarSubscribe } from '@/components/CalendarSubscribe';
 import { ConnectStrava } from '@/components/ConnectStrava';
 import { TrainingChat } from '@/components/TrainingChat';
 import { chatConfigured } from '@/server/chat';
+import { CycleTracking } from '@/components/CycleTracking';
+import { getCycle, computeCycle } from '@/server/cycle';
+import { getDb } from '@/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +40,10 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
   const portal = await getAthletePortal(id);
   if (!portal) notFound();
   const insights = await getTrainingInsights(id);
+
+  const db = await getDb();
+  const cycleSettings = await getCycle(db, id);
+  const cycleStatus = computeCycle(cycleSettings, portal.today);
 
   const {
     athlete,
@@ -108,6 +115,11 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
           day={today}
           initial={todayCheckIn ? { soreness: todayCheckIn.soreness, energy: todayCheckIn.energy, yesterdayRpe: todayCheckIn.yesterdayRpe } : null}
         />
+      </Card>
+
+      {/* Cycle tracking (opt-in, private) */}
+      <Card title="Cycle tracking">
+        <CycleTracking athleteId={athlete.id} initial={cycleSettings} status={cycleStatus} />
       </Card>
 
       {/* This week */}
