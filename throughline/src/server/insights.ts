@@ -236,17 +236,27 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
   // actionable (it's the recipe that produced a peak), avoiding the low-base-ramp
   // artifact and the under-valuing of sustained high fitness.
   const ctlByDay = new Map(ff.map((p) => [p.day, p.ctl]));
-  const performers = runs
+  const allPerformers = runs
     .map((r) => ({ r, perf: runPerformance(r) }))
-    .filter((x): x is { r: Run; perf: NonNullable<ReturnType<typeof runPerformance>> } => x.perf != null)
+    .filter((x): x is { r: Run; perf: NonNullable<ReturnType<typeof runPerformance>> } => x.perf != null);
+
+  // Robust anomaly cap: GPS glitches (short distance / dropped time) produce
+  // VDOTs far above the athlete's real range. Reject efforts beyond
+  // median + 4·MAD of their own VDOT distribution (median absolute deviation is
+  // outlier-resistant, so a few glitches don't move the bar).
+  const vdotVals = allPerformers.map((x) => x.perf.vdot);
+  const vMed = median(vdotVals);
+  const vMad = median(vdotVals.map((v) => Math.abs(v - vMed))) || 1;
+  const vCeiling = vMed + 4 * vMad;
+  const performers = allPerformers
+    .filter((x) => x.perf.vdot <= vCeiling)
     .sort((a, b) => b.perf.vdot - a.perf.vdot);
 
   const builds: BuildBlock[] = [];
   for (const { r, perf } of performers) {
     if (builds.length >= 5) break;
-    // Reject lone spikes (GPS glitches: a short/mistimed activity yields an
-    // absurd VDOT). A real peak is corroborated by another strong effort within
-    // ~4 weeks (within 5 VDOT points) — a sharpening block, a tune-up race, etc.
+    // Also require corroboration: a real peak has another strong effort within
+    // ~4 weeks (within 5 VDOT points); a lone spike is likely still a glitch.
     const corroborated = performers.some(
       (o) => o.r.ts !== r.ts && Math.abs(o.r.ts - r.ts) <= 28 * 86400000 && o.perf.vdot >= perf.vdot - 5,
     );
