@@ -2,28 +2,50 @@
 
 import { useRef, useState } from 'react';
 
+interface Action {
+  tool: string;
+  summary: string;
+  ok: boolean;
+}
 interface Msg {
   role: 'user' | 'assistant';
   content: string;
+  actions?: Action[];
 }
 
-const STARTERS = [
+const ATHLETE_STARTERS = [
   'Why is today the session it is?',
-  'What should I focus on to get faster?',
+  'I need to take Friday off',
+  'Paces feel too hard this week',
   'How is my fitness trending?',
-  'What are my goal-race paces?',
+];
+const COACH_STARTERS = [
+  'How is this athlete trending?',
+  'Give them an easier week',
+  'Move this week’s workout to Saturday',
+  'What should they focus on?',
 ];
 
 /**
- * "Ask about your training" — grounded chat over the athlete's own data.
- * Answers come from Claude with the athlete's readiness/plan/insights injected.
+ * "Ask about your training" — grounded chat over the athlete's own data that can
+ * also ACT (days off, pace tweaks, fitness anchor). Used on both the athlete
+ * portal (audience="athlete") and the coach console (audience="coach").
  */
-export function TrainingChat({ athleteId, configured }: { athleteId: string; configured: boolean }) {
+export function TrainingChat({
+  athleteId,
+  configured,
+  audience = 'athlete',
+}: {
+  athleteId: string;
+  configured: boolean;
+  audience?: 'coach' | 'athlete';
+}) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [pending, setPending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const starters = audience === 'coach' ? COACH_STARTERS : ATHLETE_STARTERS;
 
   async function send(text: string) {
     const q = text.trim();
@@ -37,12 +59,15 @@ export function TrainingChat({ athleteId, configured }: { athleteId: string; con
       const res = await fetch(`/api/athletes/${athleteId}/chat`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ messages: next }),
+        body: JSON.stringify({ messages: next.map(({ role, content }) => ({ role, content })), audience }),
       });
       const j = await res.json();
       if (j.ok) {
-        setMessages((m) => [...m, { role: 'assistant', content: j.reply }]);
+        const actions: Action[] = Array.isArray(j.actions) ? j.actions : [];
+        setMessages((m) => [...m, { role: 'assistant', content: j.reply, actions }]);
         setTimeout(() => scroller.current?.scrollTo({ top: scroller.current.scrollHeight }), 50);
+        // If the chat changed the plan, refresh so the page reflects it.
+        if (actions.some((a) => a.ok)) setTimeout(() => window.location.reload(), 2500);
       } else setErr(j.error ?? 'Something went wrong.');
     } catch {
       setErr('Network error.');
@@ -63,7 +88,7 @@ export function TrainingChat({ athleteId, configured }: { athleteId: string; con
     <div className="space-y-3">
       {messages.length === 0 && (
         <div className="flex flex-wrap gap-2">
-          {STARTERS.map((s) => (
+          {starters.map((s) => (
             <button
               key={s}
               type="button"
@@ -87,6 +112,23 @@ export function TrainingChat({ athleteId, configured }: { athleteId: string; con
               >
                 {m.content}
               </span>
+              {m.actions && m.actions.length > 0 && (
+                <div className={`mt-1.5 space-y-1 ${m.role === 'user' ? 'text-right' : ''}`}>
+                  {m.actions.map((a, j) => (
+                    <div
+                      key={j}
+                      className={`inline-block rounded-md px-2 py-1 text-[11px] font-medium ring-1 ring-inset ${
+                        a.ok
+                          ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
+                          : 'bg-rose-50 text-rose-700 ring-rose-200'
+                      }`}
+                    >
+                      {a.ok ? '✓ ' : '✕ '}
+                      {a.summary}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           {pending && <div className="text-xs text-slate-400">thinking…</div>}
@@ -103,7 +145,7 @@ export function TrainingChat({ athleteId, configured }: { athleteId: string; con
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about your training…"
+          placeholder={audience === 'coach' ? 'Ask or change this athlete’s plan…' : 'Ask, or tell me to change something…'}
           disabled={pending}
           className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm"
         />
@@ -112,12 +154,13 @@ export function TrainingChat({ athleteId, configured }: { athleteId: string; con
           disabled={pending || !input.trim()}
           className="rounded bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
         >
-          Ask
+          Send
         </button>
       </form>
       {err && <p className="text-xs text-rose-600">{err}</p>}
       <p className="text-[11px] text-slate-400">
-        Answers are grounded in your own training data. Coaching guidance, not medical advice.
+        Grounded in {audience === 'coach' ? 'this athlete’s' : 'your'} training data. Can adjust days off, paces, and
+        fitness anchor — every change is coach-reviewable. Not medical advice.
       </p>
     </div>
   );

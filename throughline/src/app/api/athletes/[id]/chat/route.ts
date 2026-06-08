@@ -14,7 +14,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!chatConfigured()) {
     return NextResponse.json({ error: 'Chat isn’t configured yet (no Anthropic API key).' }, { status: 503 });
   }
-  let body: { messages?: ChatMessage[] };
+  let body: { messages?: ChatMessage[]; audience?: 'coach' | 'athlete' };
   try {
     body = await req.json();
   } catch {
@@ -26,10 +26,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!messages.length || messages[messages.length - 1].role !== 'user') {
     return NextResponse.json({ error: 'A user message is required.' }, { status: 400 });
   }
+  const audience = body.audience === 'coach' ? 'coach' : 'athlete';
   try {
     const db = await getDb();
-    const { reply } = await askTrainingQuestion(db, id, messages);
-    return NextResponse.json({ ok: true, reply });
+    const { reply, actions } = await askTrainingQuestion(db, id, messages, { audience });
+    return NextResponse.json({ ok: true, reply, actions });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Chat failed.' }, { status: 422 });
   }

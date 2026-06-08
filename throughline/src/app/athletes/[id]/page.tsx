@@ -4,6 +4,8 @@ import { getAthleteDetail, TODAY, type Band } from '@/server/console';
 import { BandBadge, Card, Sparkline } from '@/components/ui';
 import { secPerKmToMinPerMile, purposeLabel, ageFromDob, mastersThresholdEaseSecPerMile } from '@/engine/plan';
 import { DobControl } from '@/components/DobControl';
+import { TrainingChat } from '@/components/TrainingChat';
+import { chatConfigured } from '@/server/chat';
 import { EscalationActions } from '@/components/EscalationActions';
 import { ESCALATION_LABELS } from '@/server/escalations';
 import { PaceAdjustForm } from '@/components/PaceAdjustForm';
@@ -151,6 +153,11 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           </Link>
         </Card>
       )}
+
+      {/* Coaching assistant — ask or change this athlete's plan */}
+      <Card title="Coaching assistant">
+        <TrainingChat athleteId={athlete.id} configured={chatConfigured()} audience="coach" />
+      </Card>
 
       {/* Autopilot escalations needing review */}
       {escalations.length > 0 && (
