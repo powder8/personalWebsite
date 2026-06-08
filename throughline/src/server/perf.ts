@@ -18,18 +18,18 @@ export interface Effort {
   vdot: number;
 }
 
-const RACE_NAME = /\b(race|marathon|half[- ]?marathon|10 ?k|5 ?k|parkrun|championship|trials?|grand prix|invitational|relay)\b/i;
-
 /**
  * Is this a RACE-grade effort? A real race can't be a GPS glitch, so races are
  * exempt from the glitch guards (and should always surface as major efforts).
- * Signals, strongest first: provider race flag (Strava workout_type = 1),
- * marathon distance, or a race-y title.
+ *
+ * We trust the provider's RACE FLAG (Strava workout_type = 1) and marathon
+ * distance only — NOT the title. Name-matching produced false positives (a slow
+ * "London marathon energy" shakeout read as a race); workout_type is the
+ * reliable signal now that we capture it.
  */
 export function isRaceEffort(opts: { workoutType: number | null; name: string | null; meters: number }): boolean {
   if (opts.workoutType === 1) return true;
-  if (opts.meters >= 40000) return true; // marathon-distance — a major effort regardless
-  return RACE_NAME.test(opts.name ?? '');
+  return opts.meters >= 40000; // marathon-distance — a major effort regardless
 }
 
 function med(xs: number[]): number {
