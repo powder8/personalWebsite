@@ -144,7 +144,7 @@ export async function setAnchor(
   db: DB,
   athleteId: string,
   anchor: AnchorInput,
-  opts: { today: string },
+  opts: { today: string; source?: 'auto' | 'manual' },
 ): Promise<{ vdot: number | null; updatedSessions: number }> {
   const [athlete] = await db.select().from(athletes).where(eq(athletes.id, athleteId)).limit(1);
   if (!athlete) throw new Error(`setAnchor: athlete ${athleteId} not found`);
@@ -164,10 +164,40 @@ export async function setAnchor(
     if (!(anchor.thresholdSecPerKm > 0)) throw new Error('Threshold pace required.');
     cfg.thresholdSecPerKm = anchor.thresholdSecPerKm;
   }
+  cfg.anchorSource = opts.source ?? 'manual';
 
   await setAthletePaceConfig(db, athleteId, cfg);
   const zones = await getAthleteZones(db, athleteId);
   const updatedSessions = zones ? await reapplyZonesToFuturePlan(db, athleteId, opts.today, zones) : 0;
   const vdot = await getAthleteVdot(db, athleteId);
   return { vdot: vdot != null ? Math.round(vdot * 10) / 10 : null, updatedSessions };
+}
+
+/**
+ * Default the anchor to our best belief from activity history — UNLESS a human
+ * has set it ('manual'). Safe to call after every import: it keeps an auto
+ * anchor fresh as new efforts come in, and never overrides a coach's choice.
+ * Returns the candidate used (or null if none / left manual).
+ */
+export async function ensureAutoAnchor(
+  db: DB,
+  athleteId: string,
+  opts: { today: string },
+): Promise<{ vdot: number | null; source: 'auto' | 'manual' | 'none' }> {
+  const [athlete] = await db.select().from(athletes).where(eq(athletes.id, athleteId)).limit(1);
+  if (!athlete) return { vdot: null, source: 'none' };
+  const cfg = (athlete.paceConfig as AthletePaceConfig | null) ?? {};
+  if (cfg.anchorSource === 'manual') {
+    const v = await getAthleteVdot(db, athleteId);
+    return { vdot: v != null ? Math.round(v * 10) / 10 : null, source: 'manual' };
+  }
+  const [best] = await suggestAnchorCandidates(db, athleteId, { limit: 1 });
+  if (!best) return { vdot: null, source: 'none' };
+  const res = await setAnchor(
+    db,
+    athleteId,
+    { kind: 'race', distanceMeters: best.distanceMeters, timeSeconds: best.durationSeconds },
+    { today: opts.today, source: 'auto' },
+  );
+  return { vdot: res.vdot, source: 'auto' };
 }

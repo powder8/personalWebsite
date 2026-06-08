@@ -40,10 +40,12 @@ export function AnchorControl({
   athleteId,
   currentVdot,
   suggestions,
+  source,
 }: {
   athleteId: string;
   currentVdot: number | null;
   suggestions: AnchorCandidate[];
+  source: 'auto' | 'manual' | null;
 }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -96,9 +98,20 @@ export function AnchorControl({
     <div className="space-y-3">
       <p className="text-sm text-slate-600">
         {currentVdot != null ? (
-          <>Current anchor: <span className="font-medium text-slate-800">VDOT {currentVdot}</span>. Update it when this athlete races or hits a new benchmark.</>
+          source === 'auto' ? (
+            <>
+              <span className="font-medium text-slate-800">VDOT {currentVdot}</span>{' '}
+              <span className="rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
+                auto
+              </span>{' '}
+              — inferred from the best recent effort, and refreshed as new data arrives. Confirm one
+              below or override to lock it in.
+            </>
+          ) : (
+            <>Current anchor: <span className="font-medium text-slate-800">VDOT {currentVdot}</span> (set by coach). Update it when this athlete races or hits a new benchmark.</>
+          )
         ) : (
-          <>No fitness anchor set yet — paces and race predictions appear once you set one. {suggestions.length > 0 ? 'Pick a suggested effort below or enter one.' : 'Enter a recent race, threshold pace, or VDOT.'}</>
+          <>No fitness anchor yet — paces and race predictions appear once one is set. {suggestions.length > 0 ? 'Pick a suggested effort below or enter one.' : 'Enter a recent race, threshold pace, or VDOT.'}</>
         )}
       </p>
 

@@ -163,6 +163,7 @@ export interface AthleteDetail {
   vdot: number | null;
   equivalents: EquivalentPerformance[];
   anchorSuggestions: AnchorCandidate[];
+  anchorSource: 'auto' | 'manual' | null;
   strengthBias: number;
   activitySummary: { count: number; totalMiles: number; firstDay: string | null; lastDay: string | null };
   activities: { day: string; name: string | null; distanceMiles: number; paceSecPerKm: number | null; sport: string }[];
@@ -320,6 +321,7 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
         anchorSuggestions: await suggestAnchorCandidates(db, id),
       };
     })()),
+    anchorSource: ((athlete.paceConfig as AthletePaceConfig | null) ?? {}).anchorSource ?? null,
     strengthBias: ((athlete.paceConfig as AthletePaceConfig | null) ?? {}).strengthBias ?? 0,
     ...(await activitySummary(db, id)),
     signals: { hrv: hrvRows, restingHr: rhrRows, sleepHours },

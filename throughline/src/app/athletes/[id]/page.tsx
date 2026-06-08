@@ -54,6 +54,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
     vdot,
     equivalents,
     anchorSuggestions,
+    anchorSource,
     strengthBias,
     activitySummary,
     activities,
@@ -455,10 +456,15 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
         </Card>
       )}
 
-      {/* Fitness anchor (set/confirm from recent efforts or manually) */}
-      {(anchorSuggestions.length > 0 || vdot == null) && (
-        <Card title="Fitness anchor" className={vdot == null ? 'border-sky-200' : ''}>
-          <AnchorControl athleteId={athlete.id} currentVdot={vdot} suggestions={anchorSuggestions} />
+      {/* Fitness anchor (auto-inferred by default; confirm or override) */}
+      {(anchorSuggestions.length > 0 || vdot == null || anchorSource === 'auto') && (
+        <Card title="Fitness anchor" className={vdot == null || anchorSource === 'auto' ? 'border-sky-200' : ''}>
+          <AnchorControl
+            athleteId={athlete.id}
+            currentVdot={vdot}
+            suggestions={anchorSuggestions}
+            source={anchorSource}
+          />
         </Card>
       )}
 

@@ -47,6 +47,12 @@ export interface AthletePaceConfig {
   vdot?: number;
   thresholdSecPerKm?: number;
   race?: { distanceMeters: number; timeSeconds: number };
+  /**
+   * Whether the anchor was inferred from activity history ('auto') or set/
+   * confirmed by a human ('manual'). Auto anchors are refreshed as new data
+   * arrives; manual anchors are left untouched until a human changes them.
+   */
+  anchorSource?: 'auto' | 'manual';
   /** Per-zone band overrides for this athlete (merged onto the global bands). */
   vdotZones?: Partial<VdotZoneModel>;
   offsets?: Partial<ZoneModel['offsets']>;
