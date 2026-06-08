@@ -1,5 +1,7 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getAthletePortal, type PortalSession } from '@/server/portal';
+import { getTrainingInsights } from '@/server/insights';
 import { BandBadge, Card } from '@/components/ui';
 import { secPerKmToMinPerMile } from '@/engine/plan';
 import { CheckInForm } from '@/components/CheckInForm';
@@ -32,6 +34,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const portal = await getAthletePortal(id);
   if (!portal) notFound();
+  const insights = await getTrainingInsights(id);
 
   const {
     athlete,
@@ -152,6 +155,32 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
               </div>
             ))}
           </div>
+        </Card>
+      )}
+
+      {/* Insights highlight — same analysis the coach sees */}
+      {insights?.buildProfile && (
+        <Card title="Your training patterns">
+          <p className="text-sm text-slate-700">
+            <span className="font-medium">Across your {insights.buildProfile.count} most productive blocks:</span>{' '}
+            typically ~{insights.buildProfile.medianWeeklyMiles} mi/wk on ~
+            {insights.buildProfile.medianRunDaysPerWeek} run-days/wk
+            {insights.buildProfile.medianQualityPerWeek != null
+              ? `, ~${insights.buildProfile.medianQualityPerWeek} quality sessions/wk`
+              : ''}
+            .
+          </p>
+          {insights.suggestions[0] && (
+            <p className="mt-2 text-sm text-slate-600">
+              <span className="font-medium text-slate-700">Consider:</span> {insights.suggestions[0].text}
+            </p>
+          )}
+          <Link
+            href={`/me/${athlete.id}/insights`}
+            className="mt-2 inline-block text-sm font-medium text-sky-700 hover:underline"
+          >
+            See your training patterns →
+          </Link>
         </Card>
       )}
 

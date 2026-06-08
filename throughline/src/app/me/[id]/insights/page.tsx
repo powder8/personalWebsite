@@ -9,7 +9,8 @@ import { Card } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 
-export default async function InsightsPage({ params }: { params: Promise<{ id: string }> }) {
+/** Athlete-facing insights — identical analysis the coach sees, in "your" voice. */
+export default async function MyInsightsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const db = await getDb();
   const [athlete] = await db.select().from(athletes).where(eq(athletes.id, id)).limit(1);
@@ -17,15 +18,15 @@ export default async function InsightsPage({ params }: { params: Promise<{ id: s
   const insights = await getTrainingInsights(id);
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-2xl space-y-5">
       <div>
-        <Link href={`/athletes/${id}`} className="text-sm text-sky-700 hover:underline">
-          ← {athlete.fullName}
+        <Link href={`/me/${id}`} className="text-sm text-sky-700 hover:underline">
+          ← Back
         </Link>
-        <h1 className="mt-1 text-xl font-semibold text-slate-900">Insights</h1>
+        <h1 className="mt-1 text-xl font-semibold text-slate-900">Your training patterns</h1>
         <p className="text-sm text-slate-500">
-          Patterns from {athlete.fullName.split(' ')[0]}’s own training history — observations to
-          discuss, not prescriptions.
+          What’s driven your fitness, and what to consider next — from your own history and training
+          science.
         </p>
       </div>
 
@@ -34,8 +35,8 @@ export default async function InsightsPage({ params }: { params: Promise<{ id: s
       ) : (
         <Card>
           <p className="text-sm text-slate-500">
-            Not enough training history yet. Insights appear once there’s a meaningful run history
-            (connect Strava or import a log).
+            Not enough training history yet — connect Strava or import a log and your patterns will
+            appear here.
           </p>
         </Card>
       )}
