@@ -13,6 +13,7 @@ import { AnchorControl } from '@/components/AnchorControl';
 import { PmcChart, PmcLegend } from '@/components/PmcChart';
 import { getFitnessFatigueSeries } from '@/server/fitness';
 import { getComplianceWeeks, type DayStatus } from '@/server/compliance';
+import { getTrainingInsights } from '@/server/insights';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +37,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
   if (!detail) notFound();
   const fitness = await getFitnessFatigueSeries(id);
   const compliance = await getComplianceWeeks(id, TODAY);
+  const insights = await getTrainingInsights(id);
 
   const {
     athlete,
@@ -97,6 +99,42 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       </div>
+
+      {/* Insights — lead with it; this is the differentiator */}
+      {insights && (insights.bestBuild || insights.suggestions.length > 0) && (
+        <Card title="Insights" className="border-sky-200 bg-sky-50/40">
+          {insights.bestBuild && (
+            <div className="text-sm text-slate-700">
+              <span className="font-medium">Most productive block:</span> 8 wks → +
+              {insights.bestBuild.ctlGain} fitness on ~{insights.bestBuild.mix.avgWeeklyMiles} mi/wk,{' '}
+              ~{insights.bestBuild.mix.qualityPerWeek} hard sessions/wk · {insights.bestBuild.mix.longRuns}{' '}
+              long runs ({insights.bestBuild.mix.easyPct}% easy / {insights.bestBuild.mix.qualityPct}% quality).
+            </div>
+          )}
+          {insights.suggestions.length > 0 && (
+            <ul className="mt-2 space-y-1 text-sm">
+              {insights.suggestions.slice(0, 2).map((s, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span
+                    className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                      s.basis === 'science' ? 'bg-violet-100 text-violet-700' : 'bg-emerald-100 text-emerald-700'
+                    }`}
+                  >
+                    {s.basis === 'science' ? 'science' : 'history'}
+                  </span>
+                  <span className="text-slate-700">{s.text}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Link
+            href={`/athletes/${athlete.id}/insights`}
+            className="mt-2 inline-block text-sm font-medium text-sky-700 hover:underline"
+          >
+            Full insights →
+          </Link>
+        </Card>
+      )}
 
       {/* Autopilot escalations needing review */}
       {escalations.length > 0 && (

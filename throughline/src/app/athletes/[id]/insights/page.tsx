@@ -37,6 +37,31 @@ export default async function InsightsPage({ params }: { params: Promise<{ id: s
         </Card>
       ) : (
         <>
+          {insights.suggestions.length > 0 && (
+            <Card title="Suggestions" className="border-sky-200">
+              <ul className="space-y-2 text-sm">
+                {insights.suggestions.map((s, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span
+                      className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                        s.basis === 'science'
+                          ? 'bg-violet-100 text-violet-700'
+                          : 'bg-emerald-100 text-emerald-700'
+                      }`}
+                    >
+                      {s.basis === 'science' ? 'science' : 'your history'}
+                    </span>
+                    <span className="text-slate-700">{s.text}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs text-slate-400">
+                Suggestions for the coach to weigh — drawn from this athlete’s most productive blocks
+                and established training science.
+              </p>
+            </Card>
+          )}
+
           <Card title="History">
             <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
               <Stat label="Span" value={`${insights.span.fromDay} → ${insights.span.toDay}`} />
@@ -55,14 +80,28 @@ export default async function InsightsPage({ params }: { params: Promise<{ id: s
               </p>
               <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <Tile label="Fitness gain" value={`+${insights.bestBuild.ctlGain}`} unit="CTL" emphasis />
-                <Tile label="Volume" value={`${insights.bestBuild.avgWeeklyMiles}`} unit="mi/week" />
-                <Tile label="Frequency" value={`${insights.bestBuild.runDaysPerWeek}`} unit="run-days/wk" />
+                <Tile label="Volume" value={`${insights.bestBuild.mix.avgWeeklyMiles}`} unit="mi/week" />
+                <Tile label="Frequency" value={`${insights.bestBuild.mix.runDaysPerWeek}`} unit="run-days/wk" />
                 <Tile label="Longest run" value={`${insights.bestBuild.longestRunMiles}`} unit="mi" />
               </div>
-              <p className="mt-3 text-xs text-slate-500">
-                vs. baseline: typically {insights.baseline.medianWeeklyMiles} mi/week across{' '}
-                {insights.baseline.typicalRunDaysPerWeek} run-days/week.
-              </p>
+              <div className="mt-3">
+                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Workout mix
+                </div>
+                <MixBar mix={insights.bestBuild.mix} />
+                <p className="mt-2 text-xs text-slate-500">
+                  ~{insights.bestBuild.mix.easyPct}% easy · ~{insights.bestBuild.mix.qualityPct}% quality
+                  (≈{insights.bestBuild.mix.qualityPerWeek} hard/wk) · {insights.bestBuild.mix.longRuns} long
+                  runs.
+                </p>
+              </div>
+              {insights.recent?.hasData && (
+                <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
+                  Lately (6 wks): {insights.recent.avgWeeklyMiles} mi/wk · ~{insights.recent.easyPct}% easy
+                  / ~{insights.recent.qualityPct}% quality · {insights.recent.qualityPerWeek} hard/wk ·{' '}
+                  {insights.recent.longRuns} long runs.
+                </p>
+              )}
             </Card>
           )}
 
@@ -76,12 +115,23 @@ export default async function InsightsPage({ params }: { params: Promise<{ id: s
               ))}
             </ul>
             <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-400">
-              These are associations from one athlete’s data (n-of-1) — patterns to weigh, not causes.
-              Recovery factors (sleep, HRV, stress) will join here as wearable data is connected.
+              Associations from one athlete’s data (n-of-1) — patterns to weigh, not causes. Recovery
+              factors (sleep, HRV, stress) will join here as wearable data is connected.
             </p>
           </Card>
         </>
       )}
+    </div>
+  );
+}
+
+function MixBar({ mix }: { mix: { easyPct: number; qualityPct: number } }) {
+  const moderate = Math.max(0, 100 - mix.easyPct - mix.qualityPct);
+  return (
+    <div className="flex h-3 w-full overflow-hidden rounded bg-slate-100">
+      <div className="bg-sky-400" style={{ width: `${mix.easyPct}%` }} title={`easy ${mix.easyPct}%`} />
+      <div className="bg-slate-300" style={{ width: `${moderate}%` }} title={`moderate ${moderate}%`} />
+      <div className="bg-rose-400" style={{ width: `${mix.qualityPct}%` }} title={`quality ${mix.qualityPct}%`} />
     </div>
   );
 }
