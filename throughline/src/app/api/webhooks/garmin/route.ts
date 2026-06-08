@@ -15,7 +15,7 @@ import { and, eq } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { rawEvents, connectedAccounts } from '@/db/schema';
 import { getProvider } from '@/providers';
-import { inngest, events } from '@/inngest/client';
+import { persistNormalizedBatch } from '@/server/ingest';
 import { payloadHash } from '@/lib/hash';
 
 // Webhooks need the Node.js runtime (crypto + DB driver), not edge.
@@ -78,10 +78,17 @@ export async function POST(req: Request) {
 
     if (inserted) {
       accepted++;
-      await inngest.send({
-        name: events.rawEventReceived,
-        data: { rawEventId: inserted.id },
-      });
+      // Normalize inline (no background-worker dependency): map the raw payload
+      // to typed sleep/HRV/resting-HR/daily/activity records and persist.
+      if (athleteId) {
+        try {
+          const batch = garmin.normalize(item.eventType, item.payload);
+          await persistNormalizedBatch(db, athleteId, inserted.id, batch);
+          await db.update(rawEvents).set({ processedAt: new Date() }).where(eq(rawEvents.id, inserted.id));
+        } catch {
+          /* leave raw_event unprocessed for a later replay; never fail the ack */
+        }
+      }
     }
   }
 

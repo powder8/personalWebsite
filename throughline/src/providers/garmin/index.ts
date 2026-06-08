@@ -103,20 +103,26 @@ export const garmin: Provider = {
             },
           ],
         };
-      case 'dailies':
+      case 'dailies': {
+        const day = isoDay(p.calendarDate as string | undefined, p.startTimeInSeconds as number);
+        const restingHr = (p.restingHeartRateInBeatsPerMinute as number) ?? null;
         return {
           dailySummaries: [
             {
-              day: isoDay(p.calendarDate as string | undefined, p.startTimeInSeconds as number),
+              day,
               steps: (p.steps as number) ?? null,
-              restingHr: (p.restingHeartRateInBeatsPerMinute as number) ?? null,
+              restingHr,
               avgStressLevel: (p.averageStressLevel as number) ?? null,
-              bodyBatteryLow: null,
-              bodyBatteryHigh: null,
+              bodyBatteryLow: (p.bodyBatteryLowestValue as number) ?? null,
+              bodyBatteryHigh: (p.bodyBatteryHighestValue as number) ?? null,
               metrics: p,
             },
           ],
+          // Also emit a resting-HR record so it feeds readiness/baselines (which
+          // read restingHrRecords, not dailySummaries).
+          ...(restingHr != null ? { restingHrRecords: [{ day, restingHr }] } : {}),
         };
+      }
       case 'sleeps':
         return {
           sleepRecords: [
@@ -132,7 +138,19 @@ export const garmin: Provider = {
             },
           ],
         };
-      // TODO(garmin): hrv / resting-hr event types as the program exposes them.
+      case 'hrv':
+        // Garmin HRV summary: overnight average in ms (`lastNightAvg`), plus a
+        // 5-min values map we keep in metrics for later.
+        return {
+          hrvRecords: [
+            {
+              day: isoDay(p.calendarDate as string | undefined, p.startTimeInSeconds as number),
+              overnightAvgMs:
+                (p.lastNightAvg as number) ?? (p.lastNightAvgHrv as number) ?? null,
+              metrics: p,
+            },
+          ],
+        };
       default:
         return {};
     }

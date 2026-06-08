@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test src/engine/__tests__/*.test.ts src/engine/plan/__tests__/*.test.ts src/db/__tests__/*.test.ts src/providers/manual/__tests__/*.test.ts src/providers/strava/__tests__/*.test.ts src/server/__tests__/*.test.ts",
+    "test": "node --import tsx --test src/engine/__tests__/*.test.ts src/engine/plan/__tests__/*.test.ts src/db/__tests__/*.test.ts src/providers/manual/__tests__/*.test.ts src/providers/strava/__tests__/*.test.ts src/providers/garmin/__tests__/*.test.ts src/server/__tests__/*.test.ts",
     "test:all": "npm test",
     "validate": "tsx scripts/validate-readiness.ts",
     "demo:plan": "tsx scripts/demo-plan.ts",
