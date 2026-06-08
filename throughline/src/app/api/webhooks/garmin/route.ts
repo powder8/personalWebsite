@@ -83,7 +83,7 @@ export async function POST(req: Request) {
       if (athleteId) {
         try {
           const batch = garmin.normalize(item.eventType, item.payload);
-          await persistNormalizedBatch(db, athleteId, inserted.id, batch);
+          await persistNormalizedBatch(db, athleteId, inserted.id, batch, 'garmin');
           await db.update(rawEvents).set({ processedAt: new Date() }).where(eq(rawEvents.id, inserted.id));
         } catch {
           /* leave raw_event unprocessed for a later replay; never fail the ack */

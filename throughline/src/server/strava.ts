@@ -140,7 +140,7 @@ async function ingestStravaPage(
     .onConflictDoNothing({ target: [rawEvents.provider, rawEvents.eventType, rawEvents.payloadHash] })
     .returning({ id: rawEvents.id });
 
-  const actValues = list.map((a) => ({ ...normalizeActivity(a), athleteId }));
+  const actValues = list.map((a) => ({ ...normalizeActivity(a), athleteId, provider: 'strava' as const }));
   await db
     .insert(activities)
     .values(actValues)

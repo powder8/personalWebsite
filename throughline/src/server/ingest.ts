@@ -12,15 +12,18 @@ import {
   hrvRecords,
   restingHrRecords,
 } from '@/db/schema';
-import type { NormalizedBatch } from '@/providers/types';
+import type { NormalizedBatch, ProviderId } from '@/providers/types';
 
 export async function persistNormalizedBatch(
   db: DB,
   athleteId: string,
   rawEventId: string | null,
   batch: NormalizedBatch,
+  provider: ProviderId,
 ): Promise<void> {
-  const common = { athleteId, rawEventId };
+  // Tag every derived row with its source provider so we can dedup / pick a
+  // source-of-truth across providers later (e.g. Garmin vs Strava vs Apple).
+  const common = { athleteId, rawEventId, provider };
 
   // Both callers emit a single-activity batch per raw event, so the upsert `set`
   // below safely references batch.activities[0].

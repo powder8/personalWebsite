@@ -361,6 +361,7 @@ export const activities = pgTable(
       onDelete: 'set null',
     }),
     sport: sportEnum('sport').notNull().default('run'),
+    provider: providerEnum('provider').notNull().default('manual'), // source (for cross-source dedup)
     name: text('name'), // activity title from the provider (e.g. Strava "Morning Run")
     startTime: timestamp('start_time', { withTimezone: true }).notNull(),
     durationSeconds: integer('duration_seconds'), // nullable: manual imports often lack duration
@@ -391,6 +392,7 @@ export const dailySummaries = pgTable(
       onDelete: 'set null',
     }),
     day: date('day').notNull(), // athlete-local calendar day
+    provider: providerEnum('provider').notNull().default('manual'), // source of this record
     steps: integer('steps'),
     restingHr: integer('resting_hr'),
     avgStressLevel: integer('avg_stress_level'),
@@ -412,6 +414,7 @@ export const sleepRecords = pgTable(
       onDelete: 'set null',
     }),
     day: date('day').notNull(), // the wake-up day this sleep belongs to
+    provider: providerEnum('provider').notNull().default('manual'),
     totalSleepSeconds: integer('total_sleep_seconds'),
     deepSeconds: integer('deep_seconds'),
     remSeconds: integer('rem_seconds'),
@@ -434,6 +437,7 @@ export const hrvRecords = pgTable(
       onDelete: 'set null',
     }),
     day: date('day').notNull(),
+    provider: providerEnum('provider').notNull().default('manual'),
     overnightAvgMs: doublePrecision('overnight_avg_ms'), // RMSSD-style overnight HRV
     metrics: jsonb('metrics'),
   },
@@ -451,6 +455,7 @@ export const restingHrRecords = pgTable(
       onDelete: 'set null',
     }),
     day: date('day').notNull(),
+    provider: providerEnum('provider').notNull().default('manual'),
     restingHr: integer('resting_hr').notNull(),
     metrics: jsonb('metrics'),
   },

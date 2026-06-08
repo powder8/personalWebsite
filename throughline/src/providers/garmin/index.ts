@@ -99,7 +99,7 @@ export const garmin: Provider = {
               cadence: (p.averageRunCadenceInStepsPerMinute as number) ?? null,
               trainingLoad: null, // derived later by the load model, not from Garmin
               splits: null,
-              sourceRef: (p.summaryId as string) ?? (p.activityId as string) ?? null,
+              sourceRef: garminSourceRef(p.summaryId ?? p.activityId),
             },
           ],
         };
@@ -174,6 +174,10 @@ function mapSport(garminType: string | undefined): 'run' | 'bike' | 'swim' | 'ot
     default:
       return 'other';
   }
+}
+
+function garminSourceRef(id: unknown): string | null {
+  return id != null ? `garmin:${id}` : null;
 }
 
 function paceFromSpeed(metersPerSecond: number | undefined): number | null {

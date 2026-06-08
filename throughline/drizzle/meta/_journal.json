@@ -22,6 +22,13 @@
       "when": 1780906473587,
       "tag": "0002_strong_shinobi_shaw",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780914344797,
+      "tag": "0003_careless_pride",
+      "breakpoints": true
     }
   ]
 }

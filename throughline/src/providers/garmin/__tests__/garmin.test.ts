@@ -67,7 +67,7 @@ test('normalizes a Garmin running activity (pace from speed, sourceRef)', () => 
   assert.equal(a.sport, 'run');
   assert.equal(a.distanceMeters, 5000);
   assert.ok(a.avgPaceSecPerKm != null && Math.abs(a.avgPaceSecPerKm - 360) < 1);
-  assert.equal(a.sourceRef, 'abc-123');
+  assert.equal(a.sourceRef, 'garmin:abc-123');
 });
 
 test('parseWebhook splits a batched body into per-record events', () => {

@@ -40,7 +40,7 @@ export const normalizeRawEvent = inngest.createFunction(
     await step.run('normalize-and-persist', async () => {
       const provider = getProvider(providerId);
       const batch = provider.normalize(raw.eventType, raw.payload);
-      await persistNormalizedBatch(db, athleteId, raw.id, batch);
+      await persistNormalizedBatch(db, athleteId, raw.id, batch, providerId);
     });
 
     // Mark consumed (the one allowed write to a raw_event).
