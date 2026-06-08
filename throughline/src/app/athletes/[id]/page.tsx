@@ -9,6 +9,7 @@ import { PaceAdjustForm } from '@/components/PaceAdjustForm';
 import { AdjustmentForm } from '@/components/AdjustmentForm';
 import { PostButton } from '@/components/PostButton';
 import { StrengthControl } from '@/components/StrengthControl';
+import { AnchorControl } from '@/components/AnchorControl';
 import { PmcChart, PmcLegend } from '@/components/PmcChart';
 import { getFitnessFatigueSeries } from '@/server/fitness';
 import { getComplianceWeeks, type DayStatus } from '@/server/compliance';
@@ -52,6 +53,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
     paceZones,
     vdot,
     equivalents,
+    anchorSuggestions,
     strengthBias,
     activitySummary,
     activities,
@@ -450,6 +452,13 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           >
             Full season plan →
           </Link>
+        </Card>
+      )}
+
+      {/* Fitness anchor (set/confirm from recent efforts or manually) */}
+      {(anchorSuggestions.length > 0 || vdot == null) && (
+        <Card title="Fitness anchor" className={vdot == null ? 'border-sky-200' : ''}>
+          <AnchorControl athleteId={athlete.id} currentVdot={vdot} suggestions={anchorSuggestions} />
         </Card>
       )}
 

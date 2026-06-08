@@ -18,6 +18,7 @@ import { getAthleteZones, getAthleteVdot } from '@/db/paceConfig';
 import { listEscalationsForAthlete, type EscalationRow } from '@/server/escalations';
 import { getUpcomingWeeks, type UpcomingWeek } from '@/server/season';
 import { listActiveDirectives, type DirectiveRow } from '@/server/directives';
+import { suggestAnchorCandidates, type AnchorCandidate } from '@/server/anchor';
 import { applyDirectives } from '@/engine/plan';
 import {
   athletes,
@@ -161,6 +162,7 @@ export interface AthleteDetail {
   paceZones: { key: string; label: string }[];
   vdot: number | null;
   equivalents: EquivalentPerformance[];
+  anchorSuggestions: AnchorCandidate[];
   strengthBias: number;
   activitySummary: { count: number; totalMiles: number; firstDay: string | null; lastDay: string | null };
   activities: { day: string; name: string | null; distanceMiles: number; paceSecPerKm: number | null; sport: string }[];
@@ -315,6 +317,7 @@ export async function getAthleteDetail(id: string): Promise<AthleteDetail | null
       return {
         vdot: v != null ? Math.round(v * 10) / 10 : null,
         equivalents: v != null ? equivalentPerformances(v) : [],
+        anchorSuggestions: await suggestAnchorCandidates(db, id),
       };
     })()),
     strengthBias: ((athlete.paceConfig as AthletePaceConfig | null) ?? {}).strengthBias ?? 0,
