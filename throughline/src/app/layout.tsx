@@ -5,6 +5,7 @@ import { getDb } from "@/db";
 import { countActiveEscalations } from "@/server/escalations";
 import { countOpenFeedback } from "@/server/feedback";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
+import { Analytics } from "@/components/Analytics";
 import "./globals.css";
 
 async function counts(): Promise<{ escalations: number; feedback: number }> {
@@ -79,6 +80,7 @@ export default async function RootLayout({
         </header>
         <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-6">{children}</main>
         <FeedbackWidget />
+        <Analytics />
       </body>
     </html>
   );
