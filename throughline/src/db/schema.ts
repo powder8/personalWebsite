@@ -26,6 +26,7 @@ import {
   jsonb,
   index,
   uniqueIndex,
+  primaryKey,
 } from 'drizzle-orm/pg-core';
 
 // ---------------------------------------------------------------------------
@@ -173,6 +174,12 @@ export const athletes = pgTable(
     // Per-athlete pace customization (AthletePaceConfig): VDOT/threshold anchor
     // + per-zone overrides, layered on the global model. Null = pure global.
     paceConfig: jsonb('pace_config'),
+    // Auth account that owns this athlete record (linked by email on first
+    // sign-in). Null until the athlete signs in. `users` is defined lower in
+    // this file; the reference callback is lazy so the forward ref is fine.
+    userId: text('user_id').references((): import('drizzle-orm/pg-core').AnyPgColumn => users.id, {
+      onDelete: 'set null',
+    }),
     // Who coaches this athlete: a human (assisted) or the app (autonomous).
     coachingMode: coachingModeEnum('coaching_mode').notNull().default('assisted'),
     active: boolean('active').notNull().default(true),
@@ -733,4 +740,64 @@ export const readinessAssessments = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex('readiness_athlete_day_uq').on(t.athleteId, t.day)],
+);
+
+// ---------------------------------------------------------------------------
+// Auth (Auth.js v5 + Drizzle adapter)
+// ---------------------------------------------------------------------------
+// Canonical Auth.js Postgres tables. Property names match what the adapter
+// expects; do not rename them. `role` gates coach vs athlete access, and
+// `athletes.userId` links a signed-in user to their athlete record (by email
+// on first sign-in). See src/auth.ts.
+
+export const userRoleEnum = pgEnum('user_role', ['coach', 'athlete']);
+
+export const users = pgTable('users', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text('name'),
+  email: text('email').unique(),
+  emailVerified: timestamp('emailVerified', { mode: 'date', withTimezone: true }),
+  image: text('image'),
+  role: userRoleEnum('role').notNull().default('athlete'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const accounts = pgTable(
+  'accounts',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    provider: text('provider').notNull(),
+    providerAccountId: text('provider_account_id').notNull(),
+    refresh_token: text('refresh_token'),
+    access_token: text('access_token'),
+    expires_at: integer('expires_at'),
+    token_type: text('token_type'),
+    scope: text('scope'),
+    id_token: text('id_token'),
+    session_state: text('session_state'),
+  },
+  (t) => [primaryKey({ columns: [t.provider, t.providerAccountId] })],
+);
+
+export const sessions = pgTable('sessions', {
+  sessionToken: text('session_token').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  expires: timestamp('expires', { mode: 'date', withTimezone: true }).notNull(),
+});
+
+export const verificationTokens = pgTable(
+  'verification_tokens',
+  {
+    identifier: text('identifier').notNull(),
+    token: text('token').notNull(),
+    expires: timestamp('expires', { mode: 'date', withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.identifier, t.token] })],
 );

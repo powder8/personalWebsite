@@ -6,6 +6,8 @@ import { countActiveEscalations } from "@/server/escalations";
 import { countOpenFeedback } from "@/server/feedback";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { Analytics } from "@/components/Analytics";
+import { auth, signOut } from "@/auth";
+import { authConfigured } from "@/auth.config";
 import "./globals.css";
 
 async function counts(): Promise<{ escalations: number; feedback: number }> {
@@ -37,7 +39,13 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { escalations: openEscalations, feedback: openFeedback } = await counts();
+  const session = authConfigured() ? await auth() : null;
+  const role = session?.user?.role;
+  // Open/dev mode (auth unconfigured) keeps the full coach console visible.
+  const isCoach = !authConfigured() || role === 'coach';
+  const { escalations: openEscalations, feedback: openFeedback } = isCoach
+    ? await counts()
+    : { escalations: 0, feedback: 0 };
   return (
     <html
       lang="en"
@@ -50,31 +58,58 @@ export default async function RootLayout({
               Throughline
             </Link>
             <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
-              Coach Console
+              {isCoach ? 'Coach Console' : 'Athlete'}
             </span>
-            <nav className="ml-auto flex gap-4 text-sm">
-              <Link href="/" className="text-slate-600 hover:text-slate-900">
-                Roster
-              </Link>
-              <Link href="/import" className="text-slate-600 hover:text-slate-900">
-                Import
-              </Link>
-              <Link href="/escalations" className="flex items-center gap-1 text-slate-600 hover:text-slate-900">
-                Escalations
-                {openEscalations > 0 && (
-                  <span className="rounded-full bg-rose-600 px-1.5 text-[10px] font-semibold text-white">
-                    {openEscalations}
-                  </span>
-                )}
-              </Link>
-              <Link href="/feedback" className="flex items-center gap-1 text-slate-600 hover:text-slate-900">
-                Feedback
-                {openFeedback > 0 && (
-                  <span className="rounded-full bg-sky-600 px-1.5 text-[10px] font-semibold text-white">
-                    {openFeedback}
-                  </span>
-                )}
-              </Link>
+            <nav className="ml-auto flex items-center gap-4 text-sm">
+              {isCoach ? (
+                <>
+                  <Link href="/" className="text-slate-600 hover:text-slate-900">
+                    Roster
+                  </Link>
+                  <Link href="/import" className="text-slate-600 hover:text-slate-900">
+                    Import
+                  </Link>
+                  <Link href="/escalations" className="flex items-center gap-1 text-slate-600 hover:text-slate-900">
+                    Escalations
+                    {openEscalations > 0 && (
+                      <span className="rounded-full bg-rose-600 px-1.5 text-[10px] font-semibold text-white">
+                        {openEscalations}
+                      </span>
+                    )}
+                  </Link>
+                  <Link href="/feedback" className="flex items-center gap-1 text-slate-600 hover:text-slate-900">
+                    Feedback
+                    {openFeedback > 0 && (
+                      <span className="rounded-full bg-sky-600 px-1.5 text-[10px] font-semibold text-white">
+                        {openFeedback}
+                      </span>
+                    )}
+                  </Link>
+                </>
+              ) : (
+                <Link href="/me" className="text-slate-600 hover:text-slate-900">
+                  My training
+                </Link>
+              )}
+              {authConfigured() &&
+                (session?.user ? (
+                  <form
+                    action={async () => {
+                      'use server';
+                      await signOut({ redirectTo: '/signin' });
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <span className="hidden text-xs text-slate-400 sm:inline">{session.user.email}</span>
+                    <button type="submit" className="text-slate-500 hover:text-slate-900">
+                      Sign out
+                    </button>
+                  </form>
+                ) : (
+                  <Link href="/signin" className="font-medium text-sky-700 hover:text-sky-900">
+                    Sign in
+                  </Link>
+                ))}
             </nav>
           </div>
         </header>
