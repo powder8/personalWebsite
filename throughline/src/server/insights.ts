@@ -244,6 +244,13 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
   const builds: BuildBlock[] = [];
   for (const { r, perf } of performers) {
     if (builds.length >= 5) break;
+    // Reject lone spikes (GPS glitches: a short/mistimed activity yields an
+    // absurd VDOT). A real peak is corroborated by another strong effort within
+    // ~4 weeks (within 5 VDOT points) — a sharpening block, a tune-up race, etc.
+    const corroborated = performers.some(
+      (o) => o.r.ts !== r.ts && Math.abs(o.r.ts - r.ts) <= 28 * 86400000 && o.perf.vdot >= perf.vdot - 5,
+    );
+    if (!corroborated) continue;
     // Keep peaks temporally distinct (one block per ~8-week neighborhood).
     if (builds.some((b) => Math.abs(new Date(b.toDay).getTime() - r.ts) < BUILD_DAYS * 86400000)) continue;
     const fromDay = new Date(r.ts - BUILD_DAYS * 86400000).toISOString().slice(0, 10);
