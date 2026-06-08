@@ -203,10 +203,10 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
         </Card>
       )}
 
-      {/* Availability */}
-      <Card title="Can’t train? Let your coach know">
+      {/* Availability / adjustments */}
+      <Card title="Need to adjust your training?">
         <p className="mb-3 text-xs text-slate-500">
-          Travelling, slammed, or sick? Mark those days and the plan reshapes around them.
+          Travelling, slammed, or sick? Tell your coach what you need and the plan reshapes around it.
         </p>
         <AvailabilityForm athleteId={athlete.id} />
         {unavailable.length > 0 && (

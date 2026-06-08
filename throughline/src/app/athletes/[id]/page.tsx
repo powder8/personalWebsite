@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getAthleteDetail, TODAY, type Band } from '@/server/console';
 import { BandBadge, Card, Sparkline } from '@/components/ui';
-import { secPerKmToMinPerMile } from '@/engine/plan';
+import { secPerKmToMinPerMile, purposeLabel } from '@/engine/plan';
 import { EscalationActions } from '@/components/EscalationActions';
 import { ESCALATION_LABELS } from '@/server/escalations';
 import { PaceAdjustForm } from '@/components/PaceAdjustForm';
@@ -185,7 +185,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
             {races.map((r) => (
               <li key={r.id} className="flex items-start justify-between gap-3">
                 <div>
-                  <RacePriorityBadge priority={r.priority} />
+                  <RacePriorityBadge priority={r.priority} purpose={r.purpose} />
                   <span className="ml-2 font-medium text-slate-800">{r.name}</span>
                   <span className="ml-2 text-xs text-slate-500">
                     {r.date}
@@ -659,8 +659,9 @@ const PRIORITY_STYLE: Record<string, string> = {
   other: 'bg-slate-100 text-slate-500 ring-slate-200',
 };
 
-function RacePriorityBadge({ priority }: { priority: string }) {
-  const label = priority === 'tune_up' ? 'tune-up' : priority;
+function RacePriorityBadge({ priority, purpose }: { priority: string; purpose?: string | null }) {
+  // Prefer the coach-facing purpose label; colour by the engine priority.
+  const label = purpose ? purposeLabel(purpose) : priority === 'tune_up' ? 'tune-up' : priority;
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium uppercase tracking-wide ring-1 ring-inset ${

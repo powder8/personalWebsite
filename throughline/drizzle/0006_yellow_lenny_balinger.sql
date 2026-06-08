@@ -1,0 +1,1 @@
+ALTER TABLE "races" ADD COLUMN "purpose" text;

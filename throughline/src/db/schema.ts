@@ -228,6 +228,10 @@ export const races = pgTable(
     distanceMeters: doublePrecision('distance_meters'),
     distanceLabel: text('distance_label'), // coach shorthand: 'Mile','5k','10k','Half','Marathon'
     priority: racePriorityEnum('priority').notNull().default('tune_up'),
+    // Coach-facing reason for the race (rust-buster, sharpening, competitive,
+    // pacing, etc.). `priority` above is derived from this for the engine's taper
+    // logic; `purpose` is what the coach/athlete actually picked. See racePurpose.ts.
+    purpose: text('purpose'),
     goalType: raceGoalTypeEnum('goal_type').notNull().default('none'),
     targetTimeSeconds: integer('target_time_seconds'),
     targetPaceSecPerKm: doublePrecision('target_pace_sec_per_km'),

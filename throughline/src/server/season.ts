@@ -11,6 +11,7 @@ import { athletes, races, plans, plannedSessions } from '@/db/schema';
 import {
   generatePlan,
   resolvePaceZones,
+  purposeToPriority,
   type AthletePaceConfig,
   type KeyRace,
 } from '@/engine/plan';
@@ -22,7 +23,10 @@ export interface SeasonRaceInput {
   date: string; // YYYY-MM-DD
   distanceLabel?: string;
   distanceMeters?: number;
-  priority: 'goal' | 'tune_up' | 'training';
+  /** Engine taper class. Derived from `purpose` for key races; forced 'goal' for the goal race. */
+  priority?: 'goal' | 'tune_up' | 'training';
+  /** Coach-facing reason (rust-buster, sharpening, …); drives `priority`. */
+  purpose?: string;
   goalType?: 'time' | 'pace' | 'effort' | 'none';
   targetTimeSeconds?: number;
   targetPaceSecPerKm?: number;
@@ -62,10 +66,11 @@ export async function setupSeason(
     .set({ goalRace: input.goalRace.name, goalRaceDate: input.goalRace.date, updatedAt: new Date() })
     .where(eq(athletes.id, athleteId));
 
-  // 3) Replace races (goal + key races).
-  const allRaces: SeasonRaceInput[] = [
-    { ...input.goalRace, priority: 'goal' },
-    ...(input.keyRaces ?? []),
+  // 3) Replace races (goal + key races). Each key race carries a `purpose`; the
+  //    engine `priority` (taper behavior) is derived from it.
+  const allRaces: (SeasonRaceInput & { priority: 'goal' | 'tune_up' | 'training' })[] = [
+    { ...input.goalRace, priority: 'goal', purpose: 'goal' },
+    ...(input.keyRaces ?? []).map((r) => ({ ...r, priority: purposeToPriority(r.purpose) })),
   ];
   await db.delete(races).where(eq(races.athleteId, athleteId));
   await db.insert(races).values(
@@ -76,6 +81,7 @@ export async function setupSeason(
       distanceLabel: r.distanceLabel ?? null,
       distanceMeters: r.distanceMeters ?? null,
       priority: r.priority,
+      purpose: r.purpose ?? null,
       goalType: r.goalType ?? 'none',
       targetTimeSeconds: r.targetTimeSeconds ?? null,
       targetPaceSecPerKm: r.targetPaceSecPerKm ?? null,

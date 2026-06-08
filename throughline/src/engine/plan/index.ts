@@ -17,6 +17,7 @@ export * from './diff';
 export * from './vdot';
 export * from './paceConfig';
 export * from './raceWindows';
+export * from './racePurpose';
 export * from './guardrails';
 export * from './directives';
 

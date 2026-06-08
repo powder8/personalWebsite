@@ -43,6 +43,13 @@
       "when": 1780942613233,
       "tag": "0005_hesitant_lorna_dane",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1780943342902,
+      "tag": "0006_yellow_lenny_balinger",
+      "breakpoints": true
     }
   ]
 }

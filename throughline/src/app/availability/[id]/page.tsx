@@ -18,19 +18,19 @@ export default async function AvailabilityPage({ params }: { params: Promise<{ i
   const [athlete] = await db.select().from(athletes).where(eq(athletes.id, id)).limit(1);
   if (!athlete) notFound();
 
-  const directives = (await listActiveDirectives(db, id)).filter((d) => d.type === 'unavailable');
+  const directives = await listActiveDirectives(db, id);
 
   return (
     <div className="mx-auto max-w-xl space-y-4">
       <div>
-        <h1 className="text-lg font-semibold text-slate-900">Your availability</h1>
+        <h1 className="text-lg font-semibold text-slate-900">Need to adjust your training?</h1>
         <p className="text-sm text-slate-500">
-          Hi {athlete.fullName.split(' ')[0]} — let your coach know when you’ll be travelling, slammed, or
-          can’t train. Those days become rest and the plan adjusts around them.
+          Hi {athlete.fullName.split(' ')[0]} — tell your coach when you’re travelling, slammed, or sick and
+          what you need (move a workout, lighter mileage, or a rest day). The plan adjusts around it.
         </p>
       </div>
 
-      <Card title="Add unavailable days">
+      <Card title="Request an adjustment">
         <AvailabilityForm athleteId={id} />
       </Card>
 

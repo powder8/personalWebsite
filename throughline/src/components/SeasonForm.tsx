@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { RACE_PURPOSES } from '@/engine/plan/racePurpose';
 
 const DISTANCES: { label: string; meters: number }[] = [
   { label: 'Mile', meters: 1609.34 },
@@ -29,7 +30,7 @@ interface KeyRaceRow {
   name: string;
   date: string;
   distanceLabel: string;
-  priority: 'tune_up' | 'training';
+  purpose: string;
 }
 
 const field = 'mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm';
@@ -40,7 +41,7 @@ export function SeasonForm({ athleteId }: { athleteId: string }) {
   const [result, setResult] = useState<{ ok?: boolean; weeks?: number; error?: string } | null>(null);
 
   function addRow() {
-    setKeyRaces((r) => [...r, { name: '', date: '', distanceLabel: '10K', priority: 'tune_up' }]);
+    setKeyRaces((r) => [...r, { name: '', date: '', distanceLabel: '10K', purpose: 'tune_up' }]);
   }
   function updateRow(i: number, patch: Partial<KeyRaceRow>) {
     setKeyRaces((r) => r.map((row, j) => (j === i ? { ...row, ...patch } : row)));
@@ -81,7 +82,7 @@ export function SeasonForm({ athleteId }: { athleteId: string }) {
           date: r.date,
           distanceLabel: r.distanceLabel,
           distanceMeters: metersFor(r.distanceLabel),
-          priority: r.priority,
+          purpose: r.purpose,
         })),
     };
 
@@ -186,14 +187,17 @@ export function SeasonForm({ athleteId }: { athleteId: string }) {
               </select>
             </label>
             <label className="col-span-2">
-              <span className="text-xs text-slate-600">Priority</span>
+              <span className="text-xs text-slate-600">Purpose</span>
               <select
-                value={r.priority}
-                onChange={(e) => updateRow(i, { priority: e.target.value as KeyRaceRow['priority'] })}
+                value={r.purpose}
+                onChange={(e) => updateRow(i, { purpose: e.target.value })}
                 className={field}
               >
-                <option value="tune_up">tune-up</option>
-                <option value="training">training</option>
+                {RACE_PURPOSES.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
               </select>
             </label>
             <button type="button" onClick={() => removeRow(i)} className="col-span-1 pb-2 text-xs text-rose-600">
