@@ -20,6 +20,20 @@ questions in plain language.
 - **Phase 1b — recovery factors:** the rest/sleep/stress/HRV side of "what led
   to high fitness" needs the wellness integrations (below). Light up as Garmin/
   Whoop data arrives.
+- **Context-aware fitness model (started — recency done):** a benchmark must
+  reflect *what's realistic now*, not a peak from a different life stage.
+  - ✅ **Recency:** anchor + insights benchmark use recent (~2yr) data; career
+    best shown as labeled context. Glitch guards (ceiling + corroboration);
+    races exempt (bypass guards, surfaced as major efforts).
+  - ⏳ **Age-grading:** VDOT ignores age. Add athlete DOB → WMA age factors to
+    (a) compare performances fairly across a career and (b) set age-appropriate
+    current potential. Needs a DOB profile field.
+  - ⏳ **Course / elevation:** a hilly or high-altitude race time understates
+    fitness. Capture Strava `total_elevation_gain` / grade-adjusted pace →
+    normalize race times before VDOT. Needs an elevation column + capture.
+  - ⏳ **Recency-decay weighting** of older performances; "realistic current
+    potential" = recent trajectory + age. Don't over-fit — coach judgment is a
+    factor the model can't fully replace.
 - **Phase 2 — encoded science checks:** population-level recommendations kept
   SEPARATE from n-of-1 observations — 80/20 polarization, ~10%/week progression
   caps, taper structure, masters recovery, sleep targets, HRV-guided training.
