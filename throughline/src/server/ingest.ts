@@ -13,6 +13,7 @@ import {
   restingHrRecords,
 } from '@/db/schema';
 import type { NormalizedBatch, ProviderId } from '@/providers/types';
+import { getDefaultShoeId } from '@/server/shoes';
 
 export async function persistNormalizedBatch(
   db: DB,
@@ -28,9 +29,19 @@ export async function persistNormalizedBatch(
   // Both callers emit a single-activity batch per raw event, so the upsert `set`
   // below safely references batch.activities[0].
   if (batch.activities?.length) {
+    // Auto-assign new runs to the athlete's active default shoe. On re-sync the
+    // upsert `set` below omits shoe_id, so an athlete's per-activity override is
+    // never clobbered.
+    const defaultShoeId = await getDefaultShoeId(db, athleteId);
     await db
       .insert(activities)
-      .values(batch.activities.map((a) => ({ ...a, ...common })))
+      .values(
+        batch.activities.map((a) => ({
+          ...a,
+          ...common,
+          shoeId: a.sport === 'run' ? defaultShoeId : null,
+        })),
+      )
       .onConflictDoUpdate({
         target: activities.sourceRef,
         set: {

@@ -14,6 +14,8 @@ import { CycleTracking } from '@/components/CycleTracking';
 import { getCycle, computeCycle } from '@/server/cycle';
 import { WeeklyVolumeChart } from '@/components/WeeklyVolumeChart';
 import { getTrainingSummary } from '@/server/weeklyVolume';
+import { ShoesPanel } from '@/components/ShoesPanel';
+import { listShoesWithMileage, listRecentRunsForShoes } from '@/server/shoes';
 import { getDb } from '@/db';
 
 export const dynamic = 'force-dynamic';
@@ -47,6 +49,8 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
   const cycleSettings = await getCycle(db, id);
   const cycleStatus = computeCycle(cycleSettings, portal.today);
   const trainingSummary = await getTrainingSummary(db, id, portal.today, 12);
+  const shoes = await listShoesWithMileage(db, id);
+  const recentRuns = await listRecentRunsForShoes(db, id, 12);
 
   const {
     athlete,
@@ -209,6 +213,11 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
       {/* Last 12 weeks: mileage + elevation + key efforts */}
       <Card title="Last 12 weeks">
         <WeeklyVolumeChart summary={trainingSummary} />
+      </Card>
+
+      {/* Shoe mileage */}
+      <Card title="Shoe mileage">
+        <ShoesPanel athleteId={athlete.id} shoes={shoes} recentRuns={recentRuns} />
       </Card>
 
       {/* Availability / adjustments */}

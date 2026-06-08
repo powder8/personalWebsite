@@ -383,6 +383,12 @@ export const activities = pgTable(
     maxHr: integer('max_hr'),
     avgPaceSecPerKm: doublePrecision('avg_pace_sec_per_km'),
     elevationGainMeters: doublePrecision('elevation_gain_meters'), // total ascent (Strava total_elevation_gain)
+    // Which pair of shoes this run was logged in. Defaults to the athlete's
+    // active default pair at ingest; the athlete can override per activity.
+    // `shoes` is defined lower in this file; the reference callback is lazy.
+    shoeId: uuid('shoe_id').references((): import('drizzle-orm/pg-core').AnyPgColumn => shoes.id, {
+      onDelete: 'set null',
+    }),
     cadence: integer('cadence'),
     trainingLoad: doublePrecision('training_load'), // derived TRIMP/load impulse
     splits: jsonb('splits'), // [{ distanceMeters, durationSeconds, avgHr, paceSecPerKm }]
@@ -393,6 +399,31 @@ export const activities = pgTable(
     index('activities_athlete_start_idx').on(t.athleteId, t.startTime),
     uniqueIndex('activities_source_ref_uq').on(t.sourceRef),
   ],
+);
+
+/**
+ * A pair of running shoes. Mileage accrues from `activities.shoe_id`; the
+ * athlete's active default pair is auto-assigned to new runs at ingest, and they
+ * can override any activity. `initialMiles` carries wear from before tracking;
+ * `maxMiles` is the wear threshold for the "replace soon" nudge.
+ */
+export const shoes = pgTable(
+  'shoes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    athleteId: uuid('athlete_id')
+      .notNull()
+      .references(() => athletes.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    brand: text('brand'),
+    startDate: date('start_date'), // put into service
+    retiredAt: date('retired_at'), // null = active
+    isDefault: boolean('is_default').notNull().default(false),
+    initialMiles: doublePrecision('initial_miles').notNull().default(0),
+    maxMiles: doublePrecision('max_miles').notNull().default(500),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('shoes_athlete_idx').on(t.athleteId)],
 );
 
 export const dailySummaries = pgTable(
