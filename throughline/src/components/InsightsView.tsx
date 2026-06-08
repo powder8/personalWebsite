@@ -43,11 +43,11 @@ export function InsightsView({ insights }: { insights: TrainingInsights }) {
       </Card>
 
       {insights.buildProfile && insights.builds.length > 0 && (
-        <Card title="Your most productive blocks" className="border-emerald-200">
+        <Card title="The training behind your best performances" className="border-emerald-200">
           <p className="text-sm text-slate-700">
-            The pattern across your{' '}
-            <span className="font-medium">{insights.buildProfile.count}</span> biggest 8-week fitness
-            builds — what they had in common, not a single block:
+            The 8-week blocks that led into your{' '}
+            <span className="font-medium">{insights.buildProfile.count}</span> best efforts — what they
+            had in common (a repeatable recipe, not one block):
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Tile label="Typical volume" value={`${insights.buildProfile.medianWeeklyMiles}`} unit="mi/week" emphasis />
@@ -67,17 +67,21 @@ export function InsightsView({ insights }: { insights: TrainingInsights }) {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
                 <tr>
-                  <th className="px-2 py-1 font-medium">Block (8 wks ending)</th>
-                  <th className="px-2 py-1 font-medium">Fitness gain</th>
-                  <th className="px-2 py-1 font-medium">Volume</th>
-                  <th className="px-2 py-1 font-medium">Mix</th>
+                  <th className="px-2 py-1 font-medium">Peak effort</th>
+                  <th className="px-2 py-1 font-medium">Date</th>
+                  <th className="px-2 py-1 font-medium">8-wk volume</th>
+                  <th className="px-2 py-1 font-medium">Block mix</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {insights.builds.map((b) => (
                   <tr key={b.toDay}>
+                    <td className="px-2 py-1.5 font-medium text-emerald-700">
+                      {b.performance
+                        ? `${b.performance.distanceLabel} ${b.performance.timeLabel} · VDOT ${b.performance.vdot}`
+                        : '—'}
+                    </td>
                     <td className="px-2 py-1.5 text-slate-600">{b.toDay}</td>
-                    <td className="px-2 py-1.5 font-medium text-emerald-700">+{b.ctlGain} CTL</td>
                     <td className="px-2 py-1.5 text-slate-700">{b.mix.avgWeeklyMiles} mi/wk</td>
                     <td className="px-2 py-1.5 text-slate-500">
                       {b.mix.gpsShare >= 50

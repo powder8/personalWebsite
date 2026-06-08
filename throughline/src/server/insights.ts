@@ -16,6 +16,7 @@ import { getDb } from '@/db';
 import { activities } from '@/db/schema';
 import { computeFitnessFatigue } from '@/engine/fitnessFatigue';
 import { estimateLoad } from '@/engine/load';
+import { vdotFromRace, STANDARD_DISTANCES } from '@/engine/plan';
 import type { DailyReading } from '@/engine/types';
 
 const MI = 1609.344;
@@ -30,6 +31,7 @@ interface Run {
   ts: number; // ms
   miles: number;
   paceSecPerKm: number | null;
+  durationSeconds: number | null;
   gps: boolean; // from a GPS provider (Strava/Garmin) → per-run pace is real
   type: WorkoutType;
 }
@@ -51,11 +53,13 @@ export interface Suggestion {
 
 export interface BuildBlock {
   fromDay: string;
-  toDay: string;
-  ctlGain: number;
+  toDay: string; // the performance date the block led into
+  ctlGain: number; // fitness change during the block (context, not the selector)
   weeks: number;
   longestRunMiles: number;
   mix: WorkoutMix;
+  /** The peak performance this block produced (what makes it "productive"). */
+  performance: { vdot: number; distanceLabel: string; timeLabel: string } | null;
 }
 
 /** Pattern aggregated ACROSS an athlete's most-productive blocks (not one). */
@@ -91,6 +95,39 @@ function median(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b);
   const mid = Math.floor(s.length / 2);
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+function fmtTime(s: number): string {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = Math.round(s % 60);
+  return h > 0
+    ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+    : `${m}:${String(sec).padStart(2, '0')}`;
+}
+function nearestStandard(meters: number): string {
+  let best = STANDARD_DISTANCES[0];
+  let bestErr = Infinity;
+  for (const d of STANDARD_DISTANCES) {
+    const err = Math.abs(d.meters - meters) / d.meters;
+    if (err < bestErr) {
+      bestErr = err;
+      best = d;
+    }
+  }
+  return bestErr <= 0.06 ? best.label : `${(meters / MI).toFixed(1)} mi`;
+}
+/** Per-run performance as a Daniels VDOT, when the run has a usable distance+time. */
+function runPerformance(r: Run): { vdot: number; timeSec: number; meters: number } | null {
+  const meters = r.miles * MI;
+  if (meters < 3000 || meters > 42400) return null; // race-able range only
+  const timeSec = r.durationSeconds && r.durationSeconds > 0
+    ? r.durationSeconds
+    : r.paceSecPerKm
+      ? (meters / 1000) * r.paceSecPerKm
+      : 0;
+  if (timeSec <= 0) return null;
+  const v = vdotFromRace({ distanceMeters: meters, timeSeconds: timeSec });
+  return Number.isFinite(v) && v >= 20 && v <= 90 ? { vdot: v, timeSec, meters } : null;
 }
 
 /**
@@ -160,6 +197,7 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
       ts: r.startTime.getTime(),
       miles: (r.distanceMeters ?? 0) / MI,
       paceSecPerKm: r.avgPaceSecPerKm,
+      durationSeconds: r.durationSeconds,
       gps: r.provider === 'strava' || r.provider === 'garmin',
     }));
   const WIN = 60 * 86400000;
@@ -192,36 +230,41 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
   }
   const medianWeeklyMiles = Math.round(median([...weeklyMiles.values()].filter((m) => m > 0)));
 
-  // Productive blocks = the top few NON-OVERLAPPING 8-week windows of CTL gain.
-  // Using several (not one) keeps the "why" a pattern rather than an anecdote.
-  const windows: { i: number; gain: number }[] = [];
-  for (let i = BUILD_DAYS; i < ff.length; i++) {
-    windows.push({ i, gain: ff[i].ctl - ff[i - BUILD_DAYS].ctl });
-  }
-  windows.sort((a, b) => b.gain - a.gain);
-  const topGain = windows[0]?.gain ?? 0;
-  const chosen: { i: number; gain: number }[] = [];
-  for (const w of windows) {
-    if (w.gain <= 1 || w.gain < topGain * 0.4) continue; // meaningful builds only
-    if (chosen.some((c) => Math.abs(c.i - w.i) < BUILD_DAYS)) continue; // non-overlapping
-    chosen.push(w);
-    if (chosen.length >= 5) break;
-  }
-  const builds: BuildBlock[] = chosen
-    .sort((a, b) => b.gain - a.gain)
-    .map((w) => {
-      const fromDay = ff[w.i - BUILD_DAYS].day;
-      const toDay = ff[w.i].day;
-      const inWindow = runs.filter((r) => r.day >= fromDay && r.day <= toDay);
-      return {
-        fromDay,
-        toDay,
-        ctlGain: Math.round(w.gain),
-        weeks: BUILD_DAYS / 7,
-        longestRunMiles: Math.round(inWindow.reduce((mx, r) => Math.max(mx, r.miles), 0) * 10) / 10,
-        mix: mixOf(inWindow, BUILD_DAYS / 7),
-      };
+  // Productive blocks = the 8-week training blocks that LED INTO the athlete's
+  // best PERFORMANCES (top per-run VDOT efforts), not the biggest fitness ramps.
+  // This anchors "productive" on results — high absolute performance — and stays
+  // actionable (it's the recipe that produced a peak), avoiding the low-base-ramp
+  // artifact and the under-valuing of sustained high fitness.
+  const ctlByDay = new Map(ff.map((p) => [p.day, p.ctl]));
+  const performers = runs
+    .map((r) => ({ r, perf: runPerformance(r) }))
+    .filter((x): x is { r: Run; perf: NonNullable<ReturnType<typeof runPerformance>> } => x.perf != null)
+    .sort((a, b) => b.perf.vdot - a.perf.vdot);
+
+  const builds: BuildBlock[] = [];
+  for (const { r, perf } of performers) {
+    if (builds.length >= 5) break;
+    // Keep peaks temporally distinct (one block per ~8-week neighborhood).
+    if (builds.some((b) => Math.abs(new Date(b.toDay).getTime() - r.ts) < BUILD_DAYS * 86400000)) continue;
+    const fromDay = new Date(r.ts - BUILD_DAYS * 86400000).toISOString().slice(0, 10);
+    const toDay = r.day;
+    const inWindow = runs.filter((x) => x.day >= fromDay && x.day <= toDay);
+    if (inWindow.length < 6) continue; // need a real block before the performance
+    const ctlGain = Math.round((ctlByDay.get(toDay) ?? 0) - (ctlByDay.get(fromDay) ?? 0));
+    builds.push({
+      fromDay,
+      toDay,
+      ctlGain,
+      weeks: BUILD_DAYS / 7,
+      longestRunMiles: Math.round(inWindow.reduce((mx, x) => Math.max(mx, x.miles), 0) * 10) / 10,
+      mix: mixOf(inWindow, BUILD_DAYS / 7),
+      performance: {
+        vdot: Math.round(perf.vdot * 10) / 10,
+        distanceLabel: nearestStandard(perf.meters),
+        timeLabel: fmtTime(perf.timeSec),
+      },
     });
+  }
   const bestBuild = builds[0] ?? null;
 
   // Aggregate the pattern ACROSS those blocks.
@@ -253,8 +296,11 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
   const observations: string[] = [];
   if (buildProfile && bestBuild) {
     const p = buildProfile;
+    const bp = bestBuild.performance;
     observations.push(
-      `Across your ${p.count} most productive ${p.count === 1 ? 'block' : 'blocks'}, you typically ran ~${p.medianWeeklyMiles} mi/week on ~${p.medianRunDaysPerWeek} run-days/week (biggest: +${bestBuild.ctlGain} CTL, ending ${bestBuild.toDay}).`,
+      `The 8-week blocks that led into your ${p.count} best ${p.count === 1 ? 'performance' : 'performances'}${
+        bp ? ` (top: ${bp.distanceLabel} ${bp.timeLabel}, ~VDOT ${bp.vdot}, ${bestBuild.toDay})` : ''
+      } shared a pattern: ~${p.medianWeeklyMiles} mi/week on ~${p.medianRunDaysPerWeek} run-days/week.`,
     );
     if (p.medianQualityPerWeek != null) {
       observations.push(
