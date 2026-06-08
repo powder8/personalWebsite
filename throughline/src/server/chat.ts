@@ -138,7 +138,10 @@ export async function askTrainingQuestion(
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
   const resp = await client.messages.create({
-    model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-5',
+    // Default to the cheap/fast Haiku tier: this is grounded narration over
+    // pre-computed data, not heavy reasoning. Bump ANTHROPIC_MODEL to a Sonnet
+    // model if coaching nuance/tone needs it.
+    model: process.env.ANTHROPIC_MODEL ?? 'claude-haiku-4-5',
     max_tokens: 700,
     system: `${SYSTEM}\n\n=== THIS ATHLETE'S DATA (the only facts you may use) ===\n${context}`,
     messages: messages.slice(-12).map((m) => ({ role: m.role, content: m.content })),

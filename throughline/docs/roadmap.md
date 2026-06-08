@@ -37,7 +37,14 @@ questions in plain language.
 - **Phase 2 — encoded science checks:** population-level recommendations kept
   SEPARATE from n-of-1 observations — 80/20 polarization, ~10%/week progression
   caps, taper structure, masters recovery, sleep targets, HRV-guided training.
-- **Phase 3 — grounded chat (RAG, not fine-tuning):** Claude with the athlete's
+- **Phase 3 — grounded chat (MVP shipped):** athlete-facing "ask about your
+  training" on the portal, grounded in real computed data. Defaults to Haiku
+  (grounded narration, not heavy reasoning — cheap/fast). Cost/UX follow-ups:
+  **prompt caching** the stable system+context block (biggest cost lever),
+  **streaming** responses, a **coach-side** assistant over the roster, and
+  grounding in **Heather's methodology corpus** (the differentiator). Original
+  design notes below.
+- **Phase 3 (orig notes) — grounded chat (RAG, not fine-tuning):** Claude with the athlete's
   structured data + Heather's coaching corpus injected at question time. Start
   with a low-risk "explain my data/plan/readiness" MVP (narrates real computed
   numbers), then open coaching Q&A over a curated corpus. Guardrails: cite the
