@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface Action {
   tool: string;
@@ -27,9 +27,10 @@ const COACH_STARTERS = [
 ];
 
 /**
- * "Ask about your training" — grounded chat over the athlete's own data that can
- * also ACT (days off, pace tweaks, fitness anchor). Used on both the athlete
- * portal (audience="athlete") and the coach console (audience="coach").
+ * "Ask about your training" — a conversational chat (Claude/ChatGPT-style: message
+ * flow + a rounded composer with Enter-to-send) that can answer questions and
+ * take actions. Used on the athlete portal (audience="athlete") and the coach
+ * console (audience="coach").
  */
 export function TrainingChat({
   athleteId,
@@ -45,13 +46,26 @@ export function TrainingChat({
   const [pending, setPending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const taRef = useRef<HTMLTextAreaElement>(null);
   const starters = audience === 'coach' ? COACH_STARTERS : ATHLETE_STARTERS;
+
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' });
+  }, [messages, pending]);
+
+  function grow() {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }
 
   async function send(text: string) {
     const q = text.trim();
     if (!q || pending) return;
     setErr(null);
     setInput('');
+    requestAnimationFrame(grow);
     const next: Msg[] = [...messages, { role: 'user', content: q }];
     setMessages(next);
     setPending(true);
@@ -65,8 +79,6 @@ export function TrainingChat({
       if (j.ok) {
         const actions: Action[] = Array.isArray(j.actions) ? j.actions : [];
         setMessages((m) => [...m, { role: 'assistant', content: j.reply, actions }]);
-        setTimeout(() => scroller.current?.scrollTo({ top: scroller.current.scrollHeight }), 50);
-        // If the chat changed the plan, refresh so the page reflects it.
         if (actions.some((a) => a.ok)) setTimeout(() => window.location.reload(), 2500);
       } else setErr(j.error ?? 'Something went wrong.');
     } catch {
@@ -84,84 +96,135 @@ export function TrainingChat({
     );
   }
 
+  const empty = messages.length === 0;
+
   return (
-    <div className="space-y-3">
-      {messages.length === 0 && (
-        <div className="flex flex-wrap gap-2">
-          {starters.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => send(s)}
-              className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:bg-slate-50"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {messages.length > 0 && (
-        <div ref={scroller} className="max-h-80 space-y-3 overflow-y-auto rounded border border-slate-100 p-3">
-          {messages.map((m, i) => (
-            <div key={i} className={m.role === 'user' ? 'text-right' : ''}>
-              <span
-                className={`inline-block max-w-[85%] whitespace-pre-wrap rounded-lg px-3 py-2 text-sm ${
-                  m.role === 'user' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-800'
-                }`}
-              >
-                {m.content}
-              </span>
-              {m.actions && m.actions.length > 0 && (
-                <div className={`mt-1.5 space-y-1 ${m.role === 'user' ? 'text-right' : ''}`}>
-                  {m.actions.map((a, j) => (
-                    <div
-                      key={j}
-                      className={`inline-block rounded-md px-2 py-1 text-[11px] font-medium ring-1 ring-inset ${
-                        a.ok
-                          ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
-                          : 'bg-rose-50 text-rose-700 ring-rose-200'
-                      }`}
-                    >
-                      {a.ok ? '✓ ' : '✕ '}
-                      {a.summary}
-                    </div>
-                  ))}
-                </div>
-              )}
+    <div className="flex flex-col">
+      {/* conversation */}
+      <div
+        ref={scroller}
+        className={`overflow-y-auto ${empty ? '' : 'max-h-[28rem] pr-1'}`}
+      >
+        {empty ? (
+          <div className="py-6 text-center">
+            <p className="text-sm text-slate-500">
+              {audience === 'coach'
+                ? 'Ask about this athlete — or tell me to change their plan.'
+                : 'Ask about your training — or tell me to change something.'}
+            </p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {starters.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => send(s)}
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                >
+                  {s}
+                </button>
+              ))}
             </div>
-          ))}
-          {pending && <div className="text-xs text-slate-400">thinking…</div>}
-        </div>
-      )}
+          </div>
+        ) : (
+          <div className="space-y-5 py-2">
+            {messages.map((m, i) => (
+              <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+                <div className={m.role === 'user' ? 'max-w-[85%]' : 'w-full'}>
+                  {m.role === 'assistant' && (
+                    <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">Coach</div>
+                  )}
+                  <div
+                    className={
+                      m.role === 'user'
+                        ? 'whitespace-pre-wrap rounded-2xl rounded-br-sm bg-sky-600 px-3.5 py-2 text-sm text-white'
+                        : 'whitespace-pre-wrap text-sm leading-relaxed text-slate-800'
+                    }
+                  >
+                    {m.content}
+                  </div>
+                  {m.actions && m.actions.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {m.actions.map((a, j) => (
+                        <div
+                          key={j}
+                          className={`inline-flex items-start gap-1 rounded-lg px-2 py-1 text-[11px] font-medium ring-1 ring-inset ${
+                            a.ok ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : 'bg-rose-50 text-rose-700 ring-rose-200'
+                          }`}
+                        >
+                          <span>{a.ok ? '✓' : '✕'}</span>
+                          <span>{a.summary}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            {pending && (
+              <div className="flex justify-start">
+                <div className="w-full">
+                  <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">Coach</div>
+                  <div className="flex gap-1 py-1" aria-label="Thinking">
+                    <Dot /> <Dot delay="150ms" /> <Dot delay="300ms" />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
+      {/* composer */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
           send(input);
         }}
-        className="flex gap-2"
+        className="mt-3"
       >
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={audience === 'coach' ? 'Ask or change this athlete’s plan…' : 'Ask, or tell me to change something…'}
-          disabled={pending}
-          className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm"
-        />
-        <button
-          type="submit"
-          disabled={pending || !input.trim()}
-          className="rounded bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
-        >
-          Send
-        </button>
+        <div className="flex items-end gap-2 rounded-2xl border border-slate-300 bg-white px-3 py-2 shadow-sm transition focus-within:border-slate-400">
+          <textarea
+            ref={taRef}
+            value={input}
+            rows={1}
+            onChange={(e) => {
+              setInput(e.target.value);
+              grow();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                send(input);
+              }
+            }}
+            placeholder={
+              audience === 'coach' ? 'Message your coaching assistant…' : 'Message your coach… (Enter to send)'
+            }
+            disabled={pending}
+            className="max-h-40 flex-1 resize-none bg-transparent py-1 text-sm text-slate-800 outline-none placeholder:text-slate-400"
+          />
+          <button
+            type="submit"
+            disabled={pending || !input.trim()}
+            aria-label="Send"
+            className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-700 text-white transition hover:bg-sky-800 disabled:opacity-40"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 19V5M5 12l7-7 7 7" />
+            </svg>
+          </button>
+        </div>
       </form>
-      {err && <p className="text-xs text-rose-600">{err}</p>}
-      <p className="text-[11px] text-slate-400">
+
+      {err && <p className="mt-2 text-xs text-rose-600">{err}</p>}
+      <p className="mt-2 text-[11px] text-slate-400">
         Grounded in {audience === 'coach' ? 'this athlete’s' : 'your'} training data. Can adjust days off, paces, and
-        fitness anchor — every change is coach-reviewable. Not medical advice.
+        the fitness anchor — every change is coach-reviewable. Not medical advice.
       </p>
     </div>
   );
+}
+
+function Dot({ delay = '0ms' }: { delay?: string }) {
+  return <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: delay }} />;
 }
