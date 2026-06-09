@@ -71,30 +71,15 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <div className="flex items-end justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Hi {firstName} 👋</h1>
-          <p className="text-sm text-slate-500">{today}</p>
-        </div>
-        {goalRace.name && (
-          <div className="text-right text-sm">
-            <div className="font-medium text-slate-800">{goalRace.name}</div>
-            <div className="text-slate-500">
-              {goalRace.date}
-              {goalRace.daysAway != null && goalRace.daysAway >= 0 && (
-                <span className="ml-1 font-medium text-violet-700">· {goalRace.daysAway} days</span>
-              )}
-            </div>
-          </div>
-        )}
+      <div>
+        <h1 className="text-xl font-semibold text-slate-900">Hi {firstName} 👋</h1>
+        <p className="text-sm text-slate-500">{today}</p>
       </div>
 
-      {/* Ask about your training (grounded chat) */}
-      <Card title="Ask about your training">
-        <TrainingChat athleteId={athlete.id} configured={chatConfigured()} />
-      </Card>
+      {/* 1 — YOUR GOAL (the north star) */}
+      <GoalHero goalRace={goalRace} />
 
-      {/* Today */}
+      {/* 2 — TODAY (what to do right now) */}
       <Card title="Today">
         <div className="flex items-center gap-3">
           <BandBadge band={readiness.band} score={readiness.score} />
@@ -109,27 +94,13 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
         </div>
       </Card>
 
-      {/* Daily check-in */}
-      <Card title={checkedInToday ? 'Today’s check-in ✓' : 'How are you feeling?'}>
-        {checkedInToday && todayCheckIn && (
-          <p className="mb-3 text-xs text-slate-500">
-            Soreness {todayCheckIn.soreness ?? '—'} · Energy {todayCheckIn.energy ?? '—'} · Yesterday RPE{' '}
-            {todayCheckIn.yesterdayRpe ?? '—'}. You can update it below.
-          </p>
-        )}
-        <CheckInForm
-          athleteId={athlete.id}
-          day={today}
-          initial={todayCheckIn ? { soreness: todayCheckIn.soreness, energy: todayCheckIn.energy, yesterdayRpe: todayCheckIn.yesterdayRpe } : null}
-        />
+      {/* Chat — pinned near the top: ask anything or change the plan */}
+      <Card title="Ask or change anything">
+        <TrainingChat athleteId={athlete.id} configured={chatConfigured()} />
       </Card>
 
-      {/* Cycle tracking (opt-in, private) */}
-      <Card title="Cycle tracking">
-        <CycleTracking athleteId={athlete.id} initial={cycleSettings} status={cycleStatus} />
-      </Card>
-
-      {/* This week */}
+      {/* 3 — THIS WEEK (the near-term plan) */}
+      <SectionHeader>This week &amp; ahead</SectionHeader>
       <Card title={thisWeek ? `This week${thisWeek.phase ? ` · ${thisWeek.phase}` : ''}` : 'This week'}>
         {thisWeek ? (
           <table className="w-full text-sm">
@@ -150,7 +121,6 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
         )}
       </Card>
 
-      {/* Coming weeks */}
       {comingWeeks.length > 0 && (
         <Card title="Coming weeks">
           <div className="space-y-4">
@@ -184,7 +154,8 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
         </Card>
       )}
 
-      {/* Insights highlight — same analysis the coach sees */}
+      {/* 4 — YOUR PROGRESS (are you moving toward the goal?) */}
+      <SectionHeader>Your progress</SectionHeader>
       {insights?.buildProfile && (
         <Card title="Your training patterns">
           <p className="text-sm text-slate-700">
@@ -210,17 +181,26 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
         </Card>
       )}
 
-      {/* Last 12 weeks: mileage + elevation + key efforts */}
       <Card title="Last 12 weeks">
         <WeeklyVolumeChart summary={trainingSummary} />
       </Card>
 
-      {/* Shoe mileage */}
-      <Card title="Shoe mileage">
-        <ShoesPanel athleteId={athlete.id} shoes={shoes} recentRuns={recentRuns} />
+      {/* 5 — CHECK IN & ADJUST (your inputs that shape the plan) */}
+      <SectionHeader>Check in &amp; adjust</SectionHeader>
+      <Card title={checkedInToday ? 'Today’s check-in ✓' : 'How are you feeling?'}>
+        {checkedInToday && todayCheckIn && (
+          <p className="mb-3 text-xs text-slate-500">
+            Soreness {todayCheckIn.soreness ?? '—'} · Energy {todayCheckIn.energy ?? '—'} · Yesterday RPE{' '}
+            {todayCheckIn.yesterdayRpe ?? '—'}. You can update it below.
+          </p>
+        )}
+        <CheckInForm
+          athleteId={athlete.id}
+          day={today}
+          initial={todayCheckIn ? { soreness: todayCheckIn.soreness, energy: todayCheckIn.energy, yesterdayRpe: todayCheckIn.yesterdayRpe } : null}
+        />
       </Card>
 
-      {/* Availability / adjustments */}
       <Card title="Need to adjust your training?">
         <p className="mb-3 text-xs text-slate-500">
           Travelling, slammed, or sick? Tell your coach what you need and the plan reshapes around it.
@@ -239,7 +219,12 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
         )}
       </Card>
 
-      {/* Connect Strava */}
+      <Card title="Cycle tracking">
+        <CycleTracking athleteId={athlete.id} initial={cycleSettings} status={cycleStatus} />
+      </Card>
+
+      {/* 6 — SETUP & GEAR (one-time / peripheral) */}
+      <SectionHeader>Setup &amp; gear</SectionHeader>
       <Card title="Connect your watch (via Strava)">
         <ConnectStrava
           athleteId={athlete.id}
@@ -249,10 +234,51 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
         />
       </Card>
 
-      {/* Calendar subscription */}
+      <Card title="Shoe mileage">
+        <ShoesPanel athleteId={athlete.id} shoes={shoes} recentRuns={recentRuns} />
+      </Card>
+
       <Card title="Put your plan in your calendar">
         <CalendarSubscribe athleteId={athlete.id} />
       </Card>
+    </div>
+  );
+}
+
+/** Small uppercase divider label that groups the cards into sections. */
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return <h2 className="px-1 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{children}</h2>;
+}
+
+/** The north-star hero: the race you're training for, or a prompt to set a goal. */
+function GoalHero({ goalRace }: { goalRace: { name: string | null; date: string | null; daysAway: number | null } }) {
+  if (goalRace.name) {
+    return (
+      <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-4">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Your goal</div>
+        <div className="mt-1 flex items-end justify-between gap-3">
+          <div>
+            <div className="text-lg font-semibold text-slate-900">{goalRace.name}</div>
+            {goalRace.date && <div className="text-sm text-slate-500">{goalRace.date}</div>}
+          </div>
+          {goalRace.daysAway != null && goalRace.daysAway >= 0 && (
+            <div className="text-right leading-none">
+              <div className="text-2xl font-bold text-violet-700">{goalRace.daysAway}</div>
+              <div className="text-xs text-slate-500">days to go</div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Your goal</div>
+      <p className="mt-1 text-sm font-medium text-slate-800">What are you training for?</p>
+      <p className="mt-1 text-sm text-slate-500">
+        A first 5K, a marathon time, or just building consistent fitness. Tell your coach your goal and they’ll
+        build your plan — goal-setting right here is coming soon.
+      </p>
     </div>
   );
 }
