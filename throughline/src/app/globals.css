@@ -3,6 +3,10 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* The app is designed light-only (white cards, dark text). Declaring this
+     stops dark-mode browsers from auto-inverting / recoloring form controls,
+     which made textarea/input text nearly invisible on white backgrounds. */
+  color-scheme: light;
 }
 
 @theme inline {
@@ -10,13 +14,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
