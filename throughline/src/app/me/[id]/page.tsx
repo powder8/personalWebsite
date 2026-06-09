@@ -16,6 +16,8 @@ import { WeeklyVolumeChart } from '@/components/WeeklyVolumeChart';
 import { getTrainingSummary } from '@/server/weeklyVolume';
 import { ShoesPanel } from '@/components/ShoesPanel';
 import { listShoesWithMileage, listRecentRunsForShoes } from '@/server/shoes';
+import { GoalSetup } from '@/components/GoalSetup';
+import { getAthleteVdot } from '@/db/paceConfig';
 import { getDb } from '@/db';
 
 export const dynamic = 'force-dynamic';
@@ -51,6 +53,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
   const trainingSummary = await getTrainingSummary(db, id, portal.today, 12);
   const shoes = await listShoesWithMileage(db, id);
   const recentRuns = await listRecentRunsForShoes(db, id, 12);
+  const hasAnchor = (await getAthleteVdot(db, id)) != null;
 
   const {
     athlete,
@@ -77,7 +80,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
       </div>
 
       {/* 1 — YOUR GOAL (the north star) */}
-      <GoalHero goalRace={goalRace} />
+      <GoalHero goalRace={goalRace} athleteId={athlete.id} hasAnchor={hasAnchor} />
 
       {/* 2 — TODAY (what to do right now) */}
       <Card title="Today">
@@ -251,14 +254,22 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 }
 
 /** The north-star hero: the race you're training for, or a prompt to set a goal. */
-function GoalHero({ goalRace }: { goalRace: { name: string | null; date: string | null; daysAway: number | null } }) {
+function GoalHero({
+  goalRace,
+  athleteId,
+  hasAnchor,
+}: {
+  goalRace: { name: string | null; date: string | null; daysAway: number | null };
+  athleteId: string;
+  hasAnchor: boolean;
+}) {
   if (goalRace.name) {
     return (
       <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-4">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Your goal</div>
-        <div className="mt-1 flex items-end justify-between gap-3">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-lg font-semibold text-slate-900">{goalRace.name}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Your goal</div>
+            <div className="mt-1 text-lg font-semibold text-slate-900">{goalRace.name}</div>
             {goalRace.date && <div className="text-sm text-slate-500">{goalRace.date}</div>}
           </div>
           {goalRace.daysAway != null && goalRace.daysAway >= 0 && (
@@ -268,17 +279,20 @@ function GoalHero({ goalRace }: { goalRace: { name: string | null; date: string 
             </div>
           )}
         </div>
+        <div className="mt-3 border-t border-violet-100 pt-3">
+          <GoalSetup athleteId={athleteId} hasAnchor={hasAnchor} hasGoal />
+        </div>
       </div>
     );
   }
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Your goal</div>
+    <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-4">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Your goal</div>
       <p className="mt-1 text-sm font-medium text-slate-800">What are you training for?</p>
-      <p className="mt-1 text-sm text-slate-500">
-        A first 5K, a marathon time, or just building consistent fitness. Tell your coach your goal and they’ll
-        build your plan — goal-setting right here is coming soon.
+      <p className="mb-3 mt-1 text-sm text-slate-500">
+        A first 5K, a race time, or just building consistent fitness — set it and we’ll build your plan.
       </p>
+      <GoalSetup athleteId={athleteId} hasAnchor={hasAnchor} hasGoal={false} />
     </div>
   );
 }

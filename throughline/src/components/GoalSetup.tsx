@@ -1,0 +1,228 @@
+'use client';
+
+import { useState } from 'react';
+
+type GoalKind = 'finish' | 'time' | 'fitness';
+const DISTANCES = [
+  { label: '5K', value: '5K' },
+  { label: '10K', value: '10K' },
+  { label: 'Half Marathon', value: 'Half' },
+  { label: 'Marathon', value: 'Marathon' },
+];
+
+/** "mm:ss" or "h:mm:ss" → seconds; null if blank/invalid. */
+function parseClock(s: string): number | null {
+  const t = s.trim();
+  if (!t) return null;
+  const parts = t.split(':').map(Number);
+  if (parts.some((n) => Number.isNaN(n))) return null;
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  return null;
+}
+
+/**
+ * Athlete-facing goal setup. Three paths — finish a distance, race for time, or
+ * build fitness — plus a light read of current fitness + weekly mileage, which
+ * generates a real plan. Collapsed behind a button when a goal already exists.
+ */
+export function GoalSetup({
+  athleteId,
+  hasAnchor,
+  hasGoal,
+}: {
+  athleteId: string;
+  hasAnchor: boolean;
+  hasGoal: boolean;
+}) {
+  const [open, setOpen] = useState(!hasGoal);
+  const [kind, setKind] = useState<GoalKind>('finish');
+  const [fitnessKind, setFitnessKind] = useState<'existing' | 'race'>(hasAnchor ? 'existing' : 'race');
+  const [pending, setPending] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setErr(null);
+    const fd = new FormData(e.currentTarget);
+
+    const body: Record<string, unknown> = {
+      kind,
+      currentWeeklyMiles: Number(fd.get('currentWeeklyMiles') || 0),
+    };
+    if (kind !== 'fitness') {
+      body.distanceLabel = String(fd.get('distanceLabel') || '');
+      body.date = String(fd.get('date') || '');
+      if (kind === 'time') {
+        const secs = parseClock(String(fd.get('targetTime') || ''));
+        if (!secs) {
+          setErr('Enter a target time like 1:45:00.');
+          return;
+        }
+        body.targetTimeSeconds = secs;
+      }
+    }
+    if (fitnessKind === 'race') {
+      const secs = parseClock(String(fd.get('fitnessTime') || ''));
+      if (!secs) {
+        setErr('Enter your recent race time like 22:30.');
+        return;
+      }
+      body.fitness = { kind: 'race', distanceLabel: String(fd.get('fitnessDistance') || ''), timeSeconds: secs };
+    } else {
+      body.fitness = { kind: 'existing' };
+    }
+
+    setPending(true);
+    try {
+      const res = await fetch(`/api/athletes/${athleteId}/goal`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const j = await res.json();
+      if (j.ok) {
+        setTimeout(() => window.location.reload(), 700);
+      } else {
+        setErr(j.error ?? 'Failed.');
+        setPending(false);
+      }
+    } catch {
+      setErr('Network error.');
+      setPending(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} className="text-sm font-medium text-violet-700 hover:underline">
+        Change goal
+      </button>
+    );
+  }
+
+  const field = 'mt-0.5 rounded border border-slate-300 px-2 py-1.5 text-sm';
+  const seg = (active: boolean) =>
+    `flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+      active ? 'border-violet-300 bg-violet-50 text-violet-800' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+    }`;
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      {/* Goal kind */}
+      <div>
+        <div className="text-xs text-slate-600">What’s your goal?</div>
+        <div className="mt-1 flex flex-col gap-2 sm:flex-row">
+          <button type="button" className={seg(kind === 'finish')} onClick={() => setKind('finish')}>
+            Finish a distance
+          </button>
+          <button type="button" className={seg(kind === 'time')} onClick={() => setKind('time')}>
+            Race for a time
+          </button>
+          <button type="button" className={seg(kind === 'fitness')} onClick={() => setKind('fitness')}>
+            Build fitness
+          </button>
+        </div>
+      </div>
+
+      {/* Race details (finish / time) */}
+      {kind !== 'fitness' && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <label className="text-xs text-slate-600">
+            Distance
+            <select name="distanceLabel" defaultValue="5K" className={`block w-full ${field}`}>
+              {DISTANCES.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs text-slate-600">
+            Race date
+            <input name="date" type="date" required className={`block w-full ${field}`} />
+          </label>
+          {kind === 'time' && (
+            <label className="text-xs text-slate-600">
+              Target time (h:mm:ss)
+              <input name="targetTime" placeholder="1:45:00" className={`block w-full ${field}`} />
+            </label>
+          )}
+        </div>
+      )}
+      {kind === 'fitness' && (
+        <p className="text-xs text-slate-500">
+          No race in mind — we’ll build a progressive ~12-week block to grow your aerobic base and consistency.
+        </p>
+      )}
+
+      {/* Current fitness */}
+      <div>
+        <div className="text-xs text-slate-600">Where’s your fitness now?</div>
+        <div className="mt-1 space-y-2">
+          {hasAnchor && (
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="radio"
+                name="fk"
+                checked={fitnessKind === 'existing'}
+                onChange={() => setFitnessKind('existing')}
+              />
+              Use my current fitness (from recent training)
+            </label>
+          )}
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input type="radio" name="fk" checked={fitnessKind === 'race'} onChange={() => setFitnessKind('race')} />
+            From a recent race
+          </label>
+          {fitnessKind === 'race' && (
+            <div className="grid grid-cols-2 gap-3 pl-6">
+              <label className="text-xs text-slate-600">
+                Distance
+                <select name="fitnessDistance" defaultValue="5K" className={`block w-full ${field}`}>
+                  {DISTANCES.map((d) => (
+                    <option key={d.value} value={d.value}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs text-slate-600">
+                Time (h:mm:ss)
+                <input name="fitnessTime" placeholder="22:30" className={`block w-full ${field}`} />
+              </label>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Volume */}
+      <div className="grid grid-cols-2 gap-3">
+        <label className="text-xs text-slate-600">
+          Current weekly miles
+          <input name="currentWeeklyMiles" type="number" min={3} max={150} defaultValue={20} className={`block w-full ${field}`} />
+        </label>
+        <label className="text-xs text-slate-600">
+          Peak weekly miles (optional)
+          <input name="peakWeeklyMiles" type="number" min={3} max={160} placeholder="auto" className={`block w-full ${field}`} />
+        </label>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={pending}
+          className="rounded bg-violet-700 px-4 py-2 text-sm font-medium text-white hover:bg-violet-800 disabled:opacity-50"
+        >
+          {pending ? 'Building your plan…' : hasGoal ? 'Update goal & rebuild plan' : 'Set goal & build my plan'}
+        </button>
+        {hasGoal && (
+          <button type="button" onClick={() => setOpen(false)} className="text-xs text-slate-500 hover:underline">
+            Cancel
+          </button>
+        )}
+      </div>
+      {err && <p className="text-sm text-rose-600">{err}</p>}
+    </form>
+  );
+}

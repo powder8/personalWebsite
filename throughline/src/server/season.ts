@@ -16,7 +16,7 @@ import {
   type KeyRace,
 } from '@/engine/plan';
 import { persistPlanDraft } from '@/db/plans';
-import { getGlobalPaceModel, setAthletePaceConfig } from '@/db/paceConfig';
+import { getGlobalPaceModel, setAthletePaceConfig, getAthleteZones } from '@/db/paceConfig';
 
 export interface SeasonRaceInput {
   name: string;
@@ -36,8 +36,12 @@ export interface SeasonSetupInput {
   startDay: string; // build start (caller passes "today")
   goalRace: SeasonRaceInput; // priority forced to 'goal'
   keyRaces?: SeasonRaceInput[];
-  /** Fitness anchor: a recent race (preferred) or a threshold pace. */
-  fitness: { race?: { distanceMeters: number; timeSeconds: number }; thresholdSecPerKm?: number };
+  /**
+   * Fitness anchor: a recent race (preferred) or a threshold pace. Optional —
+   * omit to keep the athlete's EXISTING anchor (e.g. an auto-detected one from
+   * Strava) and just (re)build the plan around the new goal.
+   */
+  fitness?: { race?: { distanceMeters: number; timeSeconds: number }; thresholdSecPerKm?: number };
   startVolumeMiles: number;
   peakVolumeMiles: number;
 }
@@ -52,13 +56,20 @@ export async function setupSeason(
   athleteId: string,
   input: SeasonSetupInput,
 ): Promise<SeasonSetupResult> {
-  // 1) Fitness anchor → pace config (persisted for reuse) → zones.
-  const cfg: AthletePaceConfig = input.fitness.race
-    ? { kind: 'vdot', race: input.fitness.race }
-    : { thresholdSecPerKm: input.fitness.thresholdSecPerKm };
+  // 1) Fitness anchor → pace config (persisted for reuse) → zones. If no fitness
+  //    is supplied, keep the athlete's existing anchor and use its zones.
   const global = await getGlobalPaceModel(db);
-  const zones = resolvePaceZones(cfg, global);
-  await setAthletePaceConfig(db, athleteId, cfg);
+  let zones;
+  if (input.fitness && (input.fitness.race || input.fitness.thresholdSecPerKm != null)) {
+    const cfg: AthletePaceConfig = input.fitness.race
+      ? { kind: 'vdot', race: input.fitness.race }
+      : { thresholdSecPerKm: input.fitness.thresholdSecPerKm };
+    zones = resolvePaceZones(cfg, global);
+    await setAthletePaceConfig(db, athleteId, cfg);
+  } else {
+    zones = await getAthleteZones(db, athleteId);
+    if (!zones) throw new Error('No fitness anchor yet — provide a recent race or pace.');
+  }
 
   // 2) Athlete goal summary (for the roster).
   await db
