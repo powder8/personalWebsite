@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getRoster, TODAY } from '@/server/console';
+import { getRoster, todayISO } from '@/server/console';
 import { BandBadge, Flag } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
@@ -11,7 +11,7 @@ export default async function RosterPage() {
     <div>
       <div className="mb-4 flex items-baseline justify-between">
         <h1 className="text-lg font-semibold text-slate-900">Roster</h1>
-        <span className="text-sm text-slate-500">{TODAY} · sorted by needs-attention</span>
+        <span className="text-sm text-slate-500">{todayISO()} · sorted by needs-attention</span>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">

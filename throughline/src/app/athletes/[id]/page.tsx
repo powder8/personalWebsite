@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getAthleteDetail, TODAY, type Band } from '@/server/console';
+import { getAthleteDetail, todayISO, type Band } from '@/server/console';
 import { BandBadge, Card, Sparkline } from '@/components/ui';
 import { secPerKmToMinPerMile, purposeLabel, ageFromDob } from '@/engine/plan';
 import { DobControl } from '@/components/DobControl';
@@ -39,6 +39,7 @@ function dow(day: string): string {
 }
 
 export default async function AthletePage({ params }: { params: Promise<{ id: string }> }) {
+  const TODAY = todayISO();
   const { id } = await params;
   const detail = await getAthleteDetail(id);
   if (!detail) notFound();

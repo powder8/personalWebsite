@@ -116,60 +116,54 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
             </div>
           )}
         </div>
+
+        {/* Up today — inside the hero so goal and action read as one unit */}
+        <div className="mt-5 rounded-2xl bg-white/10 p-4 ring-1 ring-inset ring-white/10">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-lime-300">Up today</div>
+          {todaySession ? (
+            <div className="mt-1.5 flex items-center gap-3">
+              <span
+                className={`h-9 w-9 shrink-0 rounded-xl ${SESSION_COLOR[todaySession.sessionType] ?? 'bg-slate-400'}`}
+              />
+              <div className="min-w-0">
+                <div className="text-lg font-bold leading-tight tracking-tight">
+                  {SESSION_LABEL[todaySession.sessionType] ?? todaySession.sessionType}
+                  {todaySession.distanceMeters != null && todaySession.distanceMeters > 0 && (
+                    <span className="ml-2 font-semibold text-slate-300">{miles(todaySession.distanceMeters)} mi</span>
+                  )}
+                </div>
+                {todaySession.paceFastSecPerKm != null && (
+                  <div className="text-sm tabular-nums text-slate-300">
+                    {pace(todaySession.paceFastSecPerKm)}–{pace(todaySession.paceSlowSecPerKm)}
+                  </div>
+                )}
+                {todaySession.adjustments.length > 0 && (
+                  <div className="mt-1 inline-block rounded bg-amber-300/20 px-1.5 py-0.5 text-[11px] font-medium text-amber-200">
+                    {todaySession.adjustments.join('; ')}
+                  </div>
+                )}
+                {todaySession.description && <p className="mt-1 text-xs text-slate-400">{todaySession.description}</p>}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-1.5 flex items-center gap-3">
+              <span className="h-9 w-9 shrink-0 rounded-xl bg-white/15" />
+              <div>
+                <div className="text-lg font-bold leading-tight tracking-tight">Rest day</div>
+                <p className="text-sm text-slate-400">Recovery is training too.</p>
+              </div>
+            </div>
+          )}
+          {readiness.sentence && <p className="mt-3 border-t border-white/10 pt-2 text-xs text-slate-400">{readiness.sentence}</p>}
+        </div>
       </div>
 
-      {/* Goal setup: open when no goal; a quiet "Change goal" otherwise */}
-      {goalRace.name ? (
-        <div className="px-2">
-          <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal />
-        </div>
-      ) : (
+      {/* Goal setup (only prominent when there's no goal yet) */}
+      {!goalRace.name && (
         <Card title="What are you training for?">
           <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal={false} />
         </Card>
       )}
-
-      {/* ── TODAY ────────────────────────────────────────────────────────── */}
-      <Card>
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-700">Today</h2>
-          {readiness.sentence && <span className="hidden text-xs text-slate-400 sm:inline">{readiness.sentence}</span>}
-        </div>
-        {todaySession ? (
-          <div className="flex items-center gap-4 rounded-2xl bg-slate-50 p-4">
-            <span
-              className={`h-10 w-10 shrink-0 rounded-2xl ${SESSION_COLOR[todaySession.sessionType] ?? 'bg-slate-300'}`}
-            />
-            <div className="min-w-0">
-              <div className="text-lg font-bold tracking-tight text-slate-900">
-                {SESSION_LABEL[todaySession.sessionType] ?? todaySession.sessionType}
-                {todaySession.distanceMeters != null && todaySession.distanceMeters > 0 && (
-                  <span className="ml-2 text-slate-500">{miles(todaySession.distanceMeters)} mi</span>
-                )}
-              </div>
-              {todaySession.paceFastSecPerKm != null && (
-                <div className="text-sm tabular-nums text-slate-500">
-                  {pace(todaySession.paceFastSecPerKm)}–{pace(todaySession.paceSlowSecPerKm)}
-                </div>
-              )}
-              {todaySession.adjustments.length > 0 && (
-                <div className="mt-1 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700">
-                  {todaySession.adjustments.join('; ')}
-                </div>
-              )}
-              {todaySession.description && <p className="mt-1 text-xs text-slate-500">{todaySession.description}</p>}
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-4 rounded-2xl bg-slate-50 p-4">
-            <span className="h-10 w-10 shrink-0 rounded-2xl bg-slate-200" />
-            <div>
-              <div className="text-lg font-bold tracking-tight text-slate-900">Rest day</div>
-              <p className="text-sm text-slate-500">Recovery is training too.</p>
-            </div>
-          </div>
-        )}
-      </Card>
 
       {/* Chat — ask anything or change the plan */}
       <Card title="Your coach, on demand">
@@ -314,6 +308,12 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
           </ul>
         )}
       </Card>
+
+      {goalRace.name && (
+        <Card title="Change your goal or race">
+          <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal />
+        </Card>
+      )}
 
       <Card title="Cycle tracking">
         <CycleTracking athleteId={athlete.id} initial={cycleSettings} status={cycleStatus} />

@@ -6,7 +6,7 @@ import { athletes } from '@/db/schema';
 import { getSeasonPlan, getUpcomingWeeks } from '@/server/season';
 import { SeasonForm } from '@/components/SeasonForm';
 import { Card } from '@/components/ui';
-import { TODAY } from '@/server/console';
+import { todayISO } from '@/server/console';
 import { SessionEditor } from '@/components/SessionEditor';
 
 export const dynamic = 'force-dynamic';
@@ -23,6 +23,7 @@ const PHASE_COLOR: Record<string, string> = {
 };
 
 export default async function PlanPage({ params }: { params: Promise<{ id: string }> }) {
+  const TODAY = todayISO();
   const { id } = await params;
   const db = await getDb();
   const [athlete] = await db.select().from(athletes).where(eq(athletes.id, id)).limit(1);

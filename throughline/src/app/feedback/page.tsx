@@ -6,7 +6,7 @@ import { Card } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 
-const TODAY_MS = Date.UTC(2026, 5, 6);
+const TODAY_MS = Date.now();
 function age(d: Date): string {
   const days = Math.max(0, Math.round((TODAY_MS - new Date(d).getTime()) / 86400000));
   return days === 0 ? 'today' : `${days}d ago`;

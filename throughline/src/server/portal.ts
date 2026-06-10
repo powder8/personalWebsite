@@ -20,7 +20,7 @@ import {
   checkIns,
   activities,
 } from '@/db/schema';
-import { TODAY, type Band } from '@/server/console';
+import { todayISO, type Band } from '@/server/console';
 import { getStravaAccount } from '@/server/strava';
 import { stravaConfigured } from '@/providers/strava/env';
 
@@ -64,6 +64,7 @@ function daysBetween(a: string, b: string): number {
 }
 
 export async function getAthletePortal(id: string): Promise<AthletePortal | null> {
+  const TODAY = todayISO();
   const db = await getDb();
   const [athlete] = await db.select().from(athletes).where(eq(athletes.id, id)).limit(1);
   if (!athlete) return null;

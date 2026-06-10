@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { setupSeason, type SeasonSetupInput } from '@/server/season';
-import { TODAY } from '@/server/console';
+import { todayISO } from '@/server/console';
 
 export const runtime = 'nodejs';
 
@@ -29,7 +29,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   const input: SeasonSetupInput = {
-    startDay: body.startDay ?? TODAY,
+    startDay: body.startDay ?? todayISO(),
     goalRace: { ...body.goalRace, priority: 'goal' },
     keyRaces: body.keyRaces ?? [],
     fitness: body.fitness,

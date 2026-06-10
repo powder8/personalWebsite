@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { adjustAthleteZones } from '@/server/paceAdjust';
-import { TODAY } from '@/server/console';
+import { todayISO } from '@/server/console';
 import type { ZoneKey } from '@/engine/plan';
 
 export const runtime = 'nodejs';
@@ -28,7 +28,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
   try {
     const db = await getDb();
-    const result = await adjustAthleteZones(db, id, deltas, { today: TODAY });
+    const result = await adjustAthleteZones(db, id, deltas, { today: todayISO() });
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });

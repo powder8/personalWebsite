@@ -37,7 +37,20 @@ import {
   activities,
 } from '@/db/schema';
 
-export const TODAY = '2026-06-06';
+/**
+ * The app's "today" (YYYY-MM-DD), computed per call in the app timezone —
+ * APP_TIMEZONE env, default Europe/London. Overridable with APP_TODAY for
+ * demos/tests (this is how the original seeded-demo date worked).
+ */
+export function todayISO(): string {
+  if (process.env.APP_TODAY) return process.env.APP_TODAY;
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: process.env.APP_TIMEZONE || 'Europe/London',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
 
 export type Band = 'easy' | 'normal' | 'go';
 
@@ -63,6 +76,7 @@ function attentionScore(band: Band | null, injuries: number, missed: boolean): n
 }
 
 export async function getRoster(): Promise<RosterEntry[]> {
+  const TODAY = todayISO();
   const db = await getDb();
   const rows = await db.select().from(athletes).where(eq(athletes.active, true));
 
@@ -120,6 +134,7 @@ export async function getRoster(): Promise<RosterEntry[]> {
 }
 
 async function getTodaySession(athleteId: string) {
+  const TODAY = todayISO();
   const db = await getDb();
   const [plan] = await db
     .select()
@@ -176,6 +191,7 @@ export interface AthleteDetail {
 }
 
 export async function getAthleteDetail(id: string): Promise<AthleteDetail | null> {
+  const TODAY = todayISO();
   const db = await getDb();
   const [athlete] = await db.select().from(athletes).where(eq(athletes.id, id)).limit(1);
   if (!athlete) return null;
