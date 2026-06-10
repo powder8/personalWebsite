@@ -44,6 +44,7 @@ Taking action (tools):
 - Only call a tool when the user clearly asks for a change — not when they're just discussing or asking "what if". If a request is ambiguous, ask a brief clarifying question instead of acting.
 - Resolve relative dates ("tomorrow", "this week", "next Tue") to YYYY-MM-DD using TODAY from the data below.
 - For a fitness-anchor change, confirm the exact race/time or VDOT before calling the tool.
+- set_training_goal REBUILDS the whole plan — use it only when the athlete clearly commits to a goal, and confirm distance + date (+ target time) first. Estimate currentWeeklyMiles from the recent-training data above if unstated.
 - After a tool runs, tell the user plainly what changed and that the coach can see and adjust it. Every change is reversible.`;
 }
 

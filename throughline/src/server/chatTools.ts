@@ -9,6 +9,7 @@ import 'server-only';
 import type { DB } from '@/db';
 import { createDirective } from '@/server/directives';
 import { setAnchor } from '@/server/anchor';
+import { setupAthleteGoal } from '@/server/athleteGoal';
 import { planToolAction } from '@/server/chatToolPlan';
 
 export { CHAT_TOOLS } from '@/server/chatToolPlan';
@@ -39,6 +40,13 @@ export async function executeChatTool(
     if (plan.type === 'directive') {
       await createDirective(db, actor.athleteId, plan.directive);
       return { ok: true, summary: plan.summary };
+    }
+    if (plan.type === 'goal') {
+      const r = await setupAthleteGoal(db, actor.athleteId, actor.today, plan.goal);
+      return {
+        ok: true,
+        summary: `${plan.describe} — built your ${r.weeks}-week plan. See "Your season" for the blocks and "Race plan" for your target window and warm-up races.`,
+      };
     }
     // anchor
     const r = await setAnchor(db, actor.athleteId, plan.anchor, { today: actor.today, source: 'manual' });

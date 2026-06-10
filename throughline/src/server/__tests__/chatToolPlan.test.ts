@@ -36,6 +36,42 @@ test('bad dates, out-of-range magnitudes, and bad VDOT are rejected', () => {
   assert.ok('error' in planToolAction('adjust_paces_window', { direction: 'sideways', secondsPerMile: 5, from: '2026-06-09' }));
 });
 
+test('set_training_goal: race-for-time maps to a full goal input', () => {
+  const p = planToolAction('set_training_goal', {
+    kind: 'time',
+    distanceLabel: '5K',
+    date: '2026-08-08',
+    targetTimeSeconds: 21 * 60 + 30,
+    currentWeeklyMiles: 20,
+  });
+  assert.ok('type' in p && p.type === 'goal');
+  const g = (p as Extract<typeof p, { type: 'goal' }>).goal;
+  assert.equal(g.kind, 'time');
+  assert.equal(g.distanceLabel, '5K');
+  assert.equal(g.fitness.kind, 'existing');
+  assert.ok((p as Extract<typeof p, { type: 'goal' }>).describe.includes('21:30'));
+});
+
+test('set_training_goal: recentRace overrides the fitness source; fitness kind needs no date', () => {
+  const p = planToolAction('set_training_goal', {
+    kind: 'finish',
+    distanceLabel: '10K',
+    date: '2026-09-01',
+    currentWeeklyMiles: 15,
+    recentRace: { distanceLabel: '5K', timeSeconds: 1350 },
+  });
+  assert.ok('type' in p && p.type === 'goal' && p.goal.fitness.kind === 'race');
+  const f = planToolAction('set_training_goal', { kind: 'fitness', currentWeeklyMiles: 12 });
+  assert.ok('type' in f && f.type === 'goal' && f.goal.kind === 'fitness');
+});
+
+test('set_training_goal: rejects missing date/distance/time/mileage', () => {
+  assert.ok('error' in planToolAction('set_training_goal', { kind: 'time', distanceLabel: '5K', date: 'Aug 8', targetTimeSeconds: 1290, currentWeeklyMiles: 20 }));
+  assert.ok('error' in planToolAction('set_training_goal', { kind: 'finish', date: '2026-08-08', currentWeeklyMiles: 20 }));
+  assert.ok('error' in planToolAction('set_training_goal', { kind: 'time', distanceLabel: '5K', date: '2026-08-08', currentWeeklyMiles: 20 }));
+  assert.ok('error' in planToolAction('set_training_goal', { kind: 'finish', distanceLabel: '5K', date: '2026-08-08' }));
+});
+
 test('unknown tool name → error', () => {
   assert.ok('error' in planToolAction('definitely_not_a_tool', {}));
 });
