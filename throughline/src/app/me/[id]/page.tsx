@@ -24,6 +24,7 @@ import { RacePlanCard } from '@/components/RacePlanCard';
 import { PlanTimeline } from '@/components/PlanTimeline';
 import { WeekStrip, SESSION_COLOR, SESSION_LABEL, SESSION_TERRAIN } from '@/components/WeekStrip';
 import { SegmentList } from '@/components/SegmentList';
+import { BottomNav } from '@/components/BottomNav';
 import { getDb } from '@/db';
 
 export const dynamic = 'force-dynamic';
@@ -84,9 +85,9 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
   const needsGoal = !goalRace.name || goalDone;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4">
+    <div className="mx-auto max-w-2xl space-y-4 pb-20 sm:pb-4">
       {/* ── HERO: who you are + what you're chasing ─────────────────────── */}
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 p-6 text-white shadow-lg">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 text-white shadow-lg">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-sm text-slate-400">Hi {firstName} 👋 · {today}</p>
@@ -110,16 +111,16 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
             )}
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {currentPhase && (
-                <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold capitalize text-slate-100 ring-1 ring-inset ring-white/15">
+                <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold capitalize text-white/90 ring-1 ring-inset ring-white/15">
                   {currentPhase} block
                 </span>
               )}
               {readiness.band && (
-                <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold capitalize text-slate-100 ring-1 ring-inset ring-white/15">
+                <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold capitalize text-white/90 ring-1 ring-inset ring-white/15">
                   Readiness: {readiness.band}
                 </span>
               )}
-              <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-slate-100 ring-1 ring-inset ring-white/15">
+              <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/90 ring-1 ring-inset ring-white/15">
                 {athlete.coachingMode === 'assisted' ? 'Coach-guided' : 'Auto-coached'}
               </span>
             </div>
@@ -146,11 +147,11 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
                 <div className="text-lg font-bold leading-tight tracking-tight">
                   {SESSION_LABEL[todaySession.sessionType] ?? todaySession.sessionType}
                   {todaySession.distanceMeters != null && todaySession.distanceMeters > 0 && (
-                    <span className="ml-2 font-semibold text-slate-300">{miles(todaySession.distanceMeters)} mi</span>
+                    <span className="ml-2 font-semibold text-white/80">{miles(todaySession.distanceMeters)} mi</span>
                   )}
                 </div>
                 {todaySession.paceFastSecPerKm != null && (
-                  <div className="text-sm tabular-nums text-slate-300">
+                  <div className="text-sm tabular-nums text-white/75">
                     {pace(todaySession.paceFastSecPerKm)}–{pace(todaySession.paceSlowSecPerKm)}
                   </div>
                 )}
@@ -187,7 +188,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
       {needsGoal && (
         <Card
           title={goalDone ? 'What’s next?' : 'What are you training for?'}
-          className="border-lime-300 ring-1 ring-inset ring-lime-200"
+          className="border-lime-400/30 ring-1 ring-inset ring-lime-400/30"
         >
           {goalDone && (
             <p className="mb-3 text-sm text-slate-600">
@@ -206,6 +207,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
       </Card>
 
       {/* ── YOUR SEASON: the blocks that push your fitness ──────────────── */}
+      <div id="season" className="scroll-mt-4" />
       {timeline && timeline.blocks.length > 0 && (
         <Card title="Your season — block by block">
           <PlanTimeline timeline={timeline} />
@@ -232,7 +234,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
             <table className="mt-3 w-full text-sm">
               <tbody className="divide-y divide-slate-100">
                 {thisWeek.sessions.map((s) => (
-                  <tr key={s.id} className={s.day === today ? 'bg-sky-50/60' : ''}>
+                  <tr key={s.id} className={s.day === today ? 'bg-sky-400/10' : ''}>
                     <td className="w-12 px-2 py-2 font-medium text-slate-500">{dow(s.day)}</td>
                     <td className="w-14 px-2 py-2 tabular-nums text-slate-700">{miles(s.distanceMeters)} mi</td>
                     <td className="px-2 py-2">
@@ -287,6 +289,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
       )}
 
       {/* ── PROGRESS: is the work working? ──────────────────────────────── */}
+      <div id="progress" className="scroll-mt-4" />
       <SectionHeader>Your progress</SectionHeader>
       {insights?.buildProfile && (
         <Card title="What drives your fitness">
@@ -306,7 +309,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
           )}
           <Link
             href={`/me/${athlete.id}/insights`}
-            className="mt-2 inline-block text-sm font-medium text-sky-700 hover:underline"
+            className="mt-2 inline-block text-sm font-medium text-sky-300 hover:underline"
           >
             See what drove your best fitness →
           </Link>
@@ -362,6 +365,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
       </Card>
 
       {/* ── SETUP & GEAR ─────────────────────────────────────────────────── */}
+      <div id="setup" className="scroll-mt-4" />
       <SectionHeader>Setup &amp; gear</SectionHeader>
       <Card title="Connect your watch (via Strava)">
         <ConnectStrava
@@ -379,6 +383,8 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
       <Card title="Put your plan in your calendar">
         <CalendarSubscribe athleteId={athlete.id} />
       </Card>
+
+      <BottomNav />
     </div>
   );
 }
@@ -401,13 +407,13 @@ function SessionLine({ s }: { s: PortalSession }) {
         </span>
       )}
       {s.adjustments.length > 0 && (
-        <span className="ml-2 rounded bg-amber-50 px-1 text-[10px] font-medium text-amber-700">
+        <span className="ml-2 rounded bg-amber-400/10 px-1 text-[10px] font-medium text-amber-300">
           {s.adjustments.join('; ')}
         </span>
       )}
       {s.segments?.length ? (
         <details className="mt-0.5">
-          <summary className="cursor-pointer text-xs font-medium text-sky-700">Workout structure</summary>
+          <summary className="cursor-pointer text-xs font-medium text-sky-300">Workout structure</summary>
           <SegmentList segments={s.segments} />
         </details>
       ) : (

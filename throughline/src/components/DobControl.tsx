@@ -53,7 +53,7 @@ export function DobControl({ athleteId, initial }: { athleteId: string; initial:
       >
         {pending ? 'Saving…' : 'Save'}
       </button>
-      {saved && <span className="text-sm text-emerald-700">Saved ✓</span>}
+      {saved && <span className="text-sm text-emerald-300">Saved ✓</span>}
       {err && <span className="text-sm text-rose-600">{err}</span>}
     </div>
   );

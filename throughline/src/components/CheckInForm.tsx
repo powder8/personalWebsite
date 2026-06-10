@@ -66,7 +66,7 @@ export function CheckInForm({
       >
         {pending ? 'Saving…' : initial ? 'Update check-in' : 'Submit check-in'}
       </button>
-      {done && <p className="text-sm text-emerald-700">Thanks — logged for today. 🙌</p>}
+      {done && <p className="text-sm text-emerald-300">Thanks — logged for today. 🙌</p>}
       {err && <p className="text-sm text-rose-600">{err}</p>}
     </form>
   );

@@ -46,7 +46,7 @@ export function FeedbackWidget() {
   return (
     <div className="fixed bottom-4 right-4 z-50">
       {open ? (
-        <div className="w-80 rounded-lg border border-slate-200 bg-white p-4 shadow-lg">
+        <div className="w-80 rounded-lg border border-slate-200 bg-card p-4 shadow-lg">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-semibold text-slate-800">Feedback</span>
             <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-700">
@@ -54,7 +54,7 @@ export function FeedbackWidget() {
             </button>
           </div>
           {done ? (
-            <p className="py-4 text-center text-sm text-emerald-700">Thanks — sent! 🙌</p>
+            <p className="py-4 text-center text-sm text-emerald-300">Thanks — sent! 🙌</p>
           ) : (
             <form onSubmit={onSubmit} className="space-y-2">
               <p className="text-xs text-slate-500">

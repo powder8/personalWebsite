@@ -44,7 +44,7 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="space-y-5">
       <div>
-        <Link href={`/athletes/${id}`} className="text-sm text-sky-700 hover:underline">
+        <Link href={`/athletes/${id}`} className="text-sm text-sky-300 hover:underline">
           ← {athlete.fullName}
         </Link>
         <h1 className="mt-1 text-lg font-semibold text-slate-900">Season plan</h1>
@@ -89,9 +89,9 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
                           key={r.id}
                           className={`mr-1 inline-block rounded px-1.5 py-0.5 text-xs font-medium ${
                             r.priority === 'goal'
-                              ? 'bg-violet-100 text-violet-800'
+                              ? 'bg-violet-400/15 text-violet-200'
                               : r.priority === 'tune_up'
-                                ? 'bg-sky-100 text-sky-800'
+                                ? 'bg-sky-400/15 text-sky-200'
                                 : 'bg-slate-100 text-slate-600'
                           }`}
                         >

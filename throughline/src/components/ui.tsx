@@ -2,9 +2,9 @@
 import type { Band } from '@/server/console';
 
 const BAND_STYLES: Record<Band, string> = {
-  easy: 'bg-amber-100 text-amber-800 ring-amber-200',
+  easy: 'bg-amber-400/15 text-amber-200 ring-amber-400/30',
   normal: 'bg-slate-100 text-slate-700 ring-slate-200',
-  go: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
+  go: 'bg-emerald-400/15 text-emerald-200 ring-emerald-400/30',
 };
 
 export function BandBadge({ band, score }: { band: Band | null; score?: number | null }) {
@@ -21,7 +21,7 @@ export function BandBadge({ band, score }: { band: Band | null; score?: number |
 
 export function Flag({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center rounded bg-rose-50 px-1.5 py-0.5 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-200">
+    <span className="inline-flex items-center rounded bg-rose-400/10 px-1.5 py-0.5 text-xs font-medium text-rose-300 ring-1 ring-inset ring-rose-400/30">
       {children}
     </span>
   );
@@ -65,7 +65,7 @@ export function Card({
   className?: string;
 }) {
   return (
-    <section className={`rounded-2xl border border-slate-200/70 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ${className}`}>
+    <section className={`rounded-2xl border border-slate-200/70 bg-card p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ${className}`}>
       {title && <h2 className="mb-3 text-sm font-semibold text-slate-700">{title}</h2>}
       {children}
     </section>

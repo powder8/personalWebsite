@@ -26,9 +26,9 @@ function niceTop(v: number): number {
 
 const KIND_LABEL: Record<EffortKind, string> = { race: 'Race', workout: 'Workout', long_run: 'Long run' };
 const KIND_STYLE: Record<EffortKind, string> = {
-  race: 'bg-violet-100 text-violet-800 ring-violet-200',
-  workout: 'bg-amber-100 text-amber-800 ring-amber-200',
-  long_run: 'bg-sky-100 text-sky-800 ring-sky-200',
+  race: 'bg-violet-400/15 text-violet-200 ring-violet-400/30',
+  workout: 'bg-amber-400/15 text-amber-200 ring-amber-400/30',
+  long_run: 'bg-sky-400/15 text-sky-200 ring-sky-400/30',
 };
 
 function fmtMonthDay(day: string): string {
@@ -75,7 +75,7 @@ export function WeeklyVolumeChart({ summary, runLinkBase }: { summary: TrainingS
             const y = plotBottom - t * plotHeight;
             return (
               <g key={t}>
-                <line x1={PAD_L} x2={W - padR} y1={y} y2={y} stroke="#e2e8f0" strokeWidth={1} />
+                <line x1={PAD_L} x2={W - padR} y1={y} y2={y} stroke="#26304a" strokeWidth={1} />
                 <text x={PAD_L - 4} y={y + 3} textAnchor="end" className="fill-slate-400" fontSize={9}>
                   {Math.round(t * milesTop)}
                 </text>
@@ -170,7 +170,7 @@ export function WeeklyVolumeChart({ summary, runLinkBase }: { summary: TrainingS
                   </td>
                   <td className="py-1.5 text-slate-700">
                     {runLinkBase ? (
-                      <Link href={`${runLinkBase}/${e.id}`} className="text-sky-700 hover:underline">
+                      <Link href={`${runLinkBase}/${e.id}`} className="text-sky-300 hover:underline">
                         {e.name ?? 'Run'}
                       </Link>
                     ) : (

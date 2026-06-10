@@ -26,14 +26,17 @@ DIR = Path(__file__).parent
 CONFIG = json.loads((DIR / "strategies.json").read_text())
 
 # ─── SSL shim (macOS Python often lacks certs; fall back to unverified) ───────
+# The probe makes a live network call; FINANCES_NO_NETWORK=1 skips it so the
+# module (and its pure functions) can be imported offline for unit tests.
 SSL_CTX = ssl.create_default_context()
-try:
-    urllib.request.urlopen("https://query1.finance.yahoo.com", timeout=5, context=SSL_CTX)
-except urllib.error.URLError as e:
-    if "CERTIFICATE_VERIFY_FAILED" in str(e):
-        SSL_CTX = ssl._create_unverified_context()
-except Exception:
-    pass
+if not os.environ.get("FINANCES_NO_NETWORK"):
+    try:
+        urllib.request.urlopen("https://query1.finance.yahoo.com", timeout=5, context=SSL_CTX)
+    except urllib.error.URLError as e:
+        if "CERTIFICATE_VERIFY_FAILED" in str(e):
+            SSL_CTX = ssl._create_unverified_context()
+    except Exception:
+        pass
 
 TRADING_DAYS = CONFIG["assumptions"]["trading_days_per_year"]
 RF = CONFIG["assumptions"]["risk_free"]
@@ -43,9 +46,10 @@ Z80 = 1.2816  # z for P10/P90 (80% band)
 
 # ─── Data layer: Yahoo Finance v8 chart API (keyless) ────────────────────────
 
-def fetch_series(ticker):
-    """Return {date_iso: adjusted_close} of daily total-return prices, or {} on failure."""
-    start = datetime.strptime(CONFIG["start_date"], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+def fetch_series(ticker, start_iso=None):
+    """Return {date_iso: adjusted_close} of daily total-return prices, or {} on failure.
+    start_iso overrides CONFIG['start_date'] to pull deeper history for the long-run analysis."""
+    start = datetime.strptime(start_iso or CONFIG["start_date"], "%Y-%m-%d").replace(tzinfo=timezone.utc)
     # pad start a few weeks earlier so we can locate the first trading day >= start_date
     p1 = int(start.timestamp()) - 30 * 86400
     p2 = int(datetime.now(timezone.utc).timestamp()) + 86400
@@ -130,6 +134,159 @@ def project_fan(v0, mu, sigma, quarters):
             "p90": v0 * math.exp(drift + spread),
         })
     return fan
+
+
+# ─── Deeper analytics: linear algebra, regression, time-series (pure, stdlib) ─
+
+def _mat_inverse(A):
+    """Inverse of a square matrix via Gauss-Jordan with partial pivoting.
+    Raises ValueError on a singular/near-singular matrix."""
+    n = len(A)
+    M = [[float(A[i][j]) for j in range(n)] + [1.0 if i == k else 0.0 for k in range(n)]
+         for i in range(n)]
+    for col in range(n):
+        piv = max(range(col, n), key=lambda r: abs(M[r][col]))
+        if abs(M[piv][col]) < 1e-12:
+            raise ValueError("singular matrix")
+        M[col], M[piv] = M[piv], M[col]
+        pv = M[col][col]
+        M[col] = [x / pv for x in M[col]]
+        for r in range(n):
+            if r != col and M[r][col] != 0.0:
+                f = M[r][col]
+                M[r] = [M[r][j] - f * M[col][j] for j in range(2 * n)]
+    return [row[n:] for row in M]
+
+
+def ols(y, X):
+    """OLS of y on X (each row = regressors WITHOUT an intercept; one is added).
+    Returns {coef, se, tstat, r2, n, df, resid_std} with coef[0] = intercept,
+    or None if under-determined or singular."""
+    n = len(y)
+    if n == 0 or len(X) != n:
+        return None
+    k = len(X[0]) if X[0] else 0
+    p = k + 1
+    if n - p <= 0:
+        return None
+    D = [[1.0] + [float(v) for v in X[i]] for i in range(n)]
+    XtX = [[sum(D[r][i] * D[r][j] for r in range(n)) for j in range(p)] for i in range(p)]
+    Xty = [sum(D[r][i] * y[r] for r in range(n)) for i in range(p)]
+    try:
+        XtXi = _mat_inverse(XtX)
+    except ValueError:
+        return None
+    coef = [sum(XtXi[i][j] * Xty[j] for j in range(p)) for i in range(p)]
+    yhat = [sum(coef[j] * D[r][j] for j in range(p)) for r in range(n)]
+    resid = [y[r] - yhat[r] for r in range(n)]
+    ssr = sum(e * e for e in resid)
+    ybar = sum(y) / n
+    sst = sum((v - ybar) ** 2 for v in y)
+    r2 = 1 - ssr / sst if sst > 0 else 0.0
+    df = n - p
+    sigma2 = ssr / df
+    se = [math.sqrt(sigma2 * XtXi[i][i]) if XtXi[i][i] > 0 else 0.0 for i in range(p)]
+    tstat = [coef[i] / se[i] if se[i] > 0 else 0.0 for i in range(p)]
+    return {"coef": coef, "se": se, "tstat": tstat, "r2": r2, "n": n, "df": df,
+            "resid_std": math.sqrt(sigma2)}
+
+
+def tstat_mean(xs):
+    """One-sample t-stat of mean(xs) vs 0. Returns (t, n, mean)."""
+    n = len(xs)
+    if n < 2:
+        return (0.0, n, (xs[0] if xs else 0.0))
+    mean = sum(xs) / n
+    sd = statistics.stdev(xs)
+    if sd == 0:
+        return (0.0, n, mean)
+    return (mean / (sd / math.sqrt(n)), n, mean)
+
+
+def tracking_stats(fund_rets, bench_rets):
+    """Aligned monthly returns -> {te_annual, ir, mean_excess_annual, tstat, n_months}
+    or None if < 12 paired months."""
+    n = min(len(fund_rets), len(bench_rets))
+    if n < 12:
+        return None
+    excess = [fund_rets[i] - bench_rets[i] for i in range(n)]
+    t, _, mean_excess = tstat_mean(excess)
+    te_annual = (statistics.stdev(excess) if n > 1 else 0.0) * math.sqrt(12)
+    mean_excess_annual = mean_excess * 12
+    return {"te_annual": te_annual,
+            "ir": mean_excess_annual / te_annual if te_annual > 0 else 0.0,
+            "mean_excess_annual": mean_excess_annual, "tstat": t, "n_months": n}
+
+
+def resample_monthly(series):
+    """{date_iso: px} daily -> {'YYYY-MM': last_trading_day_px}."""
+    out = {}
+    for d in sorted(series):
+        out[d[:7]] = series[d]   # ascending iteration -> last day of month wins
+    return out
+
+
+def monthly_returns(monthly_px):
+    """[px...] aligned month-end levels -> [simple returns px_i/px_{i-1} - 1]."""
+    return [monthly_px[i] / monthly_px[i - 1] - 1
+            for i in range(1, len(monthly_px)) if monthly_px[i - 1] > 0]
+
+
+def align_monthly(monthly_by_ticker):
+    """{ticker: {ym: px}} -> (months_sorted, {ticker: [px aligned to months]}) over
+    the intersection of months present for ALL tickers."""
+    tickers = list(monthly_by_ticker)
+    if not tickers:
+        return ([], {})
+    common = set(monthly_by_ticker[tickers[0]])
+    for t in tickers[1:]:
+        common &= set(monthly_by_ticker[t])
+    months = sorted(common)
+    return (months, {t: [monthly_by_ticker[t][m] for m in months] for t in tickers})
+
+
+def _shift_years(iso, n):
+    d = datetime.strptime(iso, "%Y-%m-%d").date()
+    try:
+        return d.replace(year=d.year - n).isoformat()
+    except ValueError:                       # Feb 29 -> Feb 28
+        return d.replace(year=d.year - n, day=28).isoformat()
+
+
+def window_metrics(values):
+    """daily price levels over a window -> {cagr, vol, mdd, sharpe, years} or None."""
+    if len(values) < 2 or values[0] <= 0:
+        return None
+    yrs = (len(values) - 1) / TRADING_DAYS
+    g = cagr(values[0], values[-1], yrs)
+    v = annualized_vol(values)
+    return {"cagr": g, "vol": v, "mdd": max_drawdown(values),
+            "sharpe": (g - RF) / v if v > 0 else 0.0, "years": yrs}
+
+
+def multi_horizon(series_daily, horizons_years, as_of_iso=None):
+    """{date_iso: px} -> {f'{H}y': window_metrics|None, 'inception': ..., 'first_date'}."""
+    if not series_daily:
+        return {}
+    dates = sorted(series_daily)
+    as_of = as_of_iso or dates[-1]
+    out = {"first_date": dates[0]}
+    for H in horizons_years:
+        cutoff = _shift_years(as_of, H)
+        vals = [series_daily[d] for d in dates if cutoff <= d <= as_of]
+        out[f"{H}y"] = window_metrics(vals) if len(vals) >= 2 else None
+    out["inception"] = window_metrics([series_daily[d] for d in dates if d <= as_of])
+    return out
+
+
+def tax_switch_breakeven(value, embedded_gain_pct, ltcg_rate, annual_fee_savings_rate):
+    """Illustrative one-time switching tax + linear payback from annual fee savings."""
+    tax_cost = value * embedded_gain_pct * ltcg_rate
+    annual_savings = value * annual_fee_savings_rate
+    return {"tax_cost": tax_cost, "annual_savings": annual_savings,
+            "breakeven_years": (tax_cost / annual_savings) if annual_savings > 0 else None,
+            "embedded_gain_pct": embedded_gain_pct, "ltcg_rate": ltcg_rate,
+            "annual_fee_savings_rate": annual_fee_savings_rate}
 
 
 # ─── Build the comparison ────────────────────────────────────────────────────

@@ -88,7 +88,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
   return (
     <div className="space-y-5">
       <div>
-        <Link href="/" className="text-sm text-sky-700 hover:underline">
+        <Link href="/" className="text-sm text-sky-300 hover:underline">
           ← Roster
         </Link>
         <div className="mt-1 flex items-center justify-between">
@@ -99,13 +99,13 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
               {athlete.goalRaceDate && <span> · {athlete.goalRaceDate}</span>}
             </div>
             <div className="flex justify-end gap-3">
-              <Link href={`/me/${athlete.id}`} className="text-sky-700 hover:underline">
+              <Link href={`/me/${athlete.id}`} className="text-sky-300 hover:underline">
                 Athlete view →
               </Link>
-              <Link href={`/athletes/${athlete.id}/insights`} className="text-sky-700 hover:underline">
+              <Link href={`/athletes/${athlete.id}/insights`} className="text-sky-300 hover:underline">
                 Insights →
               </Link>
-              <Link href={`/athletes/${athlete.id}/plan`} className="text-sky-700 hover:underline">
+              <Link href={`/athletes/${athlete.id}/plan`} className="text-sky-300 hover:underline">
                 Season plan →
               </Link>
             </div>
@@ -115,7 +115,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
 
       {/* Insights — lead with it; this is the differentiator */}
       {insights && (insights.buildProfile || insights.suggestions.length > 0) && (
-        <Card title="Insights" className="border-sky-200 bg-sky-50/40">
+        <Card title="Insights" className="border-sky-400/30 bg-sky-400/10">
           {insights.buildProfile && (
             <div className="text-sm text-slate-700">
               <span className="font-medium">
@@ -138,7 +138,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
                 <li key={i} className="flex items-start gap-2">
                   <span
                     className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                      s.basis === 'science' ? 'bg-violet-100 text-violet-700' : 'bg-emerald-100 text-emerald-700'
+                      s.basis === 'science' ? 'bg-violet-400/15 text-violet-300' : 'bg-emerald-400/15 text-emerald-300'
                     }`}
                   >
                     {s.basis === 'science' ? 'science' : 'history'}
@@ -150,7 +150,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           )}
           <Link
             href={`/athletes/${athlete.id}/insights`}
-            className="mt-2 inline-block text-sm font-medium text-sky-700 hover:underline"
+            className="mt-2 inline-block text-sm font-medium text-sky-300 hover:underline"
           >
             Full insights →
           </Link>
@@ -164,12 +164,12 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
 
       {/* Autopilot escalations needing review */}
       {escalations.length > 0 && (
-        <Card title="Needs review (autopilot held)" className="border-rose-200">
+        <Card title="Needs review (autopilot held)" className="border-rose-400/30">
           <ul className="space-y-2 text-sm">
             {escalations.map((e) => (
               <li key={e.id} className="flex items-start justify-between gap-3">
                 <div>
-                  <span className="rounded bg-rose-50 px-1.5 py-0.5 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-200">
+                  <span className="rounded bg-rose-400/10 px-1.5 py-0.5 text-xs font-medium text-rose-300 ring-1 ring-inset ring-rose-400/30">
                     {ESCALATION_LABELS[e.kind] ?? e.kind}
                   </span>
                   <p className="mt-1 text-slate-600">{e.reason}</p>
@@ -252,11 +252,11 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
                     </p>
                   </div>
                   {w.filledBy ? (
-                    <span className="whitespace-nowrap rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                    <span className="whitespace-nowrap rounded bg-emerald-400/10 px-1.5 py-0.5 text-xs font-medium text-emerald-300 ring-1 ring-inset ring-emerald-400/30">
                       ✓ {w.filledBy.name}
                     </span>
                   ) : (
-                    <span className="whitespace-nowrap rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
+                    <span className="whitespace-nowrap rounded bg-amber-400/10 px-1.5 py-0.5 text-xs font-medium text-amber-300 ring-1 ring-inset ring-amber-400/30">
                       open
                     </span>
                   )}
@@ -322,7 +322,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           <div className="mb-2 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
             <span>
               <span className="text-slate-400">Fitness (CTL)</span>{' '}
-              <span className="font-medium tabular-nums text-sky-700">{fitness.current.ctl.toFixed(0)}</span>
+              <span className="font-medium tabular-nums text-sky-300">{fitness.current.ctl.toFixed(0)}</span>
             </span>
             <span>
               <span className="text-slate-400">Fatigue (ATL)</span>{' '}
@@ -332,7 +332,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
               <span className="text-slate-400">Form (TSB)</span>{' '}
               <span
                 className={`font-medium tabular-nums ${
-                  fitness.current.tsb >= 0 ? 'text-emerald-700' : 'text-rose-600'
+                  fitness.current.tsb >= 0 ? 'text-emerald-300' : 'text-rose-600'
                 }`}
               >
                 {fitness.current.tsb >= 0 ? '+' : ''}
@@ -378,7 +378,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
                   {w.adherencePct != null && (
                     <span
                       className={`text-xs font-medium tabular-nums ${
-                        w.adherencePct >= 80 ? 'text-emerald-700' : w.adherencePct >= 50 ? 'text-amber-700' : 'text-rose-600'
+                        w.adherencePct >= 80 ? 'text-emerald-300' : w.adherencePct >= 50 ? 'text-amber-300' : 'text-rose-600'
                       }`}
                     >
                       {w.adherencePct}% ({w.sessionsDone}/{w.sessionsPlanned})
@@ -413,7 +413,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
                 {currentWeek.sessions.map((s) => {
                   const isToday = s.day === TODAY;
                   return (
-                    <tr key={s.id} className={isToday ? 'bg-sky-50' : ''}>
+                    <tr key={s.id} className={isToday ? 'bg-sky-400/10' : ''}>
                       <td className="w-12 px-2 py-2 font-medium text-slate-500">{dow(s.day)}</td>
                       <td className="w-16 px-2 py-2 text-slate-700">{miles(s.targetDistanceMeters)} mi</td>
                       <td className="px-2 py-2">
@@ -429,13 +429,13 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
                           </span>
                         )}
                         {s.adjustments.length > 0 && (
-                          <span className="ml-2 rounded bg-amber-50 px-1 text-[10px] font-medium text-amber-700">
+                          <span className="ml-2 rounded bg-amber-400/10 px-1 text-[10px] font-medium text-amber-300">
                             {s.adjustments.join('; ')}
                           </span>
                         )}
                         {(s.segments as PortalSegment[] | null)?.length ? (
                           <details>
-                            <summary className="cursor-pointer text-xs font-medium text-sky-700">
+                            <summary className="cursor-pointer text-xs font-medium text-sky-300">
                               {s.description ?? 'Workout structure'}
                             </summary>
                             <SegmentList segments={s.segments as PortalSegment[]} />
@@ -516,7 +516,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
                               </span>
                             )}
                             {s.adjustments.length > 0 && (
-                              <span className="ml-2 rounded bg-amber-50 px-1 text-[10px] font-medium text-amber-700">
+                              <span className="ml-2 rounded bg-amber-400/10 px-1 text-[10px] font-medium text-amber-300">
                                 {s.adjustments.join('; ')}
                               </span>
                             )}
@@ -530,7 +530,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           </div>
           <Link
             href={`/athletes/${athlete.id}/plan`}
-            className="mt-3 inline-block text-sm text-sky-700 hover:underline"
+            className="mt-3 inline-block text-sm text-sky-300 hover:underline"
           >
             Full season plan →
           </Link>
@@ -539,7 +539,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
 
       {/* Fitness anchor (auto-inferred by default; confirm or override) */}
       {(anchorSuggestions.length > 0 || vdot == null || anchorSource === 'auto') && (
-        <Card title="Fitness anchor" className={vdot == null || anchorSource === 'auto' ? 'border-sky-200' : ''}>
+        <Card title="Fitness anchor" className={vdot == null || anchorSource === 'auto' ? 'border-sky-400/30' : ''}>
           <AnchorControl
             athleteId={athlete.id}
             currentVdot={vdot}
@@ -659,7 +659,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
 
       {/* Cycle phase (only if the athlete opted in; phase only, no dates) */}
       {cycle.enabled && cycle.phase && (
-        <Card title="Cycle phase" className={cycle.lateLuteal ? 'border-amber-200 bg-amber-50/40' : ''}>
+        <Card title="Cycle phase" className={cycle.lateLuteal ? 'border-amber-400/30 bg-amber-400/10' : ''}>
           <p className="text-sm text-slate-700">
             <span className="font-medium capitalize">{cycle.phase} phase</span>
             {cycle.dayInCycle != null && <span className="text-slate-500"> · day {cycle.dayInCycle}</span>}
@@ -668,7 +668,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
             )}
           </p>
           {cycle.lateLuteal && (
-            <p className="mt-1 text-xs font-medium text-amber-800">
+            <p className="mt-1 text-xs font-medium text-amber-200">
               Late luteal — fatigue more likely. Consider easing key sessions / avoiding A-races this window.
             </p>
           )}
@@ -697,8 +697,8 @@ function Legend({ color, label }: { color: string; label: string }) {
 }
 
 const PRIORITY_STYLE: Record<string, string> = {
-  goal: 'bg-violet-100 text-violet-800 ring-violet-200',
-  tune_up: 'bg-sky-100 text-sky-800 ring-sky-200',
+  goal: 'bg-violet-400/15 text-violet-200 ring-violet-400/30',
+  tune_up: 'bg-sky-400/15 text-sky-200 ring-sky-400/30',
   training: 'bg-slate-100 text-slate-600 ring-slate-200',
   other: 'bg-slate-100 text-slate-500 ring-slate-200',
 };

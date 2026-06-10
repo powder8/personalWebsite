@@ -6,11 +6,11 @@
 import type { SeasonTimeline } from '@/server/blocks';
 
 const PHASE_STYLE: Record<string, { bar: string; chip: string; label: string }> = {
-  base: { bar: 'bg-sky-400', chip: 'bg-sky-50 text-sky-700 ring-sky-200', label: 'Base' },
-  build: { bar: 'bg-amber-400', chip: 'bg-amber-50 text-amber-700 ring-amber-200', label: 'Build' },
-  peak: { bar: 'bg-rose-400', chip: 'bg-rose-50 text-rose-700 ring-rose-200', label: 'Peak' },
-  taper: { bar: 'bg-violet-400', chip: 'bg-violet-50 text-violet-700 ring-violet-200', label: 'Taper' },
-  race: { bar: 'bg-lime-400', chip: 'bg-lime-50 text-lime-700 ring-lime-200', label: 'Race' },
+  base: { bar: 'bg-sky-400', chip: 'bg-sky-400/10 text-sky-300 ring-sky-400/30', label: 'Base' },
+  build: { bar: 'bg-amber-400', chip: 'bg-amber-400/10 text-amber-300 ring-amber-400/30', label: 'Build' },
+  peak: { bar: 'bg-rose-400', chip: 'bg-rose-400/10 text-rose-300 ring-rose-400/30', label: 'Peak' },
+  taper: { bar: 'bg-violet-400', chip: 'bg-violet-400/10 text-violet-300 ring-violet-400/30', label: 'Taper' },
+  race: { bar: 'bg-lime-400', chip: 'bg-lime-400/10 text-lime-300 ring-lime-400/30', label: 'Race' },
   train: { bar: 'bg-slate-300', chip: 'bg-slate-50 text-slate-600 ring-slate-200', label: 'Train' },
 };
 const phaseStyle = (p: string) => PHASE_STYLE[p] ?? PHASE_STYLE.train;
@@ -38,7 +38,7 @@ export function PlanTimeline({ timeline }: { timeline: SeasonTimeline }) {
           ))}
         </div>
         <div
-          className="absolute -top-1 h-5 w-5 -translate-x-1/2 rounded-full border-[3px] border-white bg-slate-900 shadow"
+          className="absolute -top-1 h-5 w-5 -translate-x-1/2 rounded-full border-[3px] border-card bg-lime-300 shadow"
           style={{ left: `${Math.round(progress * 1000) / 10}%` }}
           aria-label="You are here"
         />

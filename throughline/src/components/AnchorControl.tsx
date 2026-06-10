@@ -101,7 +101,7 @@ export function AnchorControl({
           source === 'auto' ? (
             <>
               <span className="font-medium text-slate-800">VDOT {currentVdot}</span>{' '}
-              <span className="rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
+              <span className="rounded bg-amber-400/10 px-1.5 py-0.5 text-xs font-medium text-amber-300 ring-1 ring-inset ring-amber-400/30">
                 auto
               </span>{' '}
               — inferred from the best recent effort, and refreshed as new data arrives. Confirm one
@@ -150,7 +150,7 @@ export function AnchorControl({
       <button
         type="button"
         onClick={() => setShowManual((s) => !s)}
-        className="text-xs font-medium text-sky-700 hover:underline"
+        className="text-xs font-medium text-sky-300 hover:underline"
       >
         {showManual ? 'Hide manual entry' : 'Enter manually / override →'}
       </button>

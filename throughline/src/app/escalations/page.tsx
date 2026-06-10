@@ -31,7 +31,7 @@ export default async function EscalationsPage() {
           <p className="text-sm text-slate-500">Nothing to review — the autopilot is running clean. ✓</p>
         </Card>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-card">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
               <tr>
@@ -47,12 +47,12 @@ export default async function EscalationsPage() {
               {rows.map((e) => (
                 <tr key={e.id} className="align-top hover:bg-slate-50">
                   <td className="px-4 py-3">
-                    <Link href={`/athletes/${e.athleteId}`} className="font-medium text-sky-700 hover:underline">
+                    <Link href={`/athletes/${e.athleteId}`} className="font-medium text-sky-300 hover:underline">
                       {e.athleteName}
                     </Link>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="rounded bg-rose-50 px-1.5 py-0.5 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-200">
+                    <span className="rounded bg-rose-400/10 px-1.5 py-0.5 text-xs font-medium text-rose-300 ring-1 ring-inset ring-rose-400/30">
                       {ESCALATION_LABELS[e.kind] ?? e.kind}
                     </span>
                   </td>

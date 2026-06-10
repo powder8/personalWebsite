@@ -11,13 +11,13 @@ export function InsightsView({ insights }: { insights: TrainingInsights }) {
   return (
     <>
       {insights.suggestions.length > 0 && (
-        <Card title="Suggestions" className="border-sky-200">
+        <Card title="Suggestions" className="border-sky-400/30">
           <ul className="space-y-2 text-sm">
             {insights.suggestions.map((s, i) => (
               <li key={i} className="flex items-start gap-2">
                 <span
                   className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                    s.basis === 'science' ? 'bg-violet-100 text-violet-700' : 'bg-emerald-100 text-emerald-700'
+                    s.basis === 'science' ? 'bg-violet-400/15 text-violet-300' : 'bg-emerald-400/15 text-emerald-300'
                   }`}
                 >
                   {s.basis === 'science' ? 'science' : 'your history'}
@@ -56,7 +56,7 @@ export function InsightsView({ insights }: { insights: TrainingInsights }) {
       </Card>
 
       {insights.buildProfile && insights.builds.length > 0 && (
-        <Card title="The training behind your recent best performances" className="border-emerald-200">
+        <Card title="The training behind your recent best performances" className="border-emerald-400/30">
           <p className="text-sm text-slate-700">
             The 8-week blocks (last ~2 years) that led into your{' '}
             <span className="font-medium">{insights.buildProfile.count}</span> best efforts — what they
@@ -89,7 +89,7 @@ export function InsightsView({ insights }: { insights: TrainingInsights }) {
               <tbody className="divide-y divide-slate-100">
                 {insights.builds.map((b) => (
                   <tr key={b.toDay}>
-                    <td className="px-2 py-1.5 font-medium text-emerald-700">
+                    <td className="px-2 py-1.5 font-medium text-emerald-300">
                       {b.performance
                         ? `${b.performance.distanceLabel} ${b.performance.timeLabel} · VDOT ${b.performance.vdot}`
                         : '—'}
@@ -146,9 +146,9 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 
 function Tile({ label, value, unit, emphasis }: { label: string; value: string; unit: string; emphasis?: boolean }) {
   return (
-    <div className={`rounded-lg p-3 ${emphasis ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+    <div className={`rounded-lg p-3 ${emphasis ? 'bg-emerald-400/10' : 'bg-slate-50'}`}>
       <div className="text-xs text-slate-500">{label}</div>
-      <div className={`text-lg font-semibold tabular-nums ${emphasis ? 'text-emerald-700' : 'text-slate-800'}`}>
+      <div className={`text-lg font-semibold tabular-nums ${emphasis ? 'text-emerald-300' : 'text-slate-800'}`}>
         {value}
       </div>
       <div className="text-xs text-slate-400">{unit}</div>

@@ -52,7 +52,7 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
-        <header className="border-b border-slate-200 bg-white">
+        <header className="border-b border-slate-200 bg-card">
           <div className="mx-auto flex max-w-5xl items-center gap-3 px-5 py-3">
             <Link href="/" className="font-semibold tracking-tight text-slate-900">
               Throughline
@@ -106,7 +106,7 @@ export default async function RootLayout({
                     </button>
                   </form>
                 ) : (
-                  <Link href="/signin" className="font-medium text-sky-700 hover:text-sky-900">
+                  <Link href="/signin" className="font-medium text-sky-300 hover:text-sky-200">
                     Sign in
                   </Link>
                 ))}

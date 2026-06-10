@@ -57,17 +57,17 @@ export function FileUploadForm() {
         {pending ? 'Uploading…' : 'Upload & import'}
       </button>
       {result?.error && (
-        <p className="rounded bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">{result.error}</p>
+        <p className="rounded bg-rose-400/10 px-3 py-2 text-sm text-rose-300 ring-1 ring-inset ring-rose-400/30">{result.error}</p>
       )}
       {result?.ok && result.totals && (
-        <div className="rounded bg-emerald-50 px-3 py-2 text-sm text-emerald-800 ring-1 ring-inset ring-emerald-200">
+        <div className="rounded bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200 ring-1 ring-inset ring-emerald-400/30">
           Imported <strong>{result.totals.activities}</strong> runs across {result.perFile?.length} file(s) ·{' '}
           {result.totals.pacesParsed} paces · {result.totals.dateBugFixes} date-range fixes.{' '}
           <a className="font-medium underline" href={`/athletes/${result.athleteId}`}>
             View athlete →
           </a>
           {result.perFile?.some((f) => !f.ok) && (
-            <ul className="mt-1 list-disc pl-4 text-xs text-rose-700">
+            <ul className="mt-1 list-disc pl-4 text-xs text-rose-300">
               {result.perFile.filter((f) => !f.ok).map((f) => (
                 <li key={f.url}>
                   {f.url}: {f.error}

@@ -102,7 +102,7 @@ export function SessionEditor({ session, today }: { session: EditableSession; to
 
   return (
     <>
-      <tr className={session.day === today ? 'bg-sky-50' : ''}>
+      <tr className={session.day === today ? 'bg-sky-400/10' : ''}>
         <td className="w-12 px-2 py-1.5 font-medium text-slate-500">{dow(session.day)}</td>
         <td className="w-16 px-2 py-1.5 text-slate-700">
           {session.targetDistanceMeters ? `${miles(session.targetDistanceMeters)} mi` : '—'}
@@ -120,7 +120,7 @@ export function SessionEditor({ session, today }: { session: EditableSession; to
           {session.description && <p className="text-xs text-slate-500">{session.description}</p>}
         </td>
         <td className="w-12 px-2 py-1.5 text-right">
-          <button onClick={() => setEditing((v) => !v)} className="text-xs text-sky-700 hover:underline">
+          <button onClick={() => setEditing((v) => !v)} className="text-xs text-sky-300 hover:underline">
             {editing ? 'Cancel' : 'Edit'}
           </button>
         </td>

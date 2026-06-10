@@ -19,7 +19,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ id: s
   return (
     <div className="space-y-5">
       <div>
-        <Link href={`/athletes/${id}`} className="text-sm text-sky-700 hover:underline">
+        <Link href={`/athletes/${id}`} className="text-sm text-sky-300 hover:underline">
           ← {athlete.fullName}
         </Link>
         <h1 className="mt-1 text-xl font-semibold text-slate-900">Insights</h1>

@@ -20,7 +20,7 @@ export default async function MyInsightsPage({ params }: { params: Promise<{ id:
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <div>
-        <Link href={`/me/${id}`} className="text-sm text-sky-700 hover:underline">
+        <Link href={`/me/${id}`} className="text-sm text-sky-300 hover:underline">
           ← Back
         </Link>
         <h1 className="mt-1 text-xl font-semibold text-slate-900">Your training patterns</h1>

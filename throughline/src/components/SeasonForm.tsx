@@ -159,7 +159,7 @@ export function SeasonForm({ athleteId }: { athleteId: string }) {
       <fieldset className="space-y-2">
         <div className="flex items-center justify-between">
           <legend className="text-sm font-semibold text-slate-700">Key races (optional)</legend>
-          <button type="button" onClick={addRow} className="text-xs font-medium text-sky-700 hover:underline">
+          <button type="button" onClick={addRow} className="text-xs font-medium text-sky-300 hover:underline">
             + Add race
           </button>
         </div>
@@ -216,12 +216,12 @@ export function SeasonForm({ athleteId }: { athleteId: string }) {
       </button>
 
       {result?.error && (
-        <p className="rounded bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
+        <p className="rounded bg-rose-400/10 px-3 py-2 text-sm text-rose-300 ring-1 ring-inset ring-rose-400/30">
           {result.error}
         </p>
       )}
       {result?.ok && (
-        <p className="rounded bg-emerald-50 px-3 py-2 text-sm text-emerald-800 ring-1 ring-inset ring-emerald-200">
+        <p className="rounded bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200 ring-1 ring-inset ring-emerald-400/30">
           Generated a {result.weeks}-week plan. Refreshing…
         </p>
       )}

@@ -81,7 +81,7 @@ export function ConnectStrava({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800 ring-1 ring-inset ring-orange-200">
+        <span className="inline-flex items-center rounded-full bg-orange-400/15 px-2 py-0.5 text-xs font-medium text-orange-200 ring-1 ring-inset ring-orange-400/30">
           Strava connected ✓
         </span>
         {lastActivityDay && <span className="text-xs text-slate-400">last activity {lastActivityDay}</span>}

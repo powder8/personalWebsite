@@ -78,14 +78,14 @@ export function WeekStrip({ sessions, today }: { sessions: PortalSession[]; toda
           <div
             key={i}
             className={`flex flex-col items-center gap-1 rounded-2xl px-1 py-2 ${
-              isToday ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-600'
+              isToday ? 'bg-lime-300 text-[#0c1018] shadow-md' : 'bg-slate-50 text-slate-600'
             }`}
           >
-            <span className={`text-[10px] font-semibold uppercase ${isToday ? 'text-slate-300' : 'text-slate-400'}`}>
+            <span className={`text-[10px] font-semibold uppercase ${isToday ? 'text-[#0c1018]/60' : 'text-slate-400'}`}>
               {label}
             </span>
             <span className={`h-2 w-2 rounded-full ${SESSION_COLOR[type] ?? 'bg-slate-300'}`} />
-            <span className={`text-[11px] font-semibold tabular-nums ${isToday ? 'text-white' : 'text-slate-700'}`}>
+            <span className={`text-[11px] font-semibold tabular-nums ${isToday ? 'text-[#0c1018]' : 'text-slate-700'}`}>
               {dist ?? '·'}
             </span>
           </div>

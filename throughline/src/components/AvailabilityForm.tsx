@@ -91,7 +91,7 @@ export function AvailabilityForm({ athleteId }: { athleteId: string }) {
       >
         {pending ? 'Saving…' : 'Send adjustment to coach'}
       </button>
-      {done && <p className="text-sm text-emerald-700">Got it — your coach will see this and the plan adjusts. 🙌</p>}
+      {done && <p className="text-sm text-emerald-300">Got it — your coach will see this and the plan adjusts. 🙌</p>}
       {err && <p className="text-sm text-rose-600">{err}</p>}
     </form>
   );

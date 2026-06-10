@@ -9,7 +9,7 @@ export default function ImportPage() {
   return (
     <div className="space-y-5">
       <div>
-        <Link href="/" className="text-sm text-sky-700 hover:underline">
+        <Link href="/" className="text-sm text-sky-300 hover:underline">
           ← Roster
         </Link>
         <h1 className="mt-1 text-lg font-semibold text-slate-900">Import training log</h1>

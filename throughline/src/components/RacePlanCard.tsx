@@ -19,10 +19,10 @@ function fmtShort(day: string): string {
 }
 
 const WINDOW_CHIP: Record<string, string> = {
-  final_sharpener: 'bg-violet-50 text-violet-700 ring-violet-200',
-  specificity_tuneup: 'bg-rose-50 text-rose-700 ring-rose-200',
-  fitness_check: 'bg-amber-50 text-amber-700 ring-amber-200',
-  opener: 'bg-sky-50 text-sky-700 ring-sky-200',
+  final_sharpener: 'bg-violet-400/10 text-violet-300 ring-violet-400/30',
+  specificity_tuneup: 'bg-rose-400/10 text-rose-300 ring-rose-400/30',
+  fitness_check: 'bg-amber-400/10 text-amber-300 ring-amber-400/30',
+  opener: 'bg-sky-400/10 text-sky-300 ring-sky-400/30',
 };
 
 export function RacePlanCard({ plan }: { plan: RacePlan }) {
@@ -74,7 +74,7 @@ export function RacePlanCard({ plan }: { plan: RacePlan }) {
                 </div>
                 <div className="mt-1.5 text-sm text-slate-700">
                   {w.filledBy ? (
-                    <span className="font-medium text-emerald-700">
+                    <span className="font-medium text-emerald-300">
                       ✓ {w.filledBy.name} · {fmtShort(w.filledBy.date)}
                     </span>
                   ) : (

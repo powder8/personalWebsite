@@ -47,7 +47,7 @@ export function PmcChart({ points }: { points: FitnessFatiguePoint[] }) {
       <path d={path(atlPts)} fill="none" stroke="#f97316" strokeWidth={1.5} strokeDasharray="4 3" strokeLinejoin="round" />
 
       {/* TSB strip */}
-      <line x1={0} x2={W} y1={tsbMid} y2={tsbMid} stroke="#cbd5e1" strokeWidth={1} />
+      <line x1={0} x2={W} y1={tsbMid} y2={tsbMid} stroke="#39435c" strokeWidth={1} />
       <path
         d={path(tsbPts, { baseY: tsbMid })}
         fill={points[n - 1].tsb >= 0 ? '#22c55e' : '#ef4444'}

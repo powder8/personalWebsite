@@ -14,7 +14,7 @@ export default async function RosterPage() {
         <span className="text-sm text-slate-500">{todayISO()} · sorted by needs-attention</span>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-card">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
@@ -29,12 +29,12 @@ export default async function RosterPage() {
             {roster.map((a) => (
               <tr key={a.id} className="hover:bg-slate-50">
                 <td className="px-4 py-3 align-top">
-                  <Link href={`/athletes/${a.id}`} className="font-medium text-sky-700 hover:underline">
+                  <Link href={`/athletes/${a.id}`} className="font-medium text-sky-300 hover:underline">
                     {a.name}
                   </Link>
                   {a.coachingMode === 'autonomous' && (
                     <span
-                      className="ml-2 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-indigo-700 ring-1 ring-inset ring-indigo-200"
+                      className="ml-2 rounded bg-indigo-400/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-indigo-300 ring-1 ring-inset ring-indigo-400/30"
                       title="Coached autonomously by the app"
                     >
                       auto

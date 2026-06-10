@@ -65,12 +65,12 @@ export default async function RunDetailPage({
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <Link href={`/me/${id}`} className="text-sm text-sky-700 hover:underline">
+      <Link href={`/me/${id}`} className="text-sm text-sky-300 hover:underline">
         ← Back to your training
       </Link>
 
       {/* Header stats */}
-      <div className="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 p-6 text-white shadow-lg">
+      <div className="rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 text-white shadow-lg">
         <p className="text-sm text-slate-400">{day}{shoeName ? ` · ${shoeName}` : ''}</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">{run.name ?? 'Run'}</h1>
         <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">

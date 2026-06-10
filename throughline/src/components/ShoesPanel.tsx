@@ -65,7 +65,7 @@ export function ShoesPanel({
                   <span className="font-medium text-slate-800">{s.name}</span>
                   {s.brand && <span className="ml-1 text-xs text-slate-400">{s.brand}</span>}
                   {s.isDefault && !s.retiredAt && (
-                    <span className="ml-2 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-700">default</span>
+                    <span className="ml-2 rounded-full bg-sky-400/15 px-1.5 py-0.5 text-[10px] font-medium text-sky-300">default</span>
                   )}
                   {s.retiredAt && (
                     <span className="ml-2 rounded-full bg-slate-200 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">retired</span>
@@ -90,7 +90,7 @@ export function ShoesPanel({
                 </span>
                 <div className="flex gap-2 text-[11px]">
                   {!s.retiredAt && !s.isDefault && (
-                    <button disabled={pending} onClick={() => post({ action: 'default', shoeId: s.id })} className="text-sky-700 hover:underline disabled:opacity-50">
+                    <button disabled={pending} onClick={() => post({ action: 'default', shoeId: s.id })} className="text-sky-300 hover:underline disabled:opacity-50">
                       Make default
                     </button>
                   )}
@@ -149,7 +149,7 @@ export function ShoesPanel({
           </div>
         </form>
       ) : (
-        <button onClick={() => setAdding(true)} className="text-sm font-medium text-sky-700 hover:underline">
+        <button onClick={() => setAdding(true)} className="text-sm font-medium text-sky-300 hover:underline">
           + Add a pair
         </button>
       )}
@@ -161,7 +161,7 @@ export function ShoesPanel({
           <ul className="space-y-1.5">
             {recentRuns.map((r) => (
               <li key={r.id} className="flex items-center justify-between gap-2 text-sm">
-                <a href={`/me/${athleteId}/runs/${r.id}`} className="min-w-0 truncate text-sky-700 hover:underline">
+                <a href={`/me/${athleteId}/runs/${r.id}`} className="min-w-0 truncate text-sky-300 hover:underline">
                   {r.day} · {r.miles.toFixed(1)} mi{r.name ? ` · ${r.name}` : ''}
                 </a>
                 <select

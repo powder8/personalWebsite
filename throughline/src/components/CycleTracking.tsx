@@ -92,7 +92,7 @@ export function CycleTracking({
     <div className="space-y-4">
       {/* Current status / projection */}
       {status.enabled && status.phase && status.dayInCycle != null ? (
-        <div className={`rounded-lg p-3 ${status.lateLuteal ? 'bg-amber-50' : 'bg-rose-50/60'}`}>
+        <div className={`rounded-lg p-3 ${status.lateLuteal ? 'bg-amber-400/10' : 'bg-rose-400/10'}`}>
           <div className="flex items-center justify-between">
             <div>
               <span className="text-sm font-semibold text-slate-800">{PHASE_LABEL[status.phase]} phase</span>
@@ -105,12 +105,12 @@ export function CycleTracking({
             )}
           </div>
           {status.lateLuteal && (
-            <p className="mt-2 text-xs font-medium text-amber-800">
+            <p className="mt-2 text-xs font-medium text-amber-200">
               ⚠ Late luteal — fatigue is more common now. Worth easing key sessions and avoiding A-races in this window.
             </p>
           )}
           {status.upcoming.length > 0 && (
-            <div className="mt-2 border-t border-rose-100 pt-2">
+            <div className="mt-2 border-t border-rose-400/30 pt-2">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Projected next cycles</div>
               <ul className="mt-1 space-y-0.5 text-xs text-slate-600">
                 {status.upcoming.map((c) => (

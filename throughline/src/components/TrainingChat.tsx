@@ -118,7 +118,7 @@ export function TrainingChat({
                   key={s}
                   type="button"
                   onClick={() => send(s)}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                  className="rounded-full border border-slate-200 bg-card px-3 py-1.5 text-xs text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
                 >
                   {s}
                 </button>
@@ -148,7 +148,7 @@ export function TrainingChat({
                         <div
                           key={j}
                           className={`inline-flex items-start gap-1 rounded-lg px-2 py-1 text-[11px] font-medium ring-1 ring-inset ${
-                            a.ok ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : 'bg-rose-50 text-rose-700 ring-rose-200'
+                            a.ok ? 'bg-emerald-400/10 text-emerald-200 ring-emerald-400/30' : 'bg-rose-400/10 text-rose-300 ring-rose-400/30'
                           }`}
                         >
                           <span>{a.ok ? '✓' : '✕'}</span>
@@ -182,7 +182,7 @@ export function TrainingChat({
         }}
         className="mt-3"
       >
-        <div className="flex items-end gap-2 rounded-2xl border border-slate-300 bg-white px-3 py-2 shadow-sm transition focus-within:border-slate-400">
+        <div className="flex items-end gap-2 rounded-2xl border border-slate-300 bg-card px-3 py-2 shadow-sm transition focus-within:border-slate-400">
           <textarea
             ref={taRef}
             value={input}

@@ -31,7 +31,7 @@ function headline(s: PortalSegment): string {
 }
 
 export function SegmentList({ segments, onDark = false }: { segments: PortalSegment[]; onDark?: boolean }) {
-  const label = onDark ? 'text-slate-300' : 'text-slate-700';
+  const label = onDark ? 'text-white/85' : 'text-slate-700';
   const sub = onDark ? 'text-slate-400' : 'text-slate-500';
   const rail = onDark ? 'border-white/10' : 'border-slate-100';
   return (
@@ -40,7 +40,7 @@ export function SegmentList({ segments, onDark = false }: { segments: PortalSegm
         <li key={i} className="relative py-1.5">
           <span
             className={`absolute -left-[19px] top-2.5 h-2.5 w-2.5 rounded-full ring-2 ${
-              onDark ? 'ring-slate-900' : 'ring-white'
+              onDark ? 'ring-[#131a2c]' : 'ring-card'
             } ${ROLE_DOT[s.role] ?? 'bg-slate-300'}`}
           />
           <div className={`text-sm font-semibold ${label}`}>

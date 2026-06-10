@@ -98,7 +98,7 @@ export function GoalSetup({
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="text-sm font-medium text-violet-700 hover:underline">
+      <button onClick={() => setOpen(true)} className="text-sm font-medium text-violet-300 hover:underline">
         Change goal
       </button>
     );
@@ -107,7 +107,7 @@ export function GoalSetup({
   const field = 'mt-0.5 rounded border border-slate-300 px-2 py-1.5 text-sm';
   const seg = (active: boolean) =>
     `flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
-      active ? 'border-violet-300 bg-violet-50 text-violet-800' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+      active ? 'border-violet-400/30 bg-violet-400/10 text-violet-200' : 'border-slate-200 bg-card text-slate-600 hover:bg-slate-50'
     }`;
 
   return (

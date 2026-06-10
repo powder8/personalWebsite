@@ -37,7 +37,7 @@ export default async function FeedbackPage() {
             <div
               key={f.id}
               className={`rounded-lg border p-3 ${
-                f.status === 'open' ? 'border-slate-200 bg-white' : 'border-slate-200 bg-slate-50 opacity-75'
+                f.status === 'open' ? 'border-slate-200 bg-card' : 'border-slate-200 bg-slate-50 opacity-75'
               }`}
             >
               <div className="flex items-start justify-between gap-3">
@@ -45,10 +45,10 @@ export default async function FeedbackPage() {
                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                     <span className="font-medium text-slate-700">{f.author}</span>
                     {f.category && (
-                      <span className="rounded bg-sky-50 px-1.5 py-0.5 font-medium text-sky-700">{f.category}</span>
+                      <span className="rounded bg-sky-400/10 px-1.5 py-0.5 font-medium text-sky-300">{f.category}</span>
                     )}
                     {f.path && (
-                      <Link href={f.path} className="text-sky-700 hover:underline">
+                      <Link href={f.path} className="text-sky-300 hover:underline">
                         {f.path}
                       </Link>
                     )}

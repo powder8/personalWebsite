@@ -40,7 +40,7 @@ export default async function SignInPage({
       <p className="mt-1 text-center text-sm text-slate-500">Coaches and athletes.</p>
 
       {error && (
-        <p className="mt-4 rounded bg-rose-50 px-3 py-2 text-center text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
+        <p className="mt-4 rounded bg-rose-400/10 px-3 py-2 text-center text-sm text-rose-300 ring-1 ring-inset ring-rose-400/30">
           {error === 'AccessDenied' ? 'That account isn’t recognized yet.' : 'Sign-in failed — please try again.'}
         </p>
       )}
@@ -55,7 +55,7 @@ export default async function SignInPage({
           >
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-card px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               <GoogleMark /> Continue with Google
             </button>
