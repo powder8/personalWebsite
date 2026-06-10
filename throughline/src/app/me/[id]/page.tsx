@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getAthletePortal, type PortalSession } from '@/server/portal';
 import { getTrainingInsights } from '@/server/insights';
-import { BandBadge, Card } from '@/components/ui';
+import { Card } from '@/components/ui';
 import { secPerKmToMinPerMile } from '@/engine/plan';
 import { CheckInForm } from '@/components/CheckInForm';
 import { AvailabilityForm } from '@/components/AvailabilityForm';
@@ -18,6 +18,9 @@ import { ShoesPanel } from '@/components/ShoesPanel';
 import { listShoesWithMileage, listRecentRunsForShoes } from '@/server/shoes';
 import { GoalSetup } from '@/components/GoalSetup';
 import { getAthleteVdot } from '@/db/paceConfig';
+import { getSeasonTimeline } from '@/server/blocks';
+import { PlanTimeline } from '@/components/PlanTimeline';
+import { WeekStrip, SESSION_COLOR, SESSION_LABEL } from '@/components/WeekStrip';
 import { getDb } from '@/db';
 
 export const dynamic = 'force-dynamic';
@@ -37,9 +40,8 @@ function dow(day: string): string {
 }
 
 /**
- * Athlete-facing portal (magic-link surface). Focused on "what do I do today /
- * this week", plus the two things only the athlete can provide: a daily check-in
- * and their availability. Distinct from the coach console.
+ * Athlete-facing portal. Reads top-to-bottom as a story: goal (hero) → today →
+ * the season's blocks → this week → progress → your inputs → setup.
  */
 export default async function PortalPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -54,6 +56,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
   const shoes = await listShoesWithMileage(db, id);
   const recentRuns = await listRecentRunsForShoes(db, id, 12);
   const hasAnchor = (await getAthleteVdot(db, id)) != null;
+  const timeline = await getSeasonTimeline(db, id, portal.today);
 
   const {
     athlete,
@@ -71,96 +74,186 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
 
   const firstName = athlete.fullName.split(' ')[0];
   const todayCheckIn = recentCheckIns.find((c) => c.day === today) ?? null;
+  const currentPhase = timeline?.blocks.find((b) => b.current)?.phase ?? thisWeek?.phase ?? null;
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">Hi {firstName} 👋</h1>
-        <p className="text-sm text-slate-500">{today}</p>
-      </div>
-
-      {/* 1 — YOUR GOAL (the north star) */}
-      <GoalHero goalRace={goalRace} athleteId={athlete.id} hasAnchor={hasAnchor} />
-
-      {/* 2 — TODAY (what to do right now) */}
-      <Card title="Today">
-        <div className="flex items-center gap-3">
-          <BandBadge band={readiness.band} score={readiness.score} />
-          <p className="text-sm text-slate-700">
-            {readiness.sentence ?? 'No readiness reading yet — your check-in below helps.'}
-          </p>
-        </div>
-        <div className="mt-3 rounded-lg bg-slate-50 p-3">
-          {todaySession ? <SessionLine s={todaySession} big /> : (
-            <p className="text-sm text-slate-500">No session scheduled today — rest up.</p>
+      {/* ── HERO: who you are + what you're chasing ─────────────────────── */}
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 p-6 text-white shadow-lg">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm text-slate-400">Hi {firstName} 👋 · {today}</p>
+            {goalRace.name ? (
+              <>
+                <h1 className="mt-2 truncate text-2xl font-bold tracking-tight">{goalRace.name}</h1>
+                <p className="mt-0.5 text-sm text-slate-400">{goalRace.date}</p>
+              </>
+            ) : (
+              <h1 className="mt-2 text-2xl font-bold tracking-tight">Let’s set your goal</h1>
+            )}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {currentPhase && (
+                <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold capitalize text-slate-100 ring-1 ring-inset ring-white/15">
+                  {currentPhase} block
+                </span>
+              )}
+              {readiness.band && (
+                <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold capitalize text-slate-100 ring-1 ring-inset ring-white/15">
+                  Readiness: {readiness.band}
+                </span>
+              )}
+              <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-slate-100 ring-1 ring-inset ring-white/15">
+                {athlete.coachingMode === 'assisted' ? 'Coach-guided' : 'Auto-coached'}
+              </span>
+            </div>
+          </div>
+          {goalRace.daysAway != null && goalRace.daysAway >= 0 && (
+            <div className="shrink-0 text-right">
+              <div className="text-5xl font-extrabold leading-none tracking-tight text-lime-300 tabular-nums">
+                {goalRace.daysAway}
+              </div>
+              <div className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">days to go</div>
+            </div>
           )}
         </div>
+      </div>
+
+      {/* Goal setup: open when no goal; a quiet "Change goal" otherwise */}
+      {goalRace.name ? (
+        <div className="px-2">
+          <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal />
+        </div>
+      ) : (
+        <Card title="What are you training for?">
+          <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal={false} />
+        </Card>
+      )}
+
+      {/* ── TODAY ────────────────────────────────────────────────────────── */}
+      <Card>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-700">Today</h2>
+          {readiness.sentence && <span className="hidden text-xs text-slate-400 sm:inline">{readiness.sentence}</span>}
+        </div>
+        {todaySession ? (
+          <div className="flex items-center gap-4 rounded-2xl bg-slate-50 p-4">
+            <span
+              className={`h-10 w-10 shrink-0 rounded-2xl ${SESSION_COLOR[todaySession.sessionType] ?? 'bg-slate-300'}`}
+            />
+            <div className="min-w-0">
+              <div className="text-lg font-bold tracking-tight text-slate-900">
+                {SESSION_LABEL[todaySession.sessionType] ?? todaySession.sessionType}
+                {todaySession.distanceMeters != null && todaySession.distanceMeters > 0 && (
+                  <span className="ml-2 text-slate-500">{miles(todaySession.distanceMeters)} mi</span>
+                )}
+              </div>
+              {todaySession.paceFastSecPerKm != null && (
+                <div className="text-sm tabular-nums text-slate-500">
+                  {pace(todaySession.paceFastSecPerKm)}–{pace(todaySession.paceSlowSecPerKm)}
+                </div>
+              )}
+              {todaySession.adjustments.length > 0 && (
+                <div className="mt-1 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700">
+                  {todaySession.adjustments.join('; ')}
+                </div>
+              )}
+              {todaySession.description && <p className="mt-1 text-xs text-slate-500">{todaySession.description}</p>}
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-4 rounded-2xl bg-slate-50 p-4">
+            <span className="h-10 w-10 shrink-0 rounded-2xl bg-slate-200" />
+            <div>
+              <div className="text-lg font-bold tracking-tight text-slate-900">Rest day</div>
+              <p className="text-sm text-slate-500">Recovery is training too.</p>
+            </div>
+          </div>
+        )}
       </Card>
 
-      {/* Chat — pinned near the top: ask anything or change the plan */}
-      <Card title="Ask or change anything">
+      {/* Chat — ask anything or change the plan */}
+      <Card title="Your coach, on demand">
         <TrainingChat athleteId={athlete.id} configured={chatConfigured()} />
       </Card>
 
-      {/* 3 — THIS WEEK (the near-term plan) */}
+      {/* ── YOUR SEASON: the blocks that push your fitness ──────────────── */}
+      {timeline && timeline.blocks.length > 0 && (
+        <Card title="Your season — block by block">
+          <PlanTimeline timeline={timeline} />
+          <p className="mt-3 text-[11px] text-slate-400">
+            Each block stresses a different system — aerobic base, race-specific work, then a taper so you arrive
+            fresh. Races are placed to sharpen, not interrupt.
+          </p>
+        </Card>
+      )}
+
+      {/* ── THIS WEEK ────────────────────────────────────────────────────── */}
       <SectionHeader>This week &amp; ahead</SectionHeader>
       <Card title={thisWeek ? `This week${thisWeek.phase ? ` · ${thisWeek.phase}` : ''}` : 'This week'}>
         {thisWeek ? (
-          <table className="w-full text-sm">
-            <tbody className="divide-y divide-slate-100">
-              {thisWeek.sessions.map((s) => (
-                <tr key={s.id} className={s.day === today ? 'bg-sky-50' : ''}>
-                  <td className="w-12 px-2 py-2 font-medium text-slate-500">{dow(s.day)}</td>
-                  <td className="w-14 px-2 py-2 text-slate-700">{miles(s.distanceMeters)} mi</td>
-                  <td className="px-2 py-2">
-                    <SessionLine s={s} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <>
+            <WeekStrip sessions={thisWeek.sessions} today={today} />
+            <table className="mt-3 w-full text-sm">
+              <tbody className="divide-y divide-slate-100">
+                {thisWeek.sessions.map((s) => (
+                  <tr key={s.id} className={s.day === today ? 'bg-sky-50/60' : ''}>
+                    <td className="w-12 px-2 py-2 font-medium text-slate-500">{dow(s.day)}</td>
+                    <td className="w-14 px-2 py-2 tabular-nums text-slate-700">{miles(s.distanceMeters)} mi</td>
+                    <td className="px-2 py-2">
+                      <SessionLine s={s} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
         ) : (
           <p className="text-sm text-slate-500">No published plan for this week yet.</p>
         )}
       </Card>
 
       {comingWeeks.length > 0 && (
-        <Card title="Coming weeks">
-          <div className="space-y-4">
-            {comingWeeks.map((w) => (
-              <div key={w.weekStart}>
-                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Week of {w.weekStart}
-                  {w.phase && <span className="capitalize"> · {w.phase}</span>}
+        <Card>
+          <details>
+            <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+              Coming weeks <span className="font-normal text-slate-400">· {comingWeeks.length} planned</span>
+            </summary>
+            <div className="mt-3 space-y-4">
+              {comingWeeks.map((w) => (
+                <div key={w.weekStart}>
+                  <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Week of {w.weekStart}
+                    {w.phase && <span className="capitalize"> · {w.phase}</span>}
+                  </div>
+                  <table className="w-full text-sm">
+                    <tbody className="divide-y divide-slate-100">
+                      {w.sessions.map((s) => (
+                        <tr key={s.id}>
+                          <td className="w-12 px-2 py-1 font-medium text-slate-500">{dow(s.day)}</td>
+                          <td className="w-14 px-2 py-1 tabular-nums text-slate-700">{miles(s.distanceMeters)} mi</td>
+                          <td className="px-2 py-1">
+                            <span className="text-slate-800">{SESSION_LABEL[s.sessionType] ?? s.sessionType}</span>
+                            {s.paceFastSecPerKm != null && (
+                              <span className="ml-2 text-xs tabular-nums text-slate-400">
+                                {pace(s.paceFastSecPerKm)}–{pace(s.paceSlowSecPerKm)}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <table className="w-full text-sm">
-                  <tbody className="divide-y divide-slate-100">
-                    {w.sessions.map((s) => (
-                      <tr key={s.id}>
-                        <td className="w-12 px-2 py-1 font-medium text-slate-500">{dow(s.day)}</td>
-                        <td className="w-14 px-2 py-1 text-slate-700">{miles(s.distanceMeters)} mi</td>
-                        <td className="px-2 py-1">
-                          <span className="capitalize text-slate-800">{s.sessionType.replace('_', ' ')}</span>
-                          {s.paceFastSecPerKm != null && (
-                            <span className="ml-2 text-xs text-slate-400">
-                              {pace(s.paceFastSecPerKm)}–{pace(s.paceSlowSecPerKm)}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </details>
         </Card>
       )}
 
-      {/* 4 — YOUR PROGRESS (are you moving toward the goal?) */}
+      {/* ── PROGRESS: is the work working? ──────────────────────────────── */}
       <SectionHeader>Your progress</SectionHeader>
       {insights?.buildProfile && (
-        <Card title="Your training patterns">
+        <Card title="What drives your fitness">
           <p className="text-sm text-slate-700">
             <span className="font-medium">Across your {insights.buildProfile.count} most productive blocks:</span>{' '}
             typically ~{insights.buildProfile.medianWeeklyMiles} mi/wk on ~
@@ -179,7 +272,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
             href={`/me/${athlete.id}/insights`}
             className="mt-2 inline-block text-sm font-medium text-sky-700 hover:underline"
           >
-            See your training patterns →
+            See what drove your best fitness →
           </Link>
         </Card>
       )}
@@ -188,7 +281,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
         <WeeklyVolumeChart summary={trainingSummary} />
       </Card>
 
-      {/* 5 — CHECK IN & ADJUST (your inputs that shape the plan) */}
+      {/* ── CHECK IN & ADJUST ────────────────────────────────────────────── */}
       <SectionHeader>Check in &amp; adjust</SectionHeader>
       <Card title={checkedInToday ? 'Today’s check-in ✓' : 'How are you feeling?'}>
         {checkedInToday && todayCheckIn && (
@@ -226,7 +319,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
         <CycleTracking athleteId={athlete.id} initial={cycleSettings} status={cycleStatus} />
       </Card>
 
-      {/* 6 — SETUP & GEAR (one-time / peripheral) */}
+      {/* ── SETUP & GEAR ─────────────────────────────────────────────────── */}
       <SectionHeader>Setup &amp; gear</SectionHeader>
       <Card title="Connect your watch (via Strava)">
         <ConnectStrava
@@ -253,61 +346,15 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   return <h2 className="px-1 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{children}</h2>;
 }
 
-/** The north-star hero: the race you're training for, or a prompt to set a goal. */
-function GoalHero({
-  goalRace,
-  athleteId,
-  hasAnchor,
-}: {
-  goalRace: { name: string | null; date: string | null; daysAway: number | null };
-  athleteId: string;
-  hasAnchor: boolean;
-}) {
-  if (goalRace.name) {
-    return (
-      <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Your goal</div>
-            <div className="mt-1 text-lg font-semibold text-slate-900">{goalRace.name}</div>
-            {goalRace.date && <div className="text-sm text-slate-500">{goalRace.date}</div>}
-          </div>
-          {goalRace.daysAway != null && goalRace.daysAway >= 0 && (
-            <div className="text-right leading-none">
-              <div className="text-2xl font-bold text-violet-700">{goalRace.daysAway}</div>
-              <div className="text-xs text-slate-500">days to go</div>
-            </div>
-          )}
-        </div>
-        <div className="mt-3 border-t border-violet-100 pt-3">
-          <GoalSetup athleteId={athleteId} hasAnchor={hasAnchor} hasGoal />
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-4">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Your goal</div>
-      <p className="mt-1 text-sm font-medium text-slate-800">What are you training for?</p>
-      <p className="mb-3 mt-1 text-sm text-slate-500">
-        A first 5K, a race time, or just building consistent fitness — set it and we’ll build your plan.
-      </p>
-      <GoalSetup athleteId={athleteId} hasAnchor={hasAnchor} hasGoal={false} />
-    </div>
-  );
-}
-
-function SessionLine({ s, big = false }: { s: PortalSession; big?: boolean }) {
+function SessionLine({ s }: { s: PortalSession }) {
   return (
     <div>
-      <span className={`capitalize text-slate-800 ${big ? 'text-base font-medium' : ''}`}>
-        {s.sessionType.replace('_', ' ')}
+      <span className="inline-flex items-center gap-1.5 text-slate-800">
+        <span className={`h-2 w-2 rounded-full ${SESSION_COLOR[s.sessionType] ?? 'bg-slate-300'}`} />
+        {SESSION_LABEL[s.sessionType] ?? s.sessionType}
       </span>
-      {big && s.distanceMeters != null && s.distanceMeters > 0 && (
-        <span className="ml-2 text-slate-600">{miles(s.distanceMeters)} mi</span>
-      )}
       {s.paceFastSecPerKm != null && (
-        <span className="ml-2 text-xs text-slate-400">
+        <span className="ml-2 text-xs tabular-nums text-slate-400">
           {pace(s.paceFastSecPerKm)}–{pace(s.paceSlowSecPerKm)}
         </span>
       )}

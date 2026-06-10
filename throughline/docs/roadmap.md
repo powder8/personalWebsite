@@ -6,6 +6,26 @@ analysis; this is the "later" list.)
 
 ---
 
+## Competitive product push (Runna-class)
+North star: best-in-class **automatic customized plans**, with a human coach
+able to step in through the same platform.
+
+- ✅ **Modern athlete UX v1:** Geist typography (was accidentally Arial), dark
+  goal hero with countdown + phase + readiness chips, **season block timeline**
+  (the engine's base→build→peak→taper periodization, races pinned, you-are-here),
+  Runna-style 7-day week strip, color-coded session types, softer card language.
+- ⏳ **UX v2:** per-session detail pages (warm-up/main/cool-down structure),
+  bottom-nav mobile layout, dark-mode theme, animated progress rings, richer
+  empty states, onboarding wizard polish.
+- ⏳ **Cycling (second sport):** schema already supports `bike` activities; the
+  engine needs bike zones (power/HR instead of pace), bike session templates,
+  and multi-sport weeks. Gate behind a `sports` field on the athlete.
+- ⏳ **Performance retrospectives:** deepen insights — "what drove your best
+  blocks" is live; add per-race post-mortems and block-over-block comparisons.
+- ✅ **Coach-through-platform:** coach console + actionable coaching assistant
+  + coach-reviewable athlete adjustments are live; next is in-app coach↔athlete
+  messaging and a coach weekly review queue.
+
 ## Athlete insights (the big one — in progress)
 The vision: help athletes/coaches understand *what drives fitness* and ask
 questions in plain language.
