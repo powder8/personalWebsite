@@ -111,6 +111,7 @@ export function generateWeek(
         runType: 'long',
         zone: 'easy',
         distanceMeters: milesToMeters(longMiles),
+        segments: longRunSegments(longMiles, template.phase, zones),
         description: longRunDescription(longMiles, template.phase, zones, zone),
       };
     }
@@ -153,18 +154,109 @@ export function generateWeek(
   };
 }
 
+/**
+ * Structured, prescriptive segments per quality type — not a single lump:
+ *  - interval (VO2): ~1-mi reps with 2–3' jog recoveries
+ *  - rep (speed): 400m reps with full-recovery jogs
+ *  - threshold: continuous tempo when short; 1-mi cruise intervals (60" rest)
+ *    when the work block is 4 mi+ (Daniels cruise structure)
+ *  - everything else (marathon pace, steady): continuous block
+ */
 function qualitySegments(dayMiles: number, zone: ZoneKey, zones: PaceZones): WorkoutSegment[] {
   const wuCd = warmupCooldownMiles(dayMiles);
   const workMiles = roundMiles(Math.max(0, dayMiles - 2 * wuCd));
-  return [
-    { role: 'warmup', zone: 'easy', distanceMeters: milesToMeters(wuCd) },
-    {
+  const paceNote = paceRangeLabel(zones.zones[zone]);
+
+  let work: WorkoutSegment;
+  if (zone === 'interval') {
+    const repMiles = workMiles >= 4 ? 1 : 0.75;
+    const reps = Math.max(3, Math.round(workMiles / repMiles));
+    work = {
+      role: 'work',
+      zone,
+      reps,
+      repMeters: milesToMeters(repMiles),
+      restSeconds: 150,
+      note: `${reps} × ${repMiles} mi @ ${paceNote} · 2–3 min easy jog between`,
+    };
+  } else if (zone === 'rep') {
+    const reps = Math.min(12, Math.max(6, Math.round(workMiles / 0.25)));
+    work = {
+      role: 'work',
+      zone,
+      reps,
+      repMeters: 400,
+      restSeconds: 200,
+      note: `${reps} × 400m @ ${paceNote} · full recovery (jog until fresh)`,
+    };
+  } else if (zone === 'threshold' && workMiles >= 4) {
+    const reps = Math.round(workMiles);
+    work = {
+      role: 'work',
+      zone,
+      reps,
+      repMeters: milesToMeters(1),
+      restSeconds: 60,
+      note: `${reps} × 1 mi @ ${paceNote} · 60s rest (cruise intervals)`,
+    };
+  } else {
+    work = {
       role: 'work',
       zone,
       distanceMeters: milesToMeters(workMiles),
-      note: `~${workMiles} mi @ ${paceRangeLabel(zones.zones[zone])}`,
+      note: `${workMiles} mi continuous @ ${paceNote}`,
+    };
+  }
+
+  return [
+    {
+      role: 'warmup',
+      zone: 'easy',
+      distanceMeters: milesToMeters(wuCd),
+      note: `${wuCd} mi easy @ ${paceRangeLabel(zones.zones.easy)}, then drills + 4 × 20" strides`,
     },
-    { role: 'cooldown', zone: 'easy', distanceMeters: milesToMeters(wuCd) },
+    work,
+    {
+      role: 'cooldown',
+      zone: 'easy',
+      distanceMeters: milesToMeters(wuCd),
+      note: `${wuCd} mi very easy — let the heart rate come down`,
+    },
+  ];
+}
+
+/** Long-run segments: easy lead-in, marathon-pace blocks (build/peak ≥12 mi), easy finish. */
+function longRunSegments(
+  miles: number,
+  phase: PlannedWeek['phase'],
+  zones: PaceZones,
+): WorkoutSegment[] | undefined {
+  if (!((phase === 'build' || phase === 'peak') && miles >= 12)) return undefined;
+  const lead = roundMiles(miles * 0.4);
+  const finish = roundMiles(miles * 0.2);
+  const mpTotal = roundMiles(Math.max(0, miles - lead - finish));
+  const blocks = mpTotal >= 6 ? 3 : 2;
+  const blockMiles = roundMiles(mpTotal / blocks);
+  return [
+    {
+      role: 'warmup',
+      zone: 'easy',
+      distanceMeters: milesToMeters(lead),
+      note: `${lead} mi relaxed @ ${paceRangeLabel(zones.zones.easy)}`,
+    },
+    {
+      role: 'work',
+      zone: 'marathon',
+      reps: blocks,
+      repMeters: milesToMeters(blockMiles),
+      note: `${blocks} × ${blockMiles} mi @ ${paceRangeLabel(zones.zones.marathon)} · ½ mi easy float between`,
+    },
+    {
+      role: 'cooldown',
+      zone: 'easy',
+      distanceMeters: milesToMeters(finish),
+      note: `${finish} mi easy to finish — controlled, leave a bit on the table`,
+    },
   ];
 }
 

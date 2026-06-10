@@ -30,12 +30,15 @@ export function GoalSetup({
   athleteId,
   hasAnchor,
   hasGoal,
+  startOpen,
 }: {
   athleteId: string;
   hasAnchor: boolean;
   hasGoal: boolean;
+  /** Force the form open initially (e.g. post-race "what's next?" prompt). */
+  startOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(!hasGoal);
+  const [open, setOpen] = useState(startOpen ?? !hasGoal);
   const [kind, setKind] = useState<GoalKind>('finish');
   const [fitnessKind, setFitnessKind] = useState<'existing' | 'race'>(hasAnchor ? 'existing' : 'race');
   const [pending, setPending] = useState(false);

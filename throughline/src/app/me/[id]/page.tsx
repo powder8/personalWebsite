@@ -23,6 +23,7 @@ import { getRacePlan } from '@/server/racePlan';
 import { RacePlanCard } from '@/components/RacePlanCard';
 import { PlanTimeline } from '@/components/PlanTimeline';
 import { WeekStrip, SESSION_COLOR, SESSION_LABEL, SESSION_TERRAIN } from '@/components/WeekStrip';
+import { SegmentList } from '@/components/SegmentList';
 import { getDb } from '@/db';
 
 export const dynamic = 'force-dynamic';
@@ -78,6 +79,9 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
   const firstName = athlete.fullName.split(' ')[0];
   const todayCheckIn = recentCheckIns.find((c) => c.day === today) ?? null;
   const currentPhase = timeline?.blocks.find((b) => b.current)?.phase ?? thisWeek?.phase ?? null;
+  // Goal lifecycle: no goal → get one set; goal in the past → celebrate + restart.
+  const goalDone = !!goalRace.name && goalRace.daysAway != null && goalRace.daysAway < 0;
+  const needsGoal = !goalRace.name || goalDone;
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -86,13 +90,23 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-sm text-slate-400">Hi {firstName} 👋 · {today}</p>
-            {goalRace.name ? (
+            {goalDone ? (
+              <>
+                <h1 className="mt-2 truncate text-2xl font-bold tracking-tight">You raced {goalRace.name}! 🎉</h1>
+                <p className="mt-0.5 text-sm text-lime-300">That chapter’s done — time to pick the next one.</p>
+              </>
+            ) : goalRace.name ? (
               <>
                 <h1 className="mt-2 truncate text-2xl font-bold tracking-tight">{goalRace.name}</h1>
                 <p className="mt-0.5 text-sm text-slate-400">{goalRace.date}</p>
               </>
             ) : (
-              <h1 className="mt-2 text-2xl font-bold tracking-tight">Let’s set your goal</h1>
+              <>
+                <h1 className="mt-2 text-2xl font-bold tracking-tight">What are you chasing?</h1>
+                <p className="mt-0.5 text-sm text-slate-400">
+                  Training works when it points somewhere. Set a goal below and we’ll build your plan.
+                </p>
+              </>
             )}
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {currentPhase && (
@@ -145,7 +159,11 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
                     {todaySession.adjustments.join('; ')}
                   </div>
                 )}
-                {todaySession.description && <p className="mt-1 text-xs text-slate-400">{todaySession.description}</p>}
+                {todaySession.segments?.length ? (
+                  <SegmentList segments={todaySession.segments} onDark />
+                ) : (
+                  todaySession.description && <p className="mt-1 text-xs text-slate-400">{todaySession.description}</p>
+                )}
                 {SESSION_TERRAIN[todaySession.sessionType] && (
                   <p className="mt-1 text-xs text-slate-400">📍 {SESSION_TERRAIN[todaySession.sessionType]}</p>
                 )}
@@ -164,10 +182,21 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
         </div>
       </div>
 
-      {/* Goal setup (only prominent when there's no goal yet) */}
-      {!goalRace.name && (
-        <Card title="What are you training for?">
-          <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal={false} />
+      {/* Goal setup — prominent (and open) whenever there's no LIVE goal:
+          never trained with us yet, or the goal race just happened. */}
+      {needsGoal && (
+        <Card
+          title={goalDone ? 'What’s next?' : 'What are you training for?'}
+          className="border-lime-300 ring-1 ring-inset ring-lime-200"
+        >
+          {goalDone && (
+            <p className="mb-3 text-sm text-slate-600">
+              Congrats on {goalRace.name}! The fitness you built is a launchpad — momentum fades fast if it doesn’t
+              point at something. Another race, a faster time, or just holding your fitness — pick the next goal and
+              we’ll build the plan.
+            </p>
+          )}
+          <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal={!!goalRace.name} startOpen />
         </Card>
       )}
 
@@ -322,7 +351,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
         )}
       </Card>
 
-      {goalRace.name && (
+      {goalRace.name && !needsGoal && (
         <Card title="Change your goal or race">
           <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal />
         </Card>
@@ -376,7 +405,14 @@ function SessionLine({ s }: { s: PortalSession }) {
           {s.adjustments.join('; ')}
         </span>
       )}
-      {s.description && <p className="mt-0.5 text-xs text-slate-500">{s.description}</p>}
+      {s.segments?.length ? (
+        <details className="mt-0.5">
+          <summary className="cursor-pointer text-xs font-medium text-sky-700">Workout structure</summary>
+          <SegmentList segments={s.segments} />
+        </details>
+      ) : (
+        s.description && <p className="mt-0.5 text-xs text-slate-500">{s.description}</p>
+      )}
     </div>
   );
 }

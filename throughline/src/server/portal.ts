@@ -4,8 +4,8 @@ import 'server-only';
  * separate from the coach console (`getAthleteDetail`): the athlete sees a
  * focused "what do I do today / this week" surface, not the management tooling.
  *
- * Like the console, "today" is fixed to the demo reference date so the shared
- * dev instance is stable.
+ * "Today" comes from todayISO() — the real current date (APP_TODAY pins it for
+ * demos/tests).
  */
 import { and, eq, gte, lte, desc } from 'drizzle-orm';
 import { getDb } from '@/db';
@@ -24,6 +24,17 @@ import { todayISO, type Band } from '@/server/console';
 import { getStravaAccount } from '@/server/strava';
 import { stravaConfigured } from '@/providers/strava/env';
 
+/** Structured workout segment as stored by the engine (see WorkoutSegment). */
+export interface PortalSegment {
+  role: 'warmup' | 'work' | 'recovery_jog' | 'cooldown';
+  zone: string;
+  reps?: number;
+  repMeters?: number;
+  distanceMeters?: number;
+  restSeconds?: number;
+  note?: string;
+}
+
 export interface PortalSession {
   id: string;
   day: string;
@@ -34,6 +45,7 @@ export interface PortalSession {
   description: string | null;
   pinned: boolean;
   adjustments: string[];
+  segments: PortalSegment[] | null;
 }
 
 export interface PortalWeek {
@@ -97,6 +109,7 @@ export async function getAthletePortal(id: string): Promise<AthletePortal | null
       description: s.description,
       pinned: s.pinned,
       adjustments: adj.adjustments,
+      segments: (s.segments as PortalSegment[] | null) ?? null,
     };
   };
 
