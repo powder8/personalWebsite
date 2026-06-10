@@ -213,7 +213,7 @@ function qualitySegments(dayMiles: number, zone: ZoneKey, zones: PaceZones): Wor
       role: 'warmup',
       zone: 'easy',
       distanceMeters: milesToMeters(wuCd),
-      note: `${wuCd} mi easy @ ${paceRangeLabel(zones.zones.easy)}, then drills + 4 × 20" strides`,
+      note: `${wuCd} mi easy @ ${paceRangeLabel(zones.zones.easy)}, then drills & 4–6 × 20" strides`,
     },
     work,
     {
@@ -260,12 +260,14 @@ function longRunSegments(
   ];
 }
 
+// Prose mirror of the segments, in the coach's preferred format (Heather):
+// "Threshold workout — 2 mi warm-up, drills & 4–6 × strides; 4 mi @ T pace; 2 mi cool-down".
 function qualityDescription(dayMiles: number, zone: ZoneKey, zones: PaceZones): string {
   const wuCd = warmupCooldownMiles(dayMiles);
   const workMiles = roundMiles(Math.max(0, dayMiles - 2 * wuCd));
-  return `${cap(ZONE_LABEL[zone])} workout — ${wuCd} mi w/u, ~${workMiles} mi @ ${paceRangeLabel(
+  return `${cap(ZONE_LABEL[zone])} workout — ${wuCd} mi warm-up, drills & 4–6 × strides; ~${workMiles} mi @ ${paceRangeLabel(
     zones.zones[zone],
-  )}, ${wuCd} mi c/d (${dayMiles} mi total)`;
+  )}; ${wuCd} mi cool-down (${dayMiles} mi total)`;
 }
 
 function longRunDescription(

@@ -20,6 +20,8 @@ import { getTrainingInsights } from '@/server/insights';
 import { getCycle, computeCycle } from '@/server/cycle';
 import { WeeklyVolumeChart } from '@/components/WeeklyVolumeChart';
 import { getTrainingSummary } from '@/server/weeklyVolume';
+import { SegmentList } from '@/components/SegmentList';
+import type { PortalSegment } from '@/server/portal';
 import { getDb } from '@/db';
 
 export const dynamic = 'force-dynamic';
@@ -431,7 +433,16 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
                             {s.adjustments.join('; ')}
                           </span>
                         )}
-                        <p className="text-xs text-slate-500">{s.description}</p>
+                        {(s.segments as PortalSegment[] | null)?.length ? (
+                          <details>
+                            <summary className="cursor-pointer text-xs font-medium text-sky-700">
+                              {s.description ?? 'Workout structure'}
+                            </summary>
+                            <SegmentList segments={s.segments as PortalSegment[]} />
+                          </details>
+                        ) : (
+                          <p className="text-xs text-slate-500">{s.description}</p>
+                        )}
                       </td>
                     </tr>
                   );
