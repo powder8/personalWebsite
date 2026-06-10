@@ -19,8 +19,10 @@ import { listShoesWithMileage, listRecentRunsForShoes } from '@/server/shoes';
 import { GoalSetup } from '@/components/GoalSetup';
 import { getAthleteVdot } from '@/db/paceConfig';
 import { getSeasonTimeline } from '@/server/blocks';
+import { getRacePlan } from '@/server/racePlan';
+import { RacePlanCard } from '@/components/RacePlanCard';
 import { PlanTimeline } from '@/components/PlanTimeline';
-import { WeekStrip, SESSION_COLOR, SESSION_LABEL } from '@/components/WeekStrip';
+import { WeekStrip, SESSION_COLOR, SESSION_LABEL, SESSION_TERRAIN } from '@/components/WeekStrip';
 import { getDb } from '@/db';
 
 export const dynamic = 'force-dynamic';
@@ -57,6 +59,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
   const recentRuns = await listRecentRunsForShoes(db, id, 12);
   const hasAnchor = (await getAthleteVdot(db, id)) != null;
   const timeline = await getSeasonTimeline(db, id, portal.today);
+  const racePlan = await getRacePlan(db, id, portal.today);
 
   const {
     athlete,
@@ -143,6 +146,9 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
                   </div>
                 )}
                 {todaySession.description && <p className="mt-1 text-xs text-slate-400">{todaySession.description}</p>}
+                {SESSION_TERRAIN[todaySession.sessionType] && (
+                  <p className="mt-1 text-xs text-slate-400">📍 {SESSION_TERRAIN[todaySession.sessionType]}</p>
+                )}
               </div>
             </div>
           ) : (
@@ -178,6 +184,13 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
             Each block stresses a different system — aerobic base, race-specific work, then a taper so you arrive
             fresh. Races are placed to sharpen, not interrupt.
           </p>
+        </Card>
+      )}
+
+      {/* Race plan: fitness-grounded target window + warm-up race windows */}
+      {racePlan && (
+        <Card title="Race plan">
+          <RacePlanCard plan={racePlan} />
         </Card>
       )}
 

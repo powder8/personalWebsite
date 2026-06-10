@@ -32,6 +32,22 @@ export const SESSION_LABEL: Record<string, string> = {
   rest: 'Rest',
 };
 
+/**
+ * Where to run each session type. Quality/timed work wants flat ground so the
+ * clock means something; easy days are where hills earn their keep.
+ */
+export const SESSION_TERRAIN: Record<string, string> = {
+  intervals: 'Flat ground or a track — keep the reps honest.',
+  threshold: 'Flat, uninterrupted route — save the hills for easy days.',
+  tempo: 'Flat, uninterrupted route — save the hills for easy days.',
+  marathon: 'Flat to gently rolling — rehearse goal-race terrain.',
+  race: 'Flat, fast course if the clock matters.',
+  long: 'Rolling is fine — time on feet beats pace today.',
+  easy: 'Anywhere you enjoy — hills welcome.',
+  recovery: 'Soft and flat — easy underfoot.',
+  maintenance: 'Steady anywhere — gentle rolling is fine.',
+};
+
 const DOW = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 function dowIndex(day: string): number {
