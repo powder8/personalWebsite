@@ -161,9 +161,9 @@ export function ShoesPanel({
           <ul className="space-y-1.5">
             {recentRuns.map((r) => (
               <li key={r.id} className="flex items-center justify-between gap-2 text-sm">
-                <span className="min-w-0 truncate text-slate-600">
+                <a href={`/me/${athleteId}/runs/${r.id}`} className="min-w-0 truncate text-sky-700 hover:underline">
                   {r.day} · {r.miles.toFixed(1)} mi{r.name ? ` · ${r.name}` : ''}
-                </span>
+                </a>
                 <select
                   defaultValue={r.shoeId ?? ''}
                   disabled={pending}

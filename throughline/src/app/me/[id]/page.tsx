@@ -314,7 +314,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
       )}
 
       <Card title="Last 12 weeks">
-        <WeeklyVolumeChart summary={trainingSummary} />
+        <WeeklyVolumeChart summary={trainingSummary} runLinkBase={`/me/${athlete.id}/runs`} />
       </Card>
 
       {/* ── CHECK IN & ADJUST ────────────────────────────────────────────── */}

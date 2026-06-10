@@ -3,6 +3,7 @@
  * bars on the left axis; weekly elevation gain as an overlaid line on the right
  * axis (only when elevation data exists). Below, a table of labeled efforts.
  */
+import Link from 'next/link';
 import { secPerKmToMinPerMile } from '@/engine/plan';
 import type { TrainingSummary, EffortKind } from '@/server/weeklyVolume';
 
@@ -35,7 +36,7 @@ function fmtMonthDay(day: string): string {
   return `${Number(m)}/${Number(d)}`;
 }
 
-export function WeeklyVolumeChart({ summary }: { summary: TrainingSummary }) {
+export function WeeklyVolumeChart({ summary, runLinkBase }: { summary: TrainingSummary; runLinkBase?: string }) {
   const { weeks, efforts, hasElevation } = summary;
   const anyMiles = weeks.some((w) => w.miles > 0);
   if (!anyMiles) {
@@ -167,7 +168,15 @@ export function WeeklyVolumeChart({ summary }: { summary: TrainingSummary }) {
                       {KIND_LABEL[e.kind]}
                     </span>
                   </td>
-                  <td className="py-1.5 text-slate-700">{e.name ?? '—'}</td>
+                  <td className="py-1.5 text-slate-700">
+                    {runLinkBase ? (
+                      <Link href={`${runLinkBase}/${e.id}`} className="text-sky-700 hover:underline">
+                        {e.name ?? 'Run'}
+                      </Link>
+                    ) : (
+                      e.name ?? '—'
+                    )}
+                  </td>
                   <td className="py-1.5 text-right text-slate-700">{e.miles.toFixed(1)}</td>
                   <td className="py-1.5 text-right text-slate-600">
                     {e.paceSecPerKm != null ? `${secPerKmToMinPerMile(e.paceSecPerKm)}/mi` : '—'}

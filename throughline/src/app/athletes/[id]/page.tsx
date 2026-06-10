@@ -313,7 +313,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
 
       {/* Last 12 weeks: mileage + elevation + key efforts */}
       <Card title="Last 12 weeks">
-        <WeeklyVolumeChart summary={trainingSummary} />
+        <WeeklyVolumeChart summary={trainingSummary} runLinkBase={`/me/${athlete.id}/runs`} />
       </Card>
 
       {/* Fitness & fatigue (PMC) */}

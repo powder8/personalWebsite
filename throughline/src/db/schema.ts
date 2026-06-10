@@ -391,7 +391,8 @@ export const activities = pgTable(
     }),
     cadence: integer('cadence'),
     trainingLoad: doublePrecision('training_load'), // derived TRIMP/load impulse
-    splits: jsonb('splits'), // [{ distanceMeters, durationSeconds, avgHr, paceSecPerKm }]
+    splits: jsonb('splits'), // [{ distanceMeters, durationSeconds, avgHr, paceSecPerKm, elevDiffMeters }]
+    mapPolyline: text('map_polyline'), // encoded route polyline (Strava map.summary_polyline)
     sourceRef: text('source_ref'), // provider activity id
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },

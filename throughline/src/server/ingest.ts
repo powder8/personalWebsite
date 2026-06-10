@@ -4,6 +4,7 @@
  * state. Shared by the async normalizer (Inngest) and the Strava pull sync, so
  * there is ONE place that knows how a batch lands in the DB.
  */
+import { sql } from 'drizzle-orm';
 import type { DB } from '@/db';
 import {
   activities,
@@ -53,6 +54,12 @@ export async function persistNormalizedBatch(
           avgPaceSecPerKm: batch.activities[0].avgPaceSecPerKm,
           cadence: batch.activities[0].cadence,
           sport: batch.activities[0].sport,
+          elevationGainMeters: batch.activities[0].elevationGainMeters,
+          workoutType: batch.activities[0].workoutType,
+          // Splits/route only come from DETAIL fetches (webhook); list-based
+          // re-syncs send null — never let them wipe data we already captured.
+          splits: sql`coalesce(excluded.splits, ${activities.splits})`,
+          mapPolyline: sql`coalesce(excluded.map_polyline, ${activities.mapPolyline})`,
         },
       });
   }

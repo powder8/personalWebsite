@@ -26,6 +26,18 @@ export interface StravaActivity {
   average_cadence?: number; // per-leg rpm for runs (×2 for steps/min)
   total_elevation_gain?: number; // meters of ascent
   workout_type?: number; // runs: 0 default, 1 race, 2 long run, 3 workout
+  map?: { summary_polyline?: string | null };
+  /** Mile splits — present on DetailedActivity (webhook fetch), not list items. */
+  splits_standard?: StravaSplit[];
+}
+
+export interface StravaSplit {
+  distance?: number; // meters (~1609 for a full mile)
+  moving_time?: number; // seconds
+  elapsed_time?: number;
+  average_speed?: number; // m/s
+  average_heartrate?: number;
+  elevation_difference?: number; // meters
 }
 
 interface TokenResponse {
@@ -163,9 +175,29 @@ export function normalizeActivity(a: StravaActivity): NonNullable<NormalizedBatc
     cadence:
       a.average_cadence != null ? Math.round(a.average_cadence * (isRun ? 2 : 1)) : null,
     trainingLoad: null, // derived later by the load model
-    splits: null,
+    splits: normalizeSplits(a.splits_standard),
+    mapPolyline: a.map?.summary_polyline || null,
     sourceRef: `strava:${a.id}`,
   };
+}
+
+/** Mile splits → our stored shape. Null when absent (list items have no splits). */
+export function normalizeSplits(
+  splits: StravaSplit[] | undefined,
+): { distanceMeters: number; durationSeconds: number; paceSecPerKm: number | null; avgHr: number | null; elevDiffMeters: number | null }[] | null {
+  if (!splits?.length) return null;
+  return splits
+    .filter((s) => (s.distance ?? 0) > 0 && (s.moving_time ?? s.elapsed_time ?? 0) > 0)
+    .map((s) => {
+      const duration = s.moving_time ?? s.elapsed_time ?? 0;
+      return {
+        distanceMeters: s.distance!,
+        durationSeconds: duration,
+        paceSecPerKm: s.distance! > 0 ? Math.round((duration / s.distance!) * 1000 * 10) / 10 : null,
+        avgHr: s.average_heartrate != null ? Math.round(s.average_heartrate) : null,
+        elevDiffMeters: s.elevation_difference ?? null,
+      };
+    });
 }
 
 export function mapSport(t: string | undefined): 'run' | 'bike' | 'swim' | 'other' {

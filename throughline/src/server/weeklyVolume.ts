@@ -23,6 +23,7 @@ export type EffortKind = 'race' | 'workout' | 'long_run';
 const WORKOUT_TYPE_LABEL: Record<number, EffortKind> = { 1: 'race', 2: 'long_run', 3: 'workout' };
 
 export interface LabeledEffort {
+  id: string;
   day: string;
   name: string | null;
   kind: EffortKind;
@@ -73,6 +74,7 @@ export async function getTrainingSummary(
   const since = new Date(`${firstMonday}T00:00:00.000Z`);
   const rows = await db
     .select({
+      id: activities.id,
       startTime: activities.startTime,
       sport: activities.sport,
       name: activities.name,
@@ -103,6 +105,7 @@ export async function getTrainingSummary(
     const kind = r.workoutType != null ? WORKOUT_TYPE_LABEL[r.workoutType] : undefined;
     if (kind) {
       efforts.push({
+        id: r.id,
         day,
         name: r.name,
         kind,
