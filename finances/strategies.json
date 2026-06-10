@@ -31,6 +31,32 @@
     "trading_days_per_year": 252
   },
 
+  "history": { "lookback_years": 10, "min_months": 24 },
+  "horizons_years": [1, 3, 5, 10],
+  "significance_benchmark": "VTI",
+
+  "factor_target": "DFEOX",
+  "factor_proxies": {
+    "_comment": "ETF proxies for Fama-French-3 factors, built from Yahoo data only. mkt=market, smb=small-large, hml=value-growth.",
+    "mkt": "VTI", "smb_small": "IJR", "smb_large": "VOO", "hml_value": "IWD", "hml_growth": "IWF"
+  },
+
+  "tax": {
+    "_comment": "Illustrative switching-cost model on stand-in amounts — NOT tax advice. embedded_gain_pct = share of value that is unrealized gain; ltcg_rate = long-term cap-gains + NIIT (+ state if you add it); replacement_expense_ratio = ER of the fund you'd switch into.",
+    "embedded_gain_pct": 0.40,
+    "ltcg_rate": 0.238,
+    "replacement_expense_ratio": 0.0003
+  },
+
+  "candidate_lineup": [
+    { "ticker": "DFEOX", "name": "DFA US Core Equity 2",       "role": "The manager's own fund" },
+    { "ticker": "VTI",   "name": "Vanguard Total US Market",    "role": "Broad low-cost core",  "expense_ratio": 0.0003 },
+    { "ticker": "VOO",   "name": "Vanguard S&P 500",            "role": "Large-cap benchmark",  "expense_ratio": 0.0003 },
+    { "ticker": "AVUV",  "name": "Avantis US Small Cap Value",  "role": "Small-value factor",   "expense_ratio": 0.0025 },
+    { "ticker": "VXUS",  "name": "Vanguard Total International", "role": "Global diversifier",   "expense_ratio": 0.0008 },
+    { "ticker": "BND",   "name": "Vanguard Total Bond Market",  "role": "Ballast",              "expense_ratio": 0.0003 }
+  ],
+
   "memo": {
     "enabled": true,
     "model": "claude-sonnet-4-5-20250929",

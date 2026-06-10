@@ -8,6 +8,8 @@ import os
 import math
 import random
 import unittest
+import json as _json
+import pathlib as _pathlib
 
 os.environ.setdefault("FINANCES_NO_NETWORK", "1")
 
@@ -141,6 +143,46 @@ class TestTax(unittest.TestCase):
     def test_breakeven_no_savings_none(self):
         r = build.tax_switch_breakeven(10000.0, 0.40, 0.238, 0.0)
         self.assertIsNone(r["breakeven_years"])
+
+
+class TestRenderGraceful(unittest.TestCase):
+    """The deep-analysis cards must vanish when their data is absent, and the full
+    page must still render when they're present."""
+    DATA = _pathlib.Path(__file__).resolve().parent / "data.json"
+
+    def _base(self):
+        if not self.DATA.exists():
+            self.skipTest("data.json not present")
+        return _json.loads(self.DATA.read_text())
+
+    def test_cards_empty_when_absent(self):
+        r = self._base()
+        for fn in ("render_multihorizon", "render_factor", "render_significance", "render_tax"):
+            self.assertEqual(getattr(build, fn)(r), "", fn + " should be empty")
+        html = build.render(r, "", build.load_history())
+        self.assertIn("Leaderboard", html)
+        self.assertEqual(html.count("<svg"), html.count("</svg>"))
+
+    def test_cards_render_when_present(self):
+        r = self._base()
+        r["deep_meta"] = {"lookback_years": 10, "horizons": [1, 3, 5, 10]}
+        win = {"cagr": 0.12, "vol": 0.15, "mdd": -0.2, "sharpe": 0.8, "years": 5}
+        r["multihorizon"] = [{"ticker": "DFEOX", "name": "DFA US Core Equity 2",
+                              "role": "manager fund", "horizons": {
+                                  "first_date": "2005-01-03", "1y": win, "3y": win,
+                                  "5y": win, "10y": None, "inception": win}}]
+        r["factor"] = {"target": "DFEOX", "fee": 0.014, "alpha_annual": -0.01,
+                       "alpha_t": -1.3, "beta_mkt": 0.99, "beta_smb": 0.2,
+                       "beta_hml": 0.1, "r2": 0.97, "n_months": 120}
+        r["significance"] = {"target": "DFEOX", "benchmark": "VTI", "te_annual": 0.03,
+                             "ir": -0.4, "mean_excess_annual": -0.01, "tstat": -0.9,
+                             "n_months": 120}
+        r["tax"] = build.tax_switch_breakeven(2800.0, 0.40, 0.238, 0.0137)
+        html = build.render(r, "", build.load_history())
+        for marker in ("Across time horizons", "factor view", "significance", "cost of switching"):
+            self.assertIn(marker, html)
+        self.assertEqual(html.count("<svg"), html.count("</svg>"))
+        self.assertNotIn("Alternatives worth researching", html)
 
 
 # small local helpers so tests stay dependency-free

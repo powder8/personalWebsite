@@ -289,6 +289,96 @@ def tax_switch_breakeven(value, embedded_gain_pct, ltcg_rate, annual_fee_savings
             "annual_fee_savings_rate": annual_fee_savings_rate}
 
 
+def deep_analysis(invested_today, fee_c):
+    """Long-history, de-biased analysis: multi-horizon table for a FIXED lineup,
+    a Fama-French-3 factor regression of the manager's fund (net of fee), a
+    fund-vs-benchmark significance test, and an illustrative tax switching cost.
+    Each piece is best-effort and returns None on any failure so the build never aborts."""
+    hist = CONFIG.get("history", {})
+    lookback = hist.get("lookback_years", 10)
+    min_months = hist.get("min_months", 24)
+    horizons = CONFIG.get("horizons_years", [1, 3, 5, 10])
+    lineup = CONFIG.get("candidate_lineup", [])
+    fp = CONFIG.get("factor_proxies", {})
+    target = CONFIG.get("factor_target")
+    sig_bench = CONFIG.get("significance_benchmark", "VTI")
+    tax_cfg = CONFIG.get("tax", {})
+
+    start_iso = _shift_years(datetime.now(timezone.utc).date().isoformat(), lookback)
+    proxy_tickers = [v for k, v in fp.items() if k != "_comment" and isinstance(v, str)]
+    wanted = sorted(set([c["ticker"] for c in lineup] + proxy_tickers
+                        + ([target] if target else []) + [sig_bench]))
+    print(f"Fetching {lookback}y history for deep analysis ({len(wanted)} tickers)…")
+    long = {}
+    for t in wanted:
+        s = fetch_series(t, start_iso=start_iso)
+        if s:
+            long[t] = s
+
+    out = {"lookback_years": lookback, "horizons": horizons,
+           "multihorizon": None, "factor": None, "significance": None, "tax": None}
+
+    # 1) Multi-horizon table for the fixed lineup (judged over long history, not ranked by last year)
+    try:
+        rows = [{"ticker": c["ticker"], "name": c["name"], "role": c.get("role", ""),
+                 "horizons": multi_horizon(long[c["ticker"]], horizons)}
+                for c in lineup if c["ticker"] in long]
+        out["multihorizon"] = rows or None
+    except Exception as e:
+        sys.stderr.write(f"multi-horizon skipped: {e}\n")
+
+    # 2) Factor regression: manager's fund (net of advisory fee) on MKT/SMB/HML proxies
+    try:
+        needed = [target, fp.get("mkt"), fp.get("smb_small"), fp.get("smb_large"),
+                  fp.get("hml_value"), fp.get("hml_growth")]
+        if all(t and t in long for t in needed):
+            months, aligned = align_monthly({t: resample_monthly(long[t]) for t in set(needed)})
+            if len(months) - 1 >= min_months:
+                r = {t: monthly_returns(aligned[t]) for t in aligned}
+                rf_m, fee_m = RF / 12.0, fee_c / 12.0
+                n = len(r[target])
+                y = [r[target][i] - rf_m - fee_m for i in range(n)]
+                X = [[r[fp["mkt"]][i] - rf_m,
+                      r[fp["smb_small"]][i] - r[fp["smb_large"]][i],
+                      r[fp["hml_value"]][i] - r[fp["hml_growth"]][i]] for i in range(n)]
+                res = ols(y, X)
+                if res:
+                    a_m = res["coef"][0]
+                    out["factor"] = {
+                        "target": target, "fee": fee_c,
+                        "alpha_annual": (1 + a_m) ** 12 - 1, "alpha_t": res["tstat"][0],
+                        "beta_mkt": res["coef"][1], "beta_smb": res["coef"][2],
+                        "beta_hml": res["coef"][3], "r2": res["r2"], "n_months": res["n"],
+                    }
+    except Exception as e:
+        sys.stderr.write(f"factor model skipped: {e}\n")
+
+    # 3) Significance: manager's fund (net of fee) vs a broad benchmark, monthly
+    try:
+        if target in long and sig_bench in long:
+            months, aligned = align_monthly({target: resample_monthly(long[target]),
+                                             sig_bench: resample_monthly(long[sig_bench])})
+            fee_m = fee_c / 12.0
+            fr = [x - fee_m for x in monthly_returns(aligned[target])]
+            ts = tracking_stats(fr, monthly_returns(aligned[sig_bench]))
+            if ts:
+                ts.update({"target": target, "benchmark": sig_bench})
+                out["significance"] = ts
+    except Exception as e:
+        sys.stderr.write(f"significance skipped: {e}\n")
+
+    # 4) Illustrative tax cost of switching out of the managed portfolio
+    try:
+        rep_er = tax_cfg.get("replacement_expense_ratio", 0.0003)
+        out["tax"] = tax_switch_breakeven(
+            invested_today, tax_cfg.get("embedded_gain_pct", 0.40),
+            tax_cfg.get("ltcg_rate", 0.238), max(fee_c - rep_er, 0.0))
+    except Exception as e:
+        sys.stderr.write(f"tax estimate skipped: {e}\n")
+
+    return out
+
+
 # ─── Build the comparison ────────────────────────────────────────────────────
 
 def build():
@@ -435,14 +525,13 @@ def build():
             "best_now": best_passive["current"],
         }
 
-    # Rotating watchlist of alternatives: discover + backtest + rank + diff vs last week.
-    # Best-effort: discovery uses the API/web-search, so never let it abort the build.
+    # Deeper, de-biased analysis (long history, fixed lineup, factor + significance + tax).
+    # Best-effort: never let a missing ticker or failed fetch abort the build.
     try:
-        alternatives, rotated_out = build_alternatives(
-            start_capital, dates[0], dates[-1], set(need))
+        deep = deep_analysis(invested_today, fee_c)
     except Exception as e:
-        sys.stderr.write(f"Alternatives watchlist skipped: {e}\n")
-        alternatives, rotated_out = [], []
+        sys.stderr.write(f"Deep analysis skipped: {e}\n")
+        deep = {}
 
     result = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -459,10 +548,12 @@ def build():
         "best_passive_key": best_passive["key"],
         "breakeven_fee": breakeven_fee,
         "attribution": attribution,
-        "alternatives": alternatives,
-        "alt_rotated_out": rotated_out,
-        "alt_rank_by": CONFIG.get("alternatives", {}).get("rank_by", "sharpe"),
-        "alt_intro": "",
+        "multihorizon": deep.get("multihorizon"),
+        "factor": deep.get("factor"),
+        "significance": deep.get("significance"),
+        "tax": deep.get("tax"),
+        "deep_meta": {"lookback_years": deep.get("lookback_years"),
+                      "horizons": deep.get("horizons")},
         "missing": missing,
     }
     return result
@@ -556,209 +647,6 @@ informational, not personalized financial advice."""
 
     return call_claude(prompt, cfg.get("model", "claude-sonnet-4-5-20250929"),
                        cfg.get("max_tokens", 1800))
-
-
-# ─── Alternatives to research (validated + backtested + Claude rationale) ─────
-
-def backtest_ticker(ticker, start_capital, start_date, as_of):
-    """Grow start_capital through one ticker over [start_date, as_of] using real data."""
-    s = fetch_series(ticker)
-    if not s:
-        return None
-    ds = sorted(d for d in s if start_date <= d <= as_of)
-    if len(ds) < 30:
-        return None
-    pv = [s[d] for d in ds]
-    units = start_capital / pv[0]
-    gv = [units * x for x in pv]
-    yrs = (datetime.strptime(ds[-1], "%Y-%m-%d") -
-           datetime.strptime(ds[0], "%Y-%m-%d")).days / 365.25
-    return {
-        "current": gv[-1],
-        "cagr": cagr(start_capital, gv[-1], yrs),
-        "vol": annualized_vol(pv),
-        "mdd": max_drawdown(pv),
-        "first_date": ds[0],
-        "partial": ds[0] > start_date,
-    }
-
-
-def score_metrics(m, rank_by):
-    """A single comparable score for ranking the watchlist. Higher = better."""
-    if not m:
-        return float("-inf")
-    if rank_by == "cagr":
-        return m["cagr"]
-    if rank_by == "return_per_drawdown":
-        return m["cagr"] / max(abs(m["mdd"]), 0.01)
-    # default: Sharpe-like, risk-adjusted
-    return (m["cagr"] - RF) / m["vol"] if m["vol"] > 0 else float("-inf")
-
-
-def load_prev_roster():
-    """Read last run's watchlist from the committed data.json (durable 'last week')."""
-    f = DIR / "data.json"
-    if not f.exists():
-        return {"exists": False, "tickers": [], "first_seen": {}}
-    try:
-        prev = json.loads(f.read_text())
-    except Exception:
-        return {"exists": False, "tickers": [], "first_seen": {}}
-    first_seen = {}
-    for a in (prev.get("alternatives") or []) + (prev.get("alt_rotated_out") or []):
-        if a.get("ticker"):
-            first_seen[a["ticker"]] = a.get("first_seen") or prev.get("as_of")
-    roster_tickers = [a["ticker"] for a in (prev.get("alternatives") or []) if a.get("ticker")]
-    return {"exists": bool(prev.get("alternatives")), "tickers": roster_tickers,
-            "first_seen": first_seen}
-
-
-def discover_alternatives(exclude, cfg):
-    """Web-search for fresh fund ideas to consider. Returns a list of candidate dicts."""
-    dcfg = cfg.get("discover", {})
-    if not dcfg.get("enabled", True):
-        return []
-    prompt = f"""You are an investment analyst maintaining a rotating watchlist of low-cost \
-funds a retail investor could use to self-manage instead of paying a money manager. Search \
-the web for strong, currently-available fund/ETF ideas worth adding to the watchlist — favour \
-broad, low-cost, durable options across roles (core, dividend/quality, international, factor, \
-sector/growth, bonds, balanced/all-in-one), and feel free to surface newer or less-obvious \
-funds. Suggest up to {dcfg.get('max_new', 8)} real, US-listed tickers.
-
-Do NOT suggest any of these already-tracked tickers: {', '.join(sorted(exclude))}.
-Only funds/ETFs (or index mutual funds) — no single stocks.
-
-After searching, respond with ONLY valid JSON, no markdown fences, exactly:
-{{"candidates": [{{"ticker": "XXXX", "name": "...", "source": "Vanguard|Fidelity|Schwab|iShares|...", "role": "...", "expense_ratio": 0.0003}}]}}
-Use a decimal for expense_ratio (e.g. 0.0003 for 3 bps); omit or use null if unknown."""
-    txt = call_claude(prompt, dcfg.get("model", cfg.get("model", "claude-sonnet-4-5-20250929")),
-                      1500, search_uses=dcfg.get("max_search_uses", 5))
-    if not txt:
-        return []
-    try:
-        obj = json.loads(txt[txt.find("{"):txt.rfind("}") + 1])
-        out = []
-        for c in obj.get("candidates", []):
-            t = (c.get("ticker") or "").strip().upper()
-            if t and t not in exclude:
-                out.append({"ticker": t, "name": c.get("name", t),
-                            "source": c.get("source", "—"), "role": c.get("role", "—"),
-                            "expense_ratio": c.get("expense_ratio")})
-        return out
-    except Exception as e:
-        sys.stderr.write(f"Could not parse discovery JSON: {e}\n")
-        return []
-
-
-def build_alternatives(start_capital, start_iso, as_of, exclude_tracked):
-    """Discover + backtest + rank a rotating watchlist; diff against last week."""
-    cfg = CONFIG.get("alternatives", {})
-    if not cfg.get("enabled", True):
-        return [], []
-    rank_by = cfg.get("rank_by", "sharpe")
-    size = cfg.get("roster_size", 8)
-    prev = load_prev_roster()
-
-    print("Searching for new alternatives…")
-    discovered = discover_alternatives(exclude_tracked | set(prev["tickers"]), cfg)
-    if discovered:
-        print(f"  discovered: {', '.join(c['ticker'] for c in discovered)}")
-
-    # Assemble the candidate pool: last week's roster + config seeds + new finds.
-    # Earlier entries win on metadata when tickers repeat.
-    seeds = cfg.get("candidates", [])
-    seed_by_t = {c["ticker"]: c for c in seeds}
-    pool, seen = [], set()
-    # last week's roster first (so we keep their metadata if present in seeds)
-    for t in prev["tickers"]:
-        if t in exclude_tracked or t in seen:
-            continue
-        meta = seed_by_t.get(t, {"ticker": t, "name": t, "source": "—", "role": "—",
-                                 "expense_ratio": None})
-        pool.append(dict(meta)); seen.add(t)
-    for c in seeds + discovered:
-        t = c["ticker"]
-        if t in exclude_tracked or t in seen:
-            continue
-        pool.append(dict(c)); seen.add(t)
-
-    print(f"Backtesting {len(pool)} watchlist candidates…")
-    scored = []
-    for c in pool:
-        m = backtest_ticker(c["ticker"], start_capital, start_iso, as_of)
-        if not m:
-            continue
-        c["metrics"] = m
-        c["score"] = score_metrics(m, rank_by)
-        c["rationale"] = ""
-        scored.append(c)
-    scored.sort(key=lambda x: x["score"], reverse=True)
-
-    roster = scored[:size]
-    dropped = scored[size:]
-
-    roster_tickers = {c["ticker"] for c in roster}
-    prev_set = set(prev["tickers"])
-    for c in roster:
-        c["status"] = "held" if (not prev["exists"] or c["ticker"] in prev_set) else "new"
-        c["first_seen"] = prev["first_seen"].get(c["ticker"]) or as_of
-
-    # Rotated out: were in last week's roster, not in this week's.
-    rotated_out = []
-    for c in dropped:
-        if prev["exists"] and c["ticker"] in prev_set:
-            c["first_seen"] = prev["first_seen"].get(c["ticker"]) or as_of
-            rotated_out.append(c)
-
-    if prev["exists"]:
-        rin = [c["ticker"] for c in roster if c["status"] == "new"]
-        print(f"  rotated in: {rin or '—'} | rotated out: {[c['ticker'] for c in rotated_out] or '—'}")
-    return roster, rotated_out
-
-
-def write_alt_rationale(result):
-    """Mutate result['alternatives'] with a Claude rationale per fund + a section intro."""
-    cfg = CONFIG.get("alternatives", {})
-    alts = result.get("alternatives") or []
-    if not cfg.get("enabled", True) or not alts:
-        return
-    lines = []
-    for a in alts:
-        m = a.get("metrics")
-        perf = (f"same ${result['start_capital']:,.0f} -> ${m['current']:,.0f} "
-                f"({m['cagr']*100:+.1f}%/yr, vol {m['vol']*100:.1f}%, maxDD {m['mdd']*100:.1f}%)"
-                if m else "price data unavailable")
-        er = f"{a['expense_ratio']*100:.2f}%" if a.get("expense_ratio") is not None else "n/a"
-        lines.append(f"- {a['ticker']} ({a['name']}, {a['source']}, role: {a['role']}, "
-                     f"ER {er}): {perf}")
-    prompt = f"""You are an investment analyst helping a retail investor RESEARCH self-managed \
-alternatives to their money manager, who currently concentrates them in AMZN plus a US \
-core-equity fund. Below is a shortlist of real funds, each backtested over the past year on \
-the same ${result['start_capital']:,.0f} basis.
-
-{chr(10).join(lines)}
-
-For EACH ticker, write a 1–2 sentence rationale: the role it plays in a portfolio, who it \
-suits, and one honest caveat. Do NOT predict prices or future returns. Then write a 1–2 \
-sentence section intro on how to think about combining these (a low-cost core plus \
-diversifiers and ballast) rather than chasing the past year's winner.
-
-Respond with ONLY valid JSON, no markdown fences, exactly this shape:
-{{"intro": "...", "funds": {{"FZROX": "...", "FXAIX": "...", ...}}}}"""
-    txt = call_claude(prompt, cfg.get("model", "claude-sonnet-4-5-20250929"),
-                      cfg.get("max_tokens", 1600))
-    if not txt:
-        return
-    try:
-        start, end = txt.find("{"), txt.rfind("}")
-        obj = json.loads(txt[start:end + 1])
-    except Exception as e:
-        sys.stderr.write(f"Could not parse alternatives JSON: {e}\n")
-        return
-    result["alt_intro"] = obj.get("intro", "")
-    funds = obj.get("funds", {})
-    for a in alts:
-        a["rationale"] = funds.get(a["ticker"], "")
 
 
 # ─── Rendering ───────────────────────────────────────────────────────────────
@@ -861,81 +749,6 @@ def svg_fan(result):
            f'<span class="lg"><i style="background:#a855f7"></i>{html_esc(best["name"])}</span>'
            '<span class="lg muted">shaded = P10–P90 range</span></div>')
     return "".join(parts) + leg
-
-
-RANK_LABEL = {"sharpe": "risk-adjusted return (Sharpe)", "cagr": "trailing return",
-              "return_per_drawdown": "return per unit of drawdown"}
-
-
-def _er_str(a):
-    return f"{a['expense_ratio']*100:.2f}%" if a.get("expense_ratio") is not None else "n/a"
-
-
-def render_alternatives(result):
-    alts = result.get("alternatives") or []
-    if not alts:
-        return ""
-    rank_by = result.get("alt_rank_by", "sharpe")
-    intro = result.get("alt_intro") or (
-        "Educated starting points for your own research. A durable portfolio is usually a "
-        "low-cost core plus a few diversifiers and some ballast — not a bet on last year's winner.")
-    cards = []
-    for a in alts:
-        m = a.get("metrics")
-        if m:
-            partial = (f' <span class="muted">(data since {m["first_date"]})</span>'
-                       if m.get("partial") else "")
-            cls = "pos" if m["cagr"] >= 0 else "neg"
-            perf = (f'<div class="altperf">Same {money(result["start_capital"])} → '
-                    f'<b>{money(m["current"])}</b> '
-                    f'<span class="{cls}">{pct(m["cagr"], True)}/yr</span> · '
-                    f'vol {pct(m["vol"])} · maxDD {pct(m["mdd"])}{partial}</div>')
-        else:
-            perf = '<div class="altperf muted">price data unavailable this run</div>'
-        rat = f'<p class="altrat">{html_esc(a["rationale"])}</p>' if a.get("rationale") else ""
-        is_new = a.get("status") == "new"
-        badge = '<span class="badge new">NEW</span>' if is_new else ""
-        since = (f'<span class="since">in watchlist since {a["first_seen"]}</span>'
-                 if a.get("first_seen") and not is_new else "")
-        cards.append(
-            f'<div class="altcard{ " isnew" if is_new else "" }">'
-            f'<div class="althead"><span class="altname">{html_esc(a["name"])}{badge}</span>'
-            f'<span class="pill">{html_esc(a["ticker"])}</span></div>'
-            f'<div class="altmeta">{html_esc(a["role"])} · {html_esc(a["source"])} · '
-            f'ER {_er_str(a)} {since}</div>'
-            f'{perf}{rat}</div>')
-
-    # Rotated-out note
-    out = result.get("alt_rotated_out") or []
-    rotated_html = ""
-    if out:
-        items = []
-        for a in out:
-            m = a.get("metrics") or {}
-            ret = pct(m["cagr"], True) + "/yr" if m else "—"
-            items.append(f'<li><b>{html_esc(a["ticker"])}</b> {html_esc(a["name"])} '
-                         f'<span class="muted">({ret}, dropped below the top {len(alts)} '
-                         f'by {html_esc(RANK_LABEL.get(rank_by, rank_by))})</span></li>')
-        rotated_html = (
-            '<div class="rotout"><h3>Rotated out this week</h3>'
-            f'<ul>{"".join(items)}</ul></div>')
-    new_count = sum(1 for a in alts if a.get("status") == "new")
-    rotated_summary = (f' <strong>{new_count} rotated in</strong> and '
-                       f'{len(out)} rotated out since last week.' if (new_count or out) else "")
-
-    return (
-        '<section class="card"><h2>Alternatives worth researching</h2>'
-        f'<p class="sub">A watchlist that refreshes weekly: each run web-searches for new fund '
-        f'ideas, backtests them against last week’s roster on the same dollar basis, and keeps '
-        f'the top {len(alts)} ranked by {html_esc(RANK_LABEL.get(rank_by, rank_by))}.{rotated_summary}</p>'
-        f'<p class="sub" style="margin-top:-4px;">{html_esc(intro)}</p>'
-        f'<div class="altgrid">{"".join(cards)}</div>'
-        f'{rotated_html}'
-        '<p class="src">Real funds across sources, validated and backtested on the same dollar '
-        'basis as the leaderboard; ideas surfaced by web search, per-fund rationale by Claude. '
-        'These are research starting points — <strong>not</strong> recommendations or predictions. '
-        'Past returns shown for context only; verify expense ratios and suitability yourself.</p>'
-        '</section>')
 
 
 HISTORY_FILE = DIR / "history.json"
@@ -1072,6 +885,108 @@ def render_attribution(result):
         f'<div class="banner manager" style="margin:0 0 16px;"><p>{lead} {vs_index}</p></div>'
         f'<table class="mini"><tr><th>Scenario</th><th>Value today</th><th>Return/yr</th></tr>{rows}</table>'
         f'</section>')
+
+
+def render_multihorizon(result):
+    """A fixed-lineup table of annualized returns across several trailing windows."""
+    rows = result.get("multihorizon")
+    if not rows:
+        return ""
+    meta = result.get("deep_meta") or {}
+    horizons = meta.get("horizons") or [1, 3, 5, 10]
+    look = meta.get("lookback_years") or 10
+    heads = "".join(f"<th>{h}y</th>" for h in horizons) + "<th>Since incept.</th>"
+    body = []
+    for r in rows:
+        h = r["horizons"]
+        cells = []
+        for hz in horizons:
+            m = h.get(f"{hz}y")
+            cells.append(f'<td class="num">{pct(m["cagr"], True)}</td>' if m else '<td class="num">—</td>')
+        inc = h.get("inception")
+        cells.append(f'<td class="num">{pct(inc["cagr"], True)}</td>' if inc else '<td class="num">—</td>')
+        tag = ' <span class="pill mgr">manager</span>' if r["ticker"] == CONFIG.get("factor_target") else ''
+        body.append(
+            f'<tr><td>{html_esc(r["name"])} <span class="pill">{html_esc(r["ticker"])}</span>{tag}'
+            f'<div class="altmeta">{html_esc(r.get("role",""))} · since {h.get("first_date","?")}</div></td>'
+            + "".join(cells) + "</tr>")
+    return (
+        f'<section class="card"><h2>Across time horizons</h2>'
+        f'<p class="sub">Annualized return of a <b>fixed, principled lineup</b> over multiple trailing '
+        f'windows (up to {look} years), judged over long history — <b>not</b> ranked by last year’s '
+        f'winner, which would just select whatever recently outperformed. Each fund’s window shrinks to '
+        f'its available history; the manager’s own fund is tagged.</p>'
+        f'<div style="overflow-x:auto;"><table class="mini"><tr><th>Fund</th>{heads}</tr>'
+        f'{"".join(body)}</table></div></section>')
+
+
+def render_factor(result):
+    """Fama-French-3 factor regression of the manager's fund (net of fee)."""
+    f = result.get("factor")
+    if not f:
+        return ""
+    strong = abs(f["alpha_t"]) >= 2
+    verdict = (
+        f"After accounting for its market, size and value tilts <i>and</i> the {pct(f['fee'])} advisory "
+        f"fee, {html_esc(f['target'])} {'added' if f['alpha_annual'] >= 0 else 'gave up'} "
+        f"{pct(abs(f['alpha_annual']))}/yr of alpha — "
+        f"{'statistically meaningful' if strong else 'not statistically distinguishable from zero'} "
+        f"(t = {f['alpha_t']:.2f}). Alpha is the part a cheap factor blend couldn’t replicate.")
+    rows = (
+        f'<tr><td>Annual alpha (after fee)</td><td class="num">{pct(f["alpha_annual"], True)}</td><td class="num">t = {f["alpha_t"]:.2f}</td></tr>'
+        f'<tr><td>Market (MKT) loading</td><td class="num">{f["beta_mkt"]:.2f}</td><td class="num"></td></tr>'
+        f'<tr><td>Size (SMB) loading</td><td class="num">{f["beta_smb"]:+.2f}</td><td class="num"></td></tr>'
+        f'<tr><td>Value (HML) loading</td><td class="num">{f["beta_hml"]:+.2f}</td><td class="num"></td></tr>'
+        f'<tr><td>R² · months</td><td class="num">{f["r2"]*100:.0f}%</td><td class="num">{f["n_months"]}</td></tr>')
+    return (
+        f'<section class="card"><h2>Skill, or just tilts? (factor view)</h2>'
+        f'<p class="sub">{html_esc(f["target"])} is small/value-tilted, so beating a plain S&amp;P 500 isn’t '
+        f'necessarily skill. This regresses its monthly return (net of fee) on market, size and value factors '
+        f'built from ETF proxies; positive SMB/HML loadings show the tilts, and <b>alpha</b> is what’s left '
+        f'over after them.</p>'
+        f'<div class="banner manager" style="margin:0 0 16px;"><p>{verdict}</p></div>'
+        f'<table class="mini"><tr><th>Measure</th><th>Value</th><th></th></tr>{rows}</table></section>')
+
+
+def render_significance(result):
+    """Is the manager-fund-vs-benchmark difference signal or noise?"""
+    s = result.get("significance")
+    if not s:
+        return ""
+    yrs = s["n_months"] / 12.0
+    strong = abs(s["tstat"]) >= 2
+    verdict = (
+        f"Over {s['n_months']} months (~{yrs:.0f} years), {html_esc(s['target'])} beat "
+        f"{html_esc(s['benchmark'])} by {pct(s['mean_excess_annual'], True)}/yr after fee, with tracking "
+        f"error {pct(s['te_annual'])} (information ratio {s['ir']:.2f}). The t-stat is {s['tstat']:.2f} — "
+        f"{'large enough to suggest more than luck' if strong else 'too small to distinguish from luck'}. "
+        f"And ~{yrs:.0f} years is only a few independent annual observations, so read even a 'significant' "
+        f"result cautiously.")
+    cls = "self" if strong and s["mean_excess_annual"] > 0 else "manager"
+    return (
+        f'<section class="card"><h2>Signal or luck? (significance)</h2>'
+        f'<p class="sub">A return edge means little if it’s within the noise. This compares the '
+        f'manager’s fund (net of fee) to {html_esc(s["benchmark"])} month by month.</p>'
+        f'<div class="banner {cls}" style="margin:0;"><p>{verdict}</p></div></section>')
+
+
+def render_tax(result):
+    """Illustrative one-time tax cost of switching + payback time."""
+    t = result.get("tax")
+    if not t:
+        return ""
+    be = t["breakeven_years"]
+    be_txt = f"{be:.1f} years" if be is not None else "never (no fee saving)"
+    return (
+        f'<section class="card"><h2>The cost of switching (taxes)</h2>'
+        f'<p class="sub">Illustrative only — <b>not</b> tax advice. Assumes {pct(t["embedded_gain_pct"])} of the '
+        f'portfolio is unrealized gain, taxed at {pct(t["ltcg_rate"])} (long-term + NIIT), and that switching '
+        f'saves {pct(t["annual_fee_savings_rate"])}/yr in fees. Edit these in strategies.json.</p>'
+        f'<table class="mini">'
+        f'<tr><td>One-time tax to liquidate &amp; switch</td><td class="num">{money(t["tax_cost"])}</td></tr>'
+        f'<tr><td>Annual fee saving by switching</td><td class="num">{money(t["annual_savings"])}</td></tr>'
+        f'<tr class="hl"><td>Years of savings to repay that tax</td><td class="num">{be_txt}</td></tr>'
+        f'</table></section>')
 
 
 def render(result, memo, history=None):
@@ -1298,11 +1213,17 @@ def render(result, memo, history=None):
     {svg_fan(result)}
   </section>
 
+  {render_multihorizon(result)}
+
+  {render_factor(result)}
+
+  {render_significance(result)}
+
+  {render_tax(result)}
+
   {tracking_html}
 
   {memo_html}
-
-  {render_alternatives(result)}
 
   <p class="stamp">Last updated {gen}. Data: Yahoo Finance (adjusted close). Rebuilds weekly.</p>
   <p class="disclaim">
@@ -1338,10 +1259,6 @@ def main():
     except Exception as e:
         memo = None
         sys.stderr.write(f"Memo generation skipped: {e}\n")
-    try:
-        write_alt_rationale(result)
-    except Exception as e:
-        sys.stderr.write(f"Alternatives rationale skipped: {e}\n")
 
     (DIR / "index.html").write_text(render(result, memo, history))
     # Trim the heavy date/series arrays out of the committed data.json? Keep them — small.
