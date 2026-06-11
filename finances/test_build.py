@@ -185,6 +185,7 @@ class TestRenderGraceful(unittest.TestCase):
             self.assertEqual(getattr(build, fn)(r), "", fn + " should be empty")
         html = build.render(r, "", build.load_history())
         self.assertIn("Leaderboard", html)
+        self.assertIn("Bottom line", html)  # deterministic verdict always present
         self.assertEqual(html.count("<svg"), html.count("</svg>"))
 
     def test_cards_render_when_present(self):

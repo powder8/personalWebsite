@@ -734,7 +734,7 @@ the client's likely risk tolerance. Hedge appropriately but DO take a position.
 Plain text, no markdown headers, no preamble. End with one italic-free sentence reminding this is \
 informational, not personalized financial advice."""
 
-    return call_claude(prompt, cfg.get("model", "claude-sonnet-4-5-20250929"),
+    return call_claude(prompt, cfg.get("model", "claude-sonnet-4-6"),
                        cfg.get("max_tokens", 1800))
 
 
@@ -978,6 +978,59 @@ def render_attribution(result):
 
 def _manager_fee(result):
     return next((s["fee_central"] for s in result["strategies"] if s.get("is_manager")), 0.014)
+
+
+def render_bottom_line(result):
+    """A deterministic, always-present recommendation synthesized from the computed
+    numbers — so the page states a verdict even when the AI memo can't generate."""
+    try:
+        mgr = next(s for s in result["strategies"] if s.get("is_manager"))
+        best = next(s for s in result["strategies"] if s["key"] == result["best_passive_key"])
+    except (StopIteration, KeyError, TypeError):
+        return ""
+    fee = _manager_fee(result)
+    be = result.get("breakeven_fee", 0.0)
+    leaning_self = best["current"] > mgr["current"]
+    verdict = ("the numbers lean toward self-managing" if leaning_self
+               else "the manager is, narrowly, earning their fee — for now")
+
+    pts = [f"To merely match the best index over this window, the manager would have to charge under "
+           f"<b>{fee_pct(be)}</b>/yr — versus the assumed {pct(fee)}."]
+    fd = result.get("fee_drag")
+    if fd and fd.get("rows"):
+        last = fd["rows"][-1]
+        pts.append(f"On a {money(fd['value'])} balance, that fee compounds to about <b>{money(last['gap'])}</b> "
+                   f"over {last['years']} years — roughly {last['gap_pct']*100:.0f}% of final wealth.")
+    rp = result.get("replication")
+    if rp:
+        saved = rp["manager_fee"] - rp["blended_er"]
+        pts.append(f"The manager's own fund ({html_esc(rp['target'])}) is ~{rp['r2']*100:.0f}% reproducible with a "
+                   f"cheap ETF blend — about <b>{pct(saved)}/yr</b> you could keep by holding it yourself.")
+    f = result.get("factor")
+    if f:
+        strong = abs(f["alpha_t"]) >= 2
+        pts.append(f"After its tilts and fee, {html_esc(f['target'])} "
+                   f"{'added' if f['alpha_annual'] >= 0 else 'gave up'} {pct(abs(f['alpha_annual']))}/yr of alpha — "
+                   f"{'meaningful' if strong else 'not distinguishable from luck'} (t = {f['alpha_t']:.2f}).")
+    items = "".join(f"<li>{p}</li>" for p in pts)
+    return (
+        f'<section class="card"><h2>Bottom line</h2>'
+        f'<p class="sub">A plain-English read of the numbers above — <b>not financial advice</b>. For an '
+        f'all-your-money decision, take this to a fee-only fiduciary and a tax professional.</p>'
+        f'<div class="banner {"self" if leaning_self else "manager"}" style="margin:0 0 16px;"><p>'
+        f'On the figures above, <b>{verdict}</b>. The real question isn’t which fund: <b>{html_esc(mgr_holding_note(result))}</b> '
+        f'If it’s performing well, that’s a point for the fund, not the fee — you can usually hold it (or replicate it '
+        f'cheaply) and skip the {pct(fee)}/yr advisory charge.</p></div>'
+        f'<ul class="rotout" style="border:none;padding:0;margin:0;">{items}</ul></section>')
+
+
+def mgr_holding_note(result):
+    """One-liner naming the manager's own fund so it's clear it isn't a separate 'pick'."""
+    a = result.get("attribution") or {}
+    core = a.get("core_names") or []
+    if core:
+        return f"{' & '.join(core)} is the manager’s own fund, not a separate option."
+    return "the funds the manager holds are what you’re paying the advisory fee on top of."
 
 
 def render_fee_drag(result):
@@ -1246,9 +1299,11 @@ def render(result, memo, history=None):
                      f'</section>')
     else:
         memo_html = ('<section class="card"><h2>Analyst view</h2>'
-                     '<p class="sub">Analyst memo skipped this run — the <code>ANTHROPIC_API_KEY</code> '
-                     'secret wasn\'t available, so the AI write-up was not generated. Every number '
-                     'above is computed directly from market data and stands on its own.</p></section>')
+                     '<p class="sub">The AI analyst write-up was not generated this run — either the '
+                     '<code>ANTHROPIC_API_KEY</code> secret is missing, or the API call failed (the exact '
+                     'reason is in the GitHub Actions log). Every number above is computed directly from '
+                     'market data and stands on its own, and the plain-English verdict is in the '
+                     '<b>Bottom line</b> card.</p></section>')
 
     miss = ""
     if result["missing"]:
@@ -1361,6 +1416,8 @@ def render(result, memo, history=None):
     <h2>The numbers, in one line</h2>
     <p>{banner_sub}</p>
   </div>
+
+  {render_bottom_line(result)}
 
   <section class="card">
     <h2>Leaderboard</h2>
