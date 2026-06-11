@@ -29,6 +29,19 @@ import {
 const LONG_RUN_CAP_MILES = 22;
 
 /**
+ * Common-sense floors (the coach sniff test): no prescribed run shorter than
+ * ~2 mi — at low weekly volume we consolidate into fewer runs instead — and no
+ * "quality workout" without room for warm-up + work + cool-down.
+ */
+const MIN_RUN_MILES = 2;
+const MIN_QUALITY_MILES = 3;
+
+/** Human plans use half-mile granularity, not 0.3-mi oddities. */
+function roundHalf(mi: number): number {
+  return Math.round(mi * 2) / 2;
+}
+
+/**
  * Warmup/cooldown scale with the day's size — an elite does ~2.5 mi each on a
  * 10-mi quality day; a recreational runner does ~1 mi on a 4-mi day. Fixed
  * mileage would leave "0 mi of work" for low-volume athletes.
@@ -83,13 +96,35 @@ export function generateWeek(
 ): PlannedWeek {
   const weeklyMiles = metersToMiles(week.targetVolumeMeters);
 
-  // 1) Long run.
-  const longMiles = roundMiles(Math.min(weeklyMiles * template.longRunFraction, LONG_RUN_CAP_MILES));
-  const remaining = Math.max(0, weeklyMiles - longMiles);
+  // 1) Long run — floored at the minimum meaningful run, capped at the week.
+  let longMiles = roundHalf(
+    Math.min(Math.max(weeklyMiles * template.longRunFraction, Math.min(MIN_RUN_MILES, weeklyMiles)), LONG_RUN_CAP_MILES),
+  );
+  let remaining = Math.max(0, weeklyMiles - longMiles);
+  // If what's left can't make even one meaningful run, the week IS the long run.
+  if (remaining < MIN_RUN_MILES) {
+    longMiles = roundHalf(weeklyMiles);
+    remaining = 0;
+  }
 
-  // 2) Distribute the remainder across non-long running days by weight.
-  const distributed = template.days.filter((d) => d.runType !== 'long' && d.runType !== 'rest');
-  const totalWeight = distributed.reduce((s, d) => s + d.volumeWeight, 0) || 1;
+  // 2) Distribute the remainder across non-long running days by weight —
+  //    CONSOLIDATING away days whose share would be too short to be worth
+  //    lacing up for. A 0.3 mi "run" fails the coach sniff test: at low
+  //    volume, fewer meaningful runs beat many micro-runs. Days dropped here
+  //    become rest; their volume flows to the surviving days.
+  let active =
+    remaining >= MIN_RUN_MILES ? template.days.filter((d) => d.runType !== 'long' && d.runType !== 'rest') : [];
+  const allocFor = (set: typeof active) => {
+    const tw = set.reduce((s, d) => s + d.volumeWeight, 0) || 1;
+    return new Map(set.map((d) => [d, (remaining * d.volumeWeight) / tw]));
+  };
+  let alloc = allocFor(active);
+  while (active.length > 1) {
+    const smallest = [...alloc.entries()].sort((a, b) => a[1] - b[1])[0];
+    if (smallest[1] >= MIN_RUN_MILES) break;
+    active = active.filter((d) => d !== smallest[0]);
+    alloc = allocFor(active);
+  }
 
   const days: PlannedDay[] = template.days.map((dt) => {
     const day = addDays(week.weekStart, dt.dow);
@@ -116,9 +151,15 @@ export function generateWeek(
       };
     }
 
-    const miles = roundMiles((remaining * dt.volumeWeight) / totalWeight);
+    // Consolidated away (share was below the minimum meaningful run) → rest.
+    if (!alloc.has(dt)) {
+      return { ...base, runType: 'rest' as const, zone: null, distanceMeters: 0, description: 'Rest day.' };
+    }
+    const miles = roundHalf(alloc.get(dt)!);
 
-    if (dt.runType === 'quality' && dt.quality) {
+    // A real quality session needs room for warm-up + work + cool-down; below
+    // ~MIN_QUALITY_MILES it degrades to junk — run it as a steady/easy day.
+    if (dt.runType === 'quality' && dt.quality && miles >= MIN_QUALITY_MILES) {
       const wuCd = warmupCooldownMiles(miles);
       return {
         ...base,
@@ -132,10 +173,10 @@ export function generateWeek(
       };
     }
 
-    const zone = zoneForRunType(dt.runType)!;
+    const zone = dt.runType === 'quality' ? 'easy' : zoneForRunType(dt.runType)!;
     return {
       ...base,
-      runType: dt.runType,
+      runType: dt.runType === 'quality' ? 'easy' : dt.runType,
       zone,
       distanceMeters: milesToMeters(miles),
       description: `${cap(ZONE_LABEL[zone])} run, ${miles} mi @ ${paceRangeLabel(zones.zones[zone])}${
