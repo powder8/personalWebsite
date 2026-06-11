@@ -145,6 +145,29 @@ class TestTax(unittest.TestCase):
         self.assertIsNone(r["breakeven_years"])
 
 
+class TestFeeValue(unittest.TestCase):
+    def test_fee_drag_one_year_hand_computed(self):
+        out = build.fee_drag_projection(100000.0, 0.07, 0.014, 0.0005, [1])
+        row = out[0]
+        self.assertAlmostEqual(row["term_high"], 100000 * 1.07 * 0.986, places=4)
+        self.assertAlmostEqual(row["term_low"], 100000 * 1.07 * 0.9995, places=4)
+        self.assertGreater(row["term_low"], row["term_high"])
+        self.assertGreater(row["gap"], 0)
+        self.assertTrue(0 < row["gap_pct"] < 1)
+
+    def test_fee_drag_compounds(self):
+        out = build.fee_drag_projection(100000.0, 0.07, 0.014, 0.0005, [10, 30])
+        self.assertGreater(out[1]["gap_pct"], out[0]["gap_pct"])  # bigger share lost over 30y
+
+    def test_flat_vs_aum_hand_computed(self):
+        r = build.flat_vs_aum(100000.0, 0.07, 0.014, 4000.0, 0.0005, [1])
+        row = r["rows"][0]
+        self.assertAlmostEqual(row["aum"], 100000 * 1.07 * 0.986, places=4)
+        self.assertAlmostEqual(row["flat"], 100000 * 1.07 * 0.9995 - 4000, places=4)
+        self.assertAlmostEqual(row["diy"], 100000 * 1.07 * 0.9995, places=4)
+        self.assertAlmostEqual(r["breakeven_balance"], 4000 / 0.014, places=4)
+
+
 class TestRenderGraceful(unittest.TestCase):
     """The deep-analysis cards must vanish when their data is absent, and the full
     page must still render when they're present."""
@@ -157,7 +180,8 @@ class TestRenderGraceful(unittest.TestCase):
 
     def test_cards_empty_when_absent(self):
         r = self._base()
-        for fn in ("render_multihorizon", "render_factor", "render_significance", "render_tax"):
+        for fn in ("render_multihorizon", "render_factor", "render_significance", "render_tax",
+                   "render_fee_drag", "render_replication", "render_flat_fee", "render_services"):
             self.assertEqual(getattr(build, fn)(r), "", fn + " should be empty")
         html = build.render(r, "", build.load_history())
         self.assertIn("Leaderboard", html)
@@ -178,8 +202,22 @@ class TestRenderGraceful(unittest.TestCase):
                              "ir": -0.4, "mean_excess_annual": -0.01, "tstat": -0.9,
                              "n_months": 120}
         r["tax"] = build.tax_switch_breakeven(2800.0, 0.40, 0.238, 0.0137)
+        r["illustration_value"] = 500000
+        r["fee_drag"] = {"value": 500000, "gross_return": 0.07, "fee_high": 0.014,
+                         "fee_low": 0.0005,
+                         "rows": build.fee_drag_projection(500000, 0.07, 0.014, 0.0005, [10, 20, 30])}
+        r["replication"] = {"target": "DFEOX", "manager_fee": 0.014, "r2": 0.97,
+                            "tracking_error": 0.02, "blended_er": 0.0008, "n_months": 120,
+                            "components": [{"ticker": "VTI", "weight": 0.7, "expense_ratio": 0.0003},
+                                           {"ticker": "AVUV", "weight": 0.3, "expense_ratio": 0.0025}]}
+        ff = build.flat_vs_aum(500000, 0.07, 0.014, 4000, 0.0005, [10, 20, 30])
+        ff.update({"value": 500000, "flat_fee": 4000, "gross_return": 0.07})
+        r["flat_fee"] = ff
+        r["services"] = [{"name": "Planning", "note": "x"}, {"name": "Tax", "note": "y"}]
         html = build.render(r, "", build.load_history())
-        for marker in ("Across time horizons", "factor view", "significance", "cost of switching"):
+        for marker in ("Across time horizons", "factor view", "significance", "cost of switching",
+                       "What the fee costs over time", "replication", "flat-fee advisor",
+                       "What does the fee buy"):
             self.assertIn(marker, html)
         self.assertEqual(html.count("<svg"), html.count("</svg>"))
         self.assertNotIn("Alternatives worth researching", html)

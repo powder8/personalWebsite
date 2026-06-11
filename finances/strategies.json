@@ -57,6 +57,27 @@
     { "ticker": "BND",   "name": "Vanguard Total Bond Market",  "role": "Ballast",              "expense_ratio": 0.0003 }
   ],
 
+  "long_run": {
+    "_comment": "For the 'is the fee worth it' cards. gross_return is an illustrative constant pre-fee return; the dollar cards are scaled to illustration_value to show impact at a realistic balance, not the stand-in positions.",
+    "gross_return": 0.07,
+    "horizons_years": [10, 20, 30]
+  },
+  "illustration_value": 500000,
+  "flat_fee_annual": 4000,
+
+  "replication_basis": [
+    { "ticker": "VTI",  "expense_ratio": 0.0003 },
+    { "ticker": "AVUV", "expense_ratio": 0.0025 }
+  ],
+
+  "services": [
+    { "name": "Financial &amp; retirement planning", "note": "cash-flow, goals, withdrawal strategy" },
+    { "name": "Tax management",                      "note": "tax-loss harvesting, asset location, Roth timing" },
+    { "name": "Rebalancing &amp; discipline",        "note": "systematic, unemotional rebalancing" },
+    { "name": "Behavioral coaching",                 "note": "staying invested through downturns — often the biggest one" },
+    { "name": "Estate &amp; insurance coordination", "note": "beneficiaries, trusts, coverage gaps" }
+  ],
+
   "memo": {
     "enabled": true,
     "model": "claude-sonnet-4-5-20250929",

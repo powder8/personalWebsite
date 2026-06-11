@@ -289,6 +289,37 @@ def tax_switch_breakeven(value, embedded_gain_pct, ltcg_rate, annual_fee_savings
             "annual_fee_savings_rate": annual_fee_savings_rate}
 
 
+def fee_drag_projection(value, gross_return, fee_high, fee_low, horizons):
+    """Terminal wealth under a high (manager) vs low (index) fee at a constant gross
+    return — the compounding cost of the fee. Returns [{years, term_high, term_low,
+    gap, gap_pct}] where gap_pct is the gap as a share of the low-fee terminal."""
+    out = []
+    for T in horizons:
+        th = value * ((1 + gross_return) * (1 - fee_high)) ** T
+        tl = value * ((1 + gross_return) * (1 - fee_low)) ** T
+        out.append({"years": T, "term_high": th, "term_low": tl,
+                    "gap": tl - th, "gap_pct": (tl - th) / tl if tl > 0 else 0.0})
+    return out
+
+
+def flat_vs_aum(value, gross_return, fee_aum, flat_fee, index_er, horizons):
+    """Terminal wealth under three cost structures: %-of-assets advisory, a flat annual
+    advisor fee (you still pay a cheap fund ER), and pure DIY indexing. Also the
+    break-even balance where the %-fee equals the flat dollar fee."""
+    def grow(fee_rate=0.0, flat=0.0):
+        bal, series = value, {}
+        for yr in range(1, max(horizons) + 1):
+            bal = bal * (1 + gross_return) * (1 - fee_rate)
+            bal = max(bal - flat, 0.0)
+            series[yr] = bal
+        return series
+    aum = grow(fee_rate=fee_aum)
+    flat = grow(fee_rate=index_er, flat=flat_fee)
+    diy = grow(fee_rate=index_er)
+    return {"rows": [{"years": T, "aum": aum[T], "flat": flat[T], "diy": diy[T]} for T in horizons],
+            "breakeven_balance": (flat_fee / fee_aum) if fee_aum > 0 else None}
+
+
 def deep_analysis(invested_today, fee_c):
     """Long-history, de-biased analysis: multi-horizon table for a FIXED lineup,
     a Fama-French-3 factor regression of the manager's fund (net of fee), a
@@ -303,10 +334,14 @@ def deep_analysis(invested_today, fee_c):
     target = CONFIG.get("factor_target")
     sig_bench = CONFIG.get("significance_benchmark", "VTI")
     tax_cfg = CONFIG.get("tax", {})
+    repl_basis = CONFIG.get("replication_basis", [])
+    long_cfg = CONFIG.get("long_run", {})
+    illus_value = CONFIG.get("illustration_value", invested_today)
 
     start_iso = _shift_years(datetime.now(timezone.utc).date().isoformat(), lookback)
     proxy_tickers = [v for k, v in fp.items() if k != "_comment" and isinstance(v, str)]
-    wanted = sorted(set([c["ticker"] for c in lineup] + proxy_tickers
+    repl_tickers = [b["ticker"] for b in repl_basis]
+    wanted = sorted(set([c["ticker"] for c in lineup] + proxy_tickers + repl_tickers
                         + ([target] if target else []) + [sig_bench]))
     print(f"Fetching {lookback}y history for deep analysis ({len(wanted)} tickers)…")
     long = {}
@@ -316,7 +351,9 @@ def deep_analysis(invested_today, fee_c):
             long[t] = s
 
     out = {"lookback_years": lookback, "horizons": horizons,
-           "multihorizon": None, "factor": None, "significance": None, "tax": None}
+           "multihorizon": None, "factor": None, "significance": None, "tax": None,
+           "replication": None, "fee_drag": None, "flat_fee": None,
+           "illustration_value": illus_value}
 
     # 1) Multi-horizon table for the fixed lineup (judged over long history, not ranked by last year)
     try:
@@ -353,6 +390,34 @@ def deep_analysis(invested_today, fee_c):
     except Exception as e:
         sys.stderr.write(f"factor model skipped: {e}\n")
 
+    # 2b) Replication: can cheap, buyable ETFs reproduce the manager's fund (gross)?
+    try:
+        if target in long and repl_tickers and all(t in long for t in repl_tickers):
+            tks = [target] + repl_tickers
+            months, aligned = align_monthly({t: resample_monthly(long[t]) for t in set(tks)})
+            if len(months) - 1 >= min_months:
+                r = {t: monthly_returns(aligned[t]) for t in aligned}
+                n = len(r[target])
+                y = [r[target][i] for i in range(n)]
+                X = [[r[t][i] for t in repl_tickers] for i in range(n)]
+                res = ols(y, X)
+                if res:
+                    slopes = res["coef"][1:]
+                    s = sum(slopes)
+                    weights = [w / s for w in slopes] if s else slopes
+                    blended_er = sum(weights[i] * repl_basis[i].get("expense_ratio", 0)
+                                     for i in range(len(repl_basis)))
+                    out["replication"] = {
+                        "target": target, "manager_fee": fee_c, "r2": res["r2"],
+                        "tracking_error": res["resid_std"] * math.sqrt(12),
+                        "blended_er": blended_er, "n_months": res["n"],
+                        "components": [{"ticker": repl_tickers[i], "weight": weights[i],
+                                        "expense_ratio": repl_basis[i].get("expense_ratio", 0)}
+                                       for i in range(len(repl_tickers))],
+                    }
+    except Exception as e:
+        sys.stderr.write(f"replication skipped: {e}\n")
+
     # 3) Significance: manager's fund (net of fee) vs a broad benchmark, monthly
     try:
         if target in long and sig_bench in long:
@@ -375,6 +440,25 @@ def deep_analysis(invested_today, fee_c):
             tax_cfg.get("ltcg_rate", 0.238), max(fee_c - rep_er, 0.0))
     except Exception as e:
         sys.stderr.write(f"tax estimate skipped: {e}\n")
+
+    # 5) Is the fee worth it? Fee drag over decades + a flat-fee alternative. Scaled to a
+    #    realistic balance (illustration_value), since the stand-in positions are tiny.
+    g = long_cfg.get("gross_return", 0.07)
+    lh = long_cfg.get("horizons_years", [10, 20, 30])
+    rep_er = tax_cfg.get("replacement_expense_ratio", 0.0003)
+    try:
+        out["fee_drag"] = {"value": illus_value, "gross_return": g, "fee_high": fee_c,
+                           "fee_low": rep_er,
+                           "rows": fee_drag_projection(illus_value, g, fee_c, rep_er, lh)}
+    except Exception as e:
+        sys.stderr.write(f"fee-drag skipped: {e}\n")
+    try:
+        flat = CONFIG.get("flat_fee_annual", 4000)
+        fv = flat_vs_aum(illus_value, g, fee_c, flat, rep_er, lh)
+        fv.update({"value": illus_value, "flat_fee": flat, "gross_return": g})
+        out["flat_fee"] = fv
+    except Exception as e:
+        sys.stderr.write(f"flat-fee skipped: {e}\n")
 
     return out
 
@@ -552,6 +636,11 @@ def build():
         "factor": deep.get("factor"),
         "significance": deep.get("significance"),
         "tax": deep.get("tax"),
+        "replication": deep.get("replication"),
+        "fee_drag": deep.get("fee_drag"),
+        "flat_fee": deep.get("flat_fee"),
+        "illustration_value": deep.get("illustration_value"),
+        "services": CONFIG.get("services", []),
         "deep_meta": {"lookback_years": deep.get("lookback_years"),
                       "horizons": deep.get("horizons")},
         "missing": missing,
@@ -884,6 +973,105 @@ def render_attribution(result):
         f'{pct(fee)} advisory fee, on the same {money(result["start_capital"])} stake.</p>'
         f'<div class="banner manager" style="margin:0 0 16px;"><p>{lead} {vs_index}</p></div>'
         f'<table class="mini"><tr><th>Scenario</th><th>Value today</th><th>Return/yr</th></tr>{rows}</table>'
+        f'</section>')
+
+
+def _manager_fee(result):
+    return next((s["fee_central"] for s in result["strategies"] if s.get("is_manager")), 0.014)
+
+
+def render_fee_drag(result):
+    """The compounding dollar cost of the advisory fee over decades."""
+    fd = result.get("fee_drag")
+    if not fd:
+        return ""
+    rows = "".join(
+        f'<tr><td>{r["years"]} years</td><td class="num">{money(r["term_high"])}</td>'
+        f'<td class="num">{money(r["term_low"])}</td><td class="num">{money(r["gap"])}</td>'
+        f'<td class="num">{r["gap_pct"]*100:.0f}%</td></tr>' for r in fd["rows"])
+    last = fd["rows"][-1]
+    return (
+        f'<section class="card"><h2>What the fee costs over time</h2>'
+        f'<p class="sub">Probably the single biggest number in this whole question. On a hypothetical '
+        f'{money(fd["value"])} growing at {pct(fd["gross_return"])}/yr before fees, this is what the '
+        f'{pct(fd["fee_high"])} advisory fee costs versus a ~{pct(fd["fee_low"])} index fund — illustrative, '
+        f'scaled to a realistic balance (edit illustration_value in strategies.json).</p>'
+        f'<div class="banner manager" style="margin:0 0 16px;"><p>Over {last["years"]} years the fee quietly '
+        f'consumes <b>{money(last["gap"])}</b> — about <b>{last["gap_pct"]*100:.0f}%</b> of what the low-cost '
+        f'path would have grown to. That is the bar the manager has to clear every year.</p></div>'
+        f'<table class="mini"><tr><th>Horizon</th><th>At {pct(fd["fee_high"])} (mgr)</th>'
+        f'<th>At {pct(fd["fee_low"])} (index)</th><th>Fee cost</th><th>% of wealth</th></tr>'
+        f'{rows}</table></section>')
+
+
+def render_replication(result):
+    """Can cheap ETFs reproduce the manager's fund, dropping the fee?"""
+    rp = result.get("replication")
+    if not rp:
+        return ""
+    blend = " + ".join(f'{c["weight"]*100:.0f}% {html_esc(c["ticker"])}' for c in rp["components"])
+    saved = rp["manager_fee"] - rp["blended_er"]
+    close = rp["r2"] >= 0.9
+    verdict = (
+        f"A simple <b>{blend}</b> blend tracks {html_esc(rp['target'])} with R² = {rp['r2']*100:.0f}% and "
+        f"{pct(rp['tracking_error'])} tracking error — {'very close' if close else 'a rough match'}. That "
+        f"blend costs about {pct(rp['blended_er'])}/yr, versus the {pct(rp['manager_fee'])} advisory fee on "
+        f"top of the fund — roughly <b>{pct(saved)}/yr</b> you could keep by holding it yourself.")
+    rows = "".join(
+        f'<tr><td>{html_esc(c["ticker"])}</td><td class="num">{c["weight"]*100:.0f}%</td>'
+        f'<td class="num">{pct(c["expense_ratio"])}</td></tr>' for c in rp["components"])
+    return (
+        f'<section class="card"><h2>Can you just buy it yourself? (replication)</h2>'
+        f'<p class="sub">If cheap, buyable ETFs reproduce the manager’s fund, you keep the strategy and drop '
+        f'the fee. This fits {html_esc(rp["target"])}’s monthly returns with a low-cost ETF blend '
+        f'(best-fit weights over {rp["n_months"]} months).</p>'
+        f'<div class="banner manager" style="margin:0 0 16px;"><p>{verdict}</p></div>'
+        f'<table class="mini"><tr><th>ETF</th><th>Weight</th><th>Expense ratio</th></tr>{rows}</table></section>')
+
+
+def render_flat_fee(result):
+    """A flat/hourly fiduciary as a third option between %-AUM and DIY."""
+    ff = result.get("flat_fee")
+    if not ff:
+        return ""
+    be = ff["breakeven_balance"]
+    rows = "".join(
+        f'<tr><td>{r["years"]} years</td><td class="num">{money(r["aum"])}</td>'
+        f'<td class="num">{money(r["flat"])}</td><td class="num">{money(r["diy"])}</td></tr>'
+        for r in ff["rows"])
+    crossover = (
+        f'<div class="banner self" style="margin:0 0 16px;"><p>A {money(ff["flat_fee"])}/yr flat fee equals a '
+        f'{pct(_manager_fee(result))} fee once your balance passes <b>{money(be)}</b>. Above that, flat-fee '
+        f'advice beats %-of-assets — and the gap compounds.</p></div>' if be else '')
+    return (
+        f'<section class="card"><h2>A third option: a flat-fee advisor</h2>'
+        f'<p class="sub">It isn’t only "manager vs DIY." A flat or hourly fiduciary charges the same dollars '
+        f'regardless of balance, so on a large portfolio it can cost a fraction of a percentage fee. Terminal '
+        f'wealth on {money(ff["value"])} at {pct(ff["gross_return"])}/yr under each cost structure.</p>'
+        f'{crossover}'
+        f'<table class="mini"><tr><th>Horizon</th><th>%-of-assets</th><th>Flat fee</th><th>DIY index</th></tr>'
+        f'{rows}</table></section>')
+
+
+def render_services(result):
+    """What the fee buys beyond returns — a framework, not a verdict."""
+    svcs = result.get("services") or []
+    if not svcs:
+        return ""
+    fee = _manager_fee(result)
+    val = result.get("illustration_value")
+    dollars = f" — about {money(val * fee)}/yr on a {money(val)} balance" if val else ""
+    items = "".join(
+        f'<li><b>{s.get("name","")}</b> — <span class="since">{html_esc(s.get("note",""))}</span></li>'
+        for s in svcs)
+    return (
+        f'<section class="card"><h2>What does the fee buy? (beyond returns)</h2>'
+        f'<p class="sub">The numbers above only see returns. A manager may add value the charts can’t — and '
+        f'the fee is worth it only if these clear the ~{pct(fee)}/yr gap{dollars}. Treat this as a checklist '
+        f'for a fee-only fiduciary, not a verdict.</p>'
+        f'<ul class="rotout" style="border:none;padding:0;margin:0;">{items}</ul>'
+        f'<p class="src">Behavioral coaching is the wild card: studies have estimated DIY investors give up '
+        f'~1–2%/yr to mistimed buying and selling — which can rival the fee itself, for better or worse.</p>'
         f'</section>')
 
 
@@ -1220,6 +1408,14 @@ def render(result, memo, history=None):
   {render_significance(result)}
 
   {render_tax(result)}
+
+  {render_fee_drag(result)}
+
+  {render_replication(result)}
+
+  {render_flat_fee(result)}
+
+  {render_services(result)}
 
   {tracking_html}
 
