@@ -36,6 +36,35 @@ const LONG_RUN_CAP_MILES = 22;
 const MIN_RUN_MILES = 2;
 const MIN_QUALITY_MILES = 3;
 
+/**
+ * Daniels: quality EMPHASIS depends on the goal race distance, not just the
+ * phase. 5K/10K builds sharpen with I (VO2) and R work; halves live at T;
+ * marathons emphasise M-pace and cruise T. The nth quality day of a week takes
+ * the nth zone (cycling). 'half' mirrors the legacy defaults, so plans built
+ * without a goal class are unchanged.
+ */
+import type { GoalClass } from './raceWindows';
+const QUALITY_EMPHASIS: Record<GoalClass, Record<PlannedWeek['phase'], ZoneKey[]>> = {
+  tenk_or_shorter: {
+    base: ['threshold'],
+    build: ['interval', 'threshold'],
+    peak: ['interval', 'rep'],
+    taper: ['rep'],
+  },
+  half: {
+    base: ['threshold'],
+    build: ['threshold', 'interval'],
+    peak: ['threshold', 'marathon'],
+    taper: ['threshold'],
+  },
+  marathon: {
+    base: ['threshold'],
+    build: ['threshold', 'marathon'],
+    peak: ['marathon', 'threshold'],
+    taper: ['threshold'],
+  },
+};
+
 /** Human plans use half-mile granularity, not 0.3-mi oddities. */
 function roundHalf(mi: number): number {
   return Math.round(mi * 2) / 2;
@@ -93,8 +122,16 @@ export function generateWeek(
   template: WeekTemplate,
   zones: PaceZones,
   rationale = '',
+  goalClass?: GoalClass,
 ): PlannedWeek {
   const weeklyMiles = metersToMiles(week.targetVolumeMeters);
+
+  // Distance-aware quality: the nth quality day this week takes the nth
+  // emphasis zone for (goal class × phase). Without a class, templates win.
+  const emphasis = goalClass ? QUALITY_EMPHASIS[goalClass][template.phase] : null;
+  let qualityIndex = 0;
+  const qualityZoneFor = (templateZone: ZoneKey): ZoneKey =>
+    emphasis ? emphasis[qualityIndex++ % emphasis.length] : templateZone;
 
   // 1) Long run — floored at the minimum meaningful run, capped at the week.
   let longMiles = roundHalf(
@@ -160,16 +197,17 @@ export function generateWeek(
     // A real quality session needs room for warm-up + work + cool-down; below
     // ~MIN_QUALITY_MILES it degrades to junk — run it as a steady/easy day.
     if (dt.runType === 'quality' && dt.quality && miles >= MIN_QUALITY_MILES) {
+      const qZone = qualityZoneFor(dt.quality.zone);
       const wuCd = warmupCooldownMiles(miles);
       return {
         ...base,
         runType: 'quality',
-        zone: dt.quality.zone,
+        zone: qZone,
         distanceMeters: milesToMeters(miles),
         warmup: `${wuCd} mi easy + drills/strides`,
         cooldown: `${wuCd} mi easy`,
-        segments: qualitySegments(miles, dt.quality.zone, zones),
-        description: qualityDescription(miles, dt.quality.zone, zones),
+        segments: qualitySegments(miles, qZone, zones),
+        description: qualityDescription(miles, qZone, zones),
       };
     }
 

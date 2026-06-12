@@ -10,6 +10,7 @@ import type { DB } from '@/db';
 import { athletes, races, plans, plannedSessions } from '@/db/schema';
 import {
   generatePlan,
+  classifyGoal,
   resolvePaceZones,
   purposeToPriority,
   type AthletePaceConfig,
@@ -110,6 +111,7 @@ export async function setupSeason(
     {
       startDay: input.startDay,
       goalRaceDay: input.goalRace.date,
+      goalClass: classifyGoal({ date: input.goalRace.date, distanceMeters: input.goalRace.distanceMeters, distanceLabel: input.goalRace.distanceLabel }),
       startVolumeMiles: input.startVolumeMiles,
       peakVolumeMiles: input.peakVolumeMiles,
       keyRaces,

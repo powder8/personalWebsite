@@ -22,6 +22,7 @@ export * from './guardrails';
 export * from './directives';
 
 import type { PaceZones, PlannedWeek, TemplateSet } from './types';
+import type { GoalClass } from './raceWindows';
 import { periodize, type PeriodizationInput } from './periodize';
 import { generateWeek } from './generate';
 import { COACH_TEMPLATE_SET } from './templates';
@@ -31,9 +32,9 @@ import { COACH_TEMPLATE_SET } from './templates';
  * race date. Adaptation is applied separately, per-week, as signals arrive.
  */
 export function generatePlan(
-  input: PeriodizationInput,
+  input: PeriodizationInput & { goalClass?: GoalClass },
   zones: PaceZones,
   templates: TemplateSet = COACH_TEMPLATE_SET,
 ): PlannedWeek[] {
-  return periodize(input).map((w) => generateWeek(w, templates[w.phase], zones));
+  return periodize(input).map((w) => generateWeek(w, templates[w.phase], zones, '', input.goalClass));
 }

@@ -44,9 +44,9 @@ export interface RaceWindow {
   rationale: string;
 }
 
-type GoalClass = 'marathon' | 'half' | 'tenk_or_shorter';
+export type GoalClass = 'marathon' | 'half' | 'tenk_or_shorter';
 
-function classifyGoal(goal: GoalRaceInput): GoalClass {
+export function classifyGoal(goal: GoalRaceInput): GoalClass {
   const label = (goal.distanceLabel ?? '').toLowerCase();
   if (label.includes('marathon') && !label.includes('half')) return 'marathon';
   if (label.includes('half')) return 'half';
