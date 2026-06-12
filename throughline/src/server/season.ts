@@ -45,6 +45,8 @@ export interface SeasonSetupInput {
   fitness?: { race?: { distanceMeters: number; timeSeconds: number }; thresholdSecPerKm?: number };
   startVolumeMiles: number;
   peakVolumeMiles: number;
+  /** Publish all weeks immediately (athlete self-service) instead of leaving drafts for coach review. */
+  publish?: boolean;
 }
 
 export interface SeasonSetupResult {
@@ -118,7 +120,7 @@ export async function setupSeason(
     },
     zones,
   );
-  await persistPlanDraft(db, athleteId, weeks, zones, { setupAt: input.startDay });
+  await persistPlanDraft(db, athleteId, weeks, zones, { setupAt: input.startDay }, { status: input.publish ? 'published' : 'draft' });
 
   return { weeks: weeks.length, raceCount: allRaces.length };
 }

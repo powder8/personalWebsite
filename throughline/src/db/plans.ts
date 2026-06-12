@@ -90,6 +90,7 @@ export async function persistPlanDraft(
   weeks: PlannedWeek[],
   zones: PaceZones,
   generatedFrom?: unknown,
+  opts: { status?: 'draft' | 'published' } = {},
 ): Promise<{ planId: string; weekStart: string }[]> {
   const out: { planId: string; weekStart: string }[] = [];
 
@@ -98,7 +99,7 @@ export async function persistPlanDraft(
       .insert(plans)
       .values({
         athleteId,
-        status: 'draft',
+        status: opts.status ?? 'draft',
         weekStart: week.weekStart,
         weekEnd: addDays(week.weekStart, 6),
         phase: week.phase,
@@ -106,6 +107,7 @@ export async function persistPlanDraft(
         weeklyTargetMeters: week.targetVolumeMeters,
         rationale: week.rationale,
         generatedFrom: (generatedFrom ?? null) as object | null,
+        publishedAt: opts.status === 'published' ? new Date() : null,
       })
       .returning({ id: plans.id });
 

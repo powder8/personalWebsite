@@ -45,10 +45,9 @@ export function dowMon0(iso: string): number {
   return ((dayNumber(iso) % 7) + 3) % 7;
 }
 
-/** Monday on or after the given day. */
-function mondayOnOrAfter(iso: string): string {
-  const dow = dowMon0(iso);
-  return dow === 0 ? iso : addDays(iso, 7 - dow);
+/** Monday of the week CONTAINING the given day — plans start NOW, not next week. */
+function mondayOnOrBefore(iso: string): string {
+  return addDays(iso, -dowMon0(iso));
 }
 
 function lerp(a: number, b: number, t: number): number {
@@ -57,7 +56,9 @@ function lerp(a: number, b: number, t: number): number {
 
 export function periodize(input: PeriodizationInput): WeekPlan[] {
   const downEvery = input.downWeekEvery ?? 4;
-  const firstMonday = mondayOnOrAfter(input.startDay);
+  // The week CONTAINING startDay: an athlete who sets a goal mid-week starts
+  // base-building today, not after dead days waiting for Monday.
+  const firstMonday = mondayOnOrBefore(input.startDay);
   // +1 so the final week is the week that CONTAINS race day (not the week before).
   const totalWeeks = Math.max(1, Math.floor(diffDays(input.goalRaceDay, firstMonday) / 7) + 1);
 

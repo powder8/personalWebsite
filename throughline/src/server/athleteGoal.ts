@@ -94,6 +94,9 @@ export async function setupAthleteGoal(
     fitness,
     startVolumeMiles: start,
     peakVolumeMiles: peak,
+    // Self-service: there's no coach gate on the athlete's own goal — publish
+    // immediately so "this week" and "up today" light up right away.
+    publish: true,
   });
   return { weeks: result.weeks };
 }

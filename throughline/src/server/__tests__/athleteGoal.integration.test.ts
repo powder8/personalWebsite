@@ -40,6 +40,23 @@ after(async () => {
   await client.close();
 });
 
+test('athlete goal publishes immediately and the plan starts THIS week (base today)', async () => {
+  await setupAthleteGoal(db, A, TODAY, {
+    kind: 'time',
+    distanceLabel: '5K',
+    targetTimeSeconds: 22 * 60,
+    date: '2026-08-08',
+    fitness: { kind: 'race', distanceLabel: '5K', timeSeconds: 1380 },
+    currentWeeklyMiles: 10,
+  });
+  const rows = await db.select().from(plans).where(eq(plans.athleteId, A));
+  assert.ok(rows.length > 0);
+  assert.ok(rows.every((p) => p.status === 'published'), 'self-service weeks are published, not drafts');
+  const current = rows.find((p) => p.weekStart <= TODAY && TODAY <= p.weekEnd);
+  assert.ok(current, `a plan week contains today (${TODAY}) — no dead gap before the build`);
+  assert.equal(current!.phase, 'base', 'the athlete starts by building base');
+});
+
 test('race-for-time goal builds a plan and sets the anchor from the recent race', async () => {
   const { weeks } = await setupAthleteGoal(db, A, TODAY, {
     kind: 'time',
