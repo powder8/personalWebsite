@@ -26,6 +26,10 @@ import { WeekStrip, SESSION_COLOR, SESSION_LABEL, SESSION_TERRAIN } from '@/comp
 import { SegmentList } from '@/components/SegmentList';
 import { AdaptationCard } from '@/components/AdaptationCard';
 import { getAdaptationState } from '@/server/adaptation';
+import { ConsistencyStrip } from '@/components/ConsistencyStrip';
+import { getConsistency } from '@/server/consistency';
+import { RunFeedbackCard } from '@/components/RunFeedbackCard';
+import { getLatestRunFeedback } from '@/server/runFeedback';
 import { BottomNav } from '@/components/BottomNav';
 import { getDb } from '@/db';
 
@@ -65,6 +69,8 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
   const timeline = await getSeasonTimeline(db, id, portal.today);
   const racePlan = await getRacePlan(db, id, portal.today);
   const adaptation = await getAdaptationState(id, portal.today);
+  const consistency = await getConsistency(id, portal.today);
+  const latestRun = await getLatestRunFeedback(id, portal.today);
 
   const {
     athlete,
@@ -203,6 +209,14 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
           <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal={!!goalRace.name} startOpen />
         </Card>
       )}
+
+      {/* Coach's take on your most recent run */}
+      {latestRun && (
+        <RunFeedbackCard feedback={latestRun.feedback} href={`/me/${athlete.id}/runs/${latestRun.activityId}`} />
+      )}
+
+      {/* Consistency / streak — positive reinforcement */}
+      {consistency?.show && <ConsistencyStrip stats={consistency} />}
 
       {/* Missed-day adaptation — encouragement + ease-back (keeps people going) */}
       {adaptation?.show && <AdaptationCard state={adaptation} athleteId={athlete.id} today={today} />}

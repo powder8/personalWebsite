@@ -5,6 +5,8 @@ import { getDb } from '@/db';
 import { activities, shoes } from '@/db/schema';
 import { Card } from '@/components/ui';
 import { RouteMap } from '@/components/RouteMap';
+import { RunFeedbackCard } from '@/components/RunFeedbackCard';
+import { getRunFeedback } from '@/server/runFeedback';
 import { secPerKmToMinPerMile } from '@/engine/plan';
 
 export const dynamic = 'force-dynamic';
@@ -51,6 +53,7 @@ export default async function RunDetailPage({
   }
 
   const day = run.startTime.toISOString().slice(0, 10);
+  const feedback = await getRunFeedback(id, activityId);
   const miles = run.distanceMeters != null ? run.distanceMeters / MI : null;
   const splits = (run.splits as Split[] | null) ?? [];
   // Pace bars: faster split → longer bar (scaled between slowest and fastest).
@@ -86,6 +89,9 @@ export default async function RunDetailPage({
           {run.cadence != null && <Stat label="Cadence" value={`${run.cadence} spm`} />}
         </div>
       </div>
+
+      {/* Coach's take */}
+      {feedback && <RunFeedbackCard feedback={feedback} />}
 
       {/* Route */}
       {run.mapPolyline ? (
