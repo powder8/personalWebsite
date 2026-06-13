@@ -10,6 +10,27 @@ import { athletes } from '@/db/schema';
 import { parseTrainingLogBuffer } from '@/providers/manual/parseTrainingLog';
 import { importParsedDays, type ImportResult } from '@/db/import';
 
+/**
+ * After an import lands, ground the fitness anchor in the newly-imported runs
+ * (best demonstrated effort) — UNLESS a coach set it manually. This is what
+ * makes imported training logs drive realistic paces, the same way a Strava
+ * sync does. Never throws into the import path.
+ *
+ * The anchor/console modules are `server-only`; importing them dynamically here
+ * keeps this module's pure helpers (parseSheetId, …) loadable under tsx tests.
+ */
+async function groundAnchorAfterImport(db: DB, athleteId: string): Promise<void> {
+  try {
+    const [{ ensureAutoAnchor }, { todayISO }] = await Promise.all([
+      import('@/server/anchor'),
+      import('@/server/console'),
+    ]);
+    await ensureAutoAnchor(db, athleteId, { today: todayISO() });
+  } catch {
+    // Non-fatal: a missing anchor just means paces stay provisional + flagged.
+  }
+}
+
 export function parseSheetId(url: string): string | null {
   const m = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
   return m ? m[1] : null;
@@ -65,6 +86,7 @@ export async function importFromSheetUrl(
   }
   const athleteId = await ensureAthlete(db, input.name.trim(), input.email.trim().toLowerCase());
   const result = await importParsedDays(db, athleteId, days, { fileName: `gsheet:${parseSheetId(input.url)}` });
+  await groundAnchorAfterImport(db, athleteId);
   return { ...result, athleteId };
 }
 
@@ -110,6 +132,7 @@ export async function importMultipleSheets(db: DB, input: MultiImportInput): Pro
       perFile.push({ url: f.url, ok: false, error: e instanceof Error ? e.message : 'Import failed.' });
     }
   }
+  await groundAnchorAfterImport(db, athleteId);
   return { athleteId, totals, perFile };
 }
 
@@ -145,5 +168,6 @@ export async function importUploadedFiles(
       perFile.push({ url: f.name, ok: false, error: e instanceof Error ? e.message : 'Import failed.' });
     }
   }
+  await groundAnchorAfterImport(db, athleteId);
   return { athleteId, totals, perFile };
 }

@@ -53,7 +53,7 @@ const RUNS: Run[] = [
 
   const cleared = await db
     .delete(activities)
-    .where(and(eq(activities.athleteId, a.id), like(activities.sourceRef, 'strava:demo-hist-%')))
+    .where(and(eq(activities.athleteId, a.id), or(like(activities.sourceRef, 'strava:demo-hist-%'), like(activities.sourceRef, 'manual:demo-hist-%'))))
     .returning({ id: activities.id });
   console.log('Cleared', cleared.length, 'prior demo-history runs.');
 
@@ -64,14 +64,16 @@ const RUNS: Run[] = [
     await db.insert(activities).values({
       athleteId: a.id,
       sport: 'run',
-      provider: 'strava',
+      // Manual/imported source — the real coach-spreadsheet case that the
+      // anchor advisor used to ignore (Strava-only). Now grounds the anchor.
+      provider: 'manual',
       name: r.name,
       workoutType: r.race ? 1 : null,
       startTime: addDays(TODAY, -r.agoDays),
       distanceMeters: meters,
       durationSeconds: Math.round((meters / 1000) * secPerKm),
       avgPaceSecPerKm: secPerKm,
-      sourceRef: `strava:demo-hist-${i++}`,
+      sourceRef: `manual:demo-hist-${i++}`,
     });
   }
   console.log('Inserted', RUNS.length, 'runs. Best effort: Bridge Run 10K 39:30 (≈ VDOT 53).');

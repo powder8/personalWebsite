@@ -8,7 +8,7 @@ import 'server-only';
  * recent effort) and let the coach accept or override. Accepting writes the
  * anchor into paceConfig and re-tunes future planned paces.
  */
-import { and, desc, eq, gte, lte, like } from 'drizzle-orm';
+import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import type { DB } from '@/db';
 import { athletes, activities } from '@/db/schema';
 import { vdotFromRace, STANDARD_DISTANCES, type AthletePaceConfig } from '@/engine/plan';
@@ -96,6 +96,7 @@ export async function suggestAnchorCandidates(
       workoutType: activities.workoutType,
       distanceMeters: activities.distanceMeters,
       durationSeconds: activities.durationSeconds,
+      avgPaceSecPerKm: activities.avgPaceSecPerKm,
     })
     .from(activities)
     .where(
@@ -104,14 +105,22 @@ export async function suggestAnchorCandidates(
         eq(activities.sport, 'run'),
         gte(activities.startTime, cutoff),
         lte(activities.startTime, latest.startTime),
-        like(activities.sourceRef, 'strava:%'),
+        // ANY source — Strava, Garmin, or an imported training log. Past
+        // performance grounds the anchor regardless of how it got here.
       ),
     );
 
   const scored: (AnchorCandidate & { ts: number; rawVdot: number; isRace: boolean })[] = [];
   for (const r of rows) {
     const m = r.distanceMeters ?? 0;
-    const t = r.durationSeconds ?? 0;
+    // Prefer recorded duration; fall back to distance × avg pace for logs that
+    // store pace but not elapsed time (common in imported coach spreadsheets).
+    const t =
+      r.durationSeconds && r.durationSeconds > 0
+        ? r.durationSeconds
+        : r.avgPaceSecPerKm && r.avgPaceSecPerKm > 0
+          ? Math.round((m / 1000) * r.avgPaceSecPerKm)
+          : 0;
     if (m < MIN_M || t <= 0) continue;
     const isRace = isRaceEffort({ workoutType: r.workoutType, name: r.name, meters: m });
     // Easy long runs (non-race, > half-marathon) under-estimate fitness, so skip
