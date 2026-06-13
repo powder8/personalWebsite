@@ -15,6 +15,7 @@ export interface DemonstratedEffort {
   timeLabel: string; // e.g. "38:42"
   paceLabel: string; // e.g. "6:14/mi"
   day: string; // YYYY-MM-DD
+  gradeAdjusted?: boolean; // VDOT read on grade-adjusted pace (hilly effort)
 }
 
 export type GroundingStatus = 'no_data' | 'confirmed' | 'optimistic' | 'conservative';
@@ -66,6 +67,7 @@ export function assessGrounding(input: {
 
   const delta = Math.round((anchorVdot - d) * 10) / 10;
   const anchorTail = input.anchor5kLabel ? ` (≈ a ${input.anchor5kLabel} 5K)` : '';
+  const hillTag = demonstrated.gradeAdjusted ? ', grade-adjusted for the hills' : '';
 
   if (delta > DELTA) {
     return {
@@ -76,7 +78,7 @@ export function assessGrounding(input: {
       goalStretch,
       headline: 'These targets look fast for your recent running',
       note:
-        `Your paces assume VDOT ${round(anchorVdot)}${anchorTail}, but your best recent effort — ${demonstrated.distanceLabel} ${demonstrated.timeLabel} (${demonstrated.paceLabel}) on ${demonstrated.day} — is about VDOT ${round(d)}. ` +
+        `Your paces assume VDOT ${round(anchorVdot)}${anchorTail}, but your best recent effort — ${demonstrated.distanceLabel} ${demonstrated.timeLabel} (${demonstrated.paceLabel}) on ${demonstrated.day}${hillTag} — is about VDOT ${round(d)}. ` +
         `We can keep these as goal targets, or re-anchor to what you’ve actually run so day-to-day paces feel right.${goalTail}`,
       offerRecentAnchor: true,
     };
@@ -91,7 +93,7 @@ export function assessGrounding(input: {
       goalStretch,
       headline: 'You’re running faster than your targets',
       note:
-        `Your ${demonstrated.distanceLabel} ${demonstrated.timeLabel} (${demonstrated.paceLabel}) on ${demonstrated.day} suggests VDOT ${round(d)}, ahead of your current anchor (VDOT ${round(anchorVdot)}). ` +
+        `Your ${demonstrated.distanceLabel} ${demonstrated.timeLabel} (${demonstrated.paceLabel}) on ${demonstrated.day}${hillTag} suggests VDOT ${round(d)}, ahead of your current anchor (VDOT ${round(anchorVdot)}). ` +
         `Want to raise your targets to match your fitness?`,
       offerRecentAnchor: true,
     };
@@ -104,7 +106,7 @@ export function assessGrounding(input: {
     deltaVdot: delta,
     goalStretch,
     headline: 'Backed by your recent running',
-    note: `Your ${demonstrated.distanceLabel} ${demonstrated.timeLabel} (${demonstrated.paceLabel}) on ${demonstrated.day} lines up with these targets (VDOT ~${round(anchorVdot)}).${goalTail}`,
+    note: `Your ${demonstrated.distanceLabel} ${demonstrated.timeLabel} (${demonstrated.paceLabel}) on ${demonstrated.day}${hillTag} lines up with these targets (VDOT ~${round(anchorVdot)}).${goalTail}`,
     offerRecentAnchor: false,
   };
 }

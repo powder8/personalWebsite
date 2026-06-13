@@ -8,10 +8,28 @@ import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { activities, plannedSessions, plans } from '@/db/schema';
 import { assessRun, type RunFeedback, type PlannedRef } from '@/server/runFeedbackLogic';
+import { gapFromSplits, secPerKmToMinPerMile, type GapSplit } from '@/engine/plan';
 
 export type { RunFeedback } from '@/server/runFeedbackLogic';
 
 const MI = 1609.344;
+const pm = (secPerKm: number) => `${secPerKmToMinPerMile(secPerKm)}/mi`;
+
+/**
+ * Judge effort on grade-adjusted pace when the terrain actually moved the
+ * needle, so a hilly run isn't scored on its (slower/faster) raw pace. Returns
+ * the effort pace + a one-line note to append when an adjustment was applied.
+ */
+function effortPace(rawSecPerKm: number | null, splits: unknown): { pace: number | null; note: string } {
+  const gap = gapFromSplits(splits as GapSplit[] | null);
+  if (!gap || !gap.significant) return { pace: rawSecPerKm, note: '' };
+  return {
+    pace: gap.gapSecPerKm,
+    note: ` (Hilly route — ${Math.round(gap.climbMeters * 3.28084)} ft of climb, so this is judged on grade-adjusted ${pm(
+      gap.gapSecPerKm,
+    )} vs ${pm(gap.rawSecPerKm)} actual.)`,
+  };
+}
 
 /** Find the published-plan session for an athlete on a given day, if any. */
 async function plannedFor(athleteId: string, day: string): Promise<PlannedRef | null> {
@@ -46,6 +64,7 @@ export async function getRunFeedback(athleteId: string, activityId: string): Pro
       startTime: activities.startTime,
       distanceMeters: activities.distanceMeters,
       avgPaceSecPerKm: activities.avgPaceSecPerKm,
+      splits: activities.splits,
       sport: activities.sport,
     })
     .from(activities)
@@ -54,11 +73,10 @@ export async function getRunFeedback(athleteId: string, activityId: string): Pro
   if (!run || run.sport !== 'run' || run.distanceMeters == null || run.distanceMeters < MI * 0.4) return null;
   const day = run.startTime.toISOString().slice(0, 10);
   const planned = await plannedFor(athleteId, day);
-  return assessRun({
-    actualMiles: run.distanceMeters / MI,
-    actualPaceSecPerKm: run.avgPaceSecPerKm,
-    planned,
-  });
+  const { pace, note } = effortPace(run.avgPaceSecPerKm, run.splits);
+  const feedback = assessRun({ actualMiles: run.distanceMeters / MI, actualPaceSecPerKm: pace, planned });
+  if (note) feedback.detail += note;
+  return feedback;
 }
 
 /** Coach's take on the athlete's MOST RECENT run (portal card), with a link. */
@@ -75,6 +93,7 @@ export async function getLatestRunFeedback(
       startTime: activities.startTime,
       distanceMeters: activities.distanceMeters,
       avgPaceSecPerKm: activities.avgPaceSecPerKm,
+      splits: activities.splits,
     })
     .from(activities)
     .where(and(eq(activities.athleteId, athleteId), eq(activities.sport, 'run'), gte(activities.startTime, since), lte(activities.startTime, new Date(`${today}T23:59:59Z`))))
@@ -83,10 +102,8 @@ export async function getLatestRunFeedback(
   if (!run || run.distanceMeters == null || run.distanceMeters < MI * 0.4) return null;
   const day = run.startTime.toISOString().slice(0, 10);
   const planned = await plannedFor(athleteId, day);
-  const feedback = assessRun({
-    actualMiles: run.distanceMeters / MI,
-    actualPaceSecPerKm: run.avgPaceSecPerKm,
-    planned,
-  });
+  const { pace, note } = effortPace(run.avgPaceSecPerKm, run.splits);
+  const feedback = assessRun({ actualMiles: run.distanceMeters / MI, actualPaceSecPerKm: pace, planned });
+  if (note) feedback.detail += note;
   return { feedback, activityId: run.id, day };
 }

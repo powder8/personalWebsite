@@ -87,7 +87,7 @@ export async function getRacePlan(db: DB, athleteId: string, today: string): Pro
   // --- Grounding: anchor vs demonstrated fitness vs stated goal ---
   const [best] = await suggestAnchorCandidates(db, athleteId, { limit: 1 });
   const demonstrated = best
-    ? { vdot: best.vdot, distanceLabel: best.distanceLabel, timeLabel: best.timeLabel, paceLabel: best.paceLabel, day: best.day }
+    ? { vdot: best.vdot, distanceLabel: best.distanceLabel, timeLabel: best.timeLabel, paceLabel: best.paceLabel, day: best.day, gradeAdjusted: best.gradeAdjusted }
     : null;
   const statedGoalVdot =
     goal.targetTimeSeconds && goal.distanceMeters

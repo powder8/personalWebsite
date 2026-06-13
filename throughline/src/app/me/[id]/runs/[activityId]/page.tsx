@@ -7,7 +7,7 @@ import { Card } from '@/components/ui';
 import { RouteMap } from '@/components/RouteMap';
 import { RunFeedbackCard } from '@/components/RunFeedbackCard';
 import { getRunFeedback } from '@/server/runFeedback';
-import { secPerKmToMinPerMile } from '@/engine/plan';
+import { secPerKmToMinPerMile, gapFromSplits, type GapSplit } from '@/engine/plan';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +54,7 @@ export default async function RunDetailPage({
 
   const day = run.startTime.toISOString().slice(0, 10);
   const feedback = await getRunFeedback(id, activityId);
+  const gap = gapFromSplits(run.splits as GapSplit[] | null);
   const miles = run.distanceMeters != null ? run.distanceMeters / MI : null;
   const splits = (run.splits as Split[] | null) ?? [];
   // Pace bars: faster split → longer bar (scaled between slowest and fastest).
@@ -80,6 +81,7 @@ export default async function RunDetailPage({
           <Stat label="Distance" value={miles != null ? `${miles.toFixed(2)} mi` : '—'} />
           <Stat label="Time" value={run.durationSeconds != null ? fmtDur(run.durationSeconds) : '—'} />
           <Stat label="Avg pace" value={paceMi(run.avgPaceSecPerKm)} />
+          {gap?.significant && <Stat label="GAP" value={paceMi(gap.gapSecPerKm)} accent />}
           <Stat
             label="Elevation"
             value={run.elevationGainMeters != null ? `${Math.round(run.elevationGainMeters * 3.28084)} ft` : '—'}
@@ -88,6 +90,12 @@ export default async function RunDetailPage({
           {run.maxHr != null && <Stat label="Max HR" value={`${run.maxHr} bpm`} />}
           {run.cadence != null && <Stat label="Cadence" value={`${run.cadence} spm`} />}
         </div>
+        {gap?.significant && (
+          <p className="mt-3 text-[11px] text-slate-400">
+            GAP (grade-adjusted pace) is your flat-equivalent effort over {Math.round(gap.climbMeters * 3.28084)} ft of
+            climb — the fairer read of how hard this run actually was.
+          </p>
+        )}
       </div>
 
       {/* Coach's take */}
@@ -157,11 +165,11 @@ export default async function RunDetailPage({
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <div>
       <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</div>
-      <div className="text-lg font-bold tabular-nums tracking-tight">{value}</div>
+      <div className={`text-lg font-bold tabular-nums tracking-tight ${accent ? 'text-lime-300' : ''}`}>{value}</div>
     </div>
   );
 }

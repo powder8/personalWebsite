@@ -11,7 +11,7 @@ import 'server-only';
 import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import type { DB } from '@/db';
 import { athletes, activities } from '@/db/schema';
-import { vdotFromRace, STANDARD_DISTANCES, type AthletePaceConfig } from '@/engine/plan';
+import { vdotFromRace, STANDARD_DISTANCES, gapFromSplits, type AthletePaceConfig, type GapSplit } from '@/engine/plan';
 import {
   getAthleteZones,
   getAthleteVdot,
@@ -34,8 +34,10 @@ export interface AnchorCandidate {
   durationSeconds: number;
   distanceLabel: string; // nearest standard distance, e.g. "5K", "Half"
   timeLabel: string;
-  paceLabel: string; // min/mi
-  vdot: number;
+  paceLabel: string; // min/mi (actual)
+  vdot: number; // fitness, computed on grade-adjusted effort when hilly
+  gradeAdjusted: boolean; // VDOT used grade-adjusted pace (hilly run)
+  climbMeters: number; // total ascent, when known
 }
 
 function fmtTime(s: number): string {
@@ -97,6 +99,7 @@ export async function suggestAnchorCandidates(
       distanceMeters: activities.distanceMeters,
       durationSeconds: activities.durationSeconds,
       avgPaceSecPerKm: activities.avgPaceSecPerKm,
+      splits: activities.splits,
     })
     .from(activities)
     .where(
@@ -126,7 +129,11 @@ export async function suggestAnchorCandidates(
     // Easy long runs (non-race, > half-marathon) under-estimate fitness, so skip
     // them — but a marathon RACE is a valid, important anchor.
     if (!isRace && m > MAX_M) continue;
-    const raw = vdotFromRace({ distanceMeters: m, timeSeconds: t });
+    // Fitness is an EFFORT measure: judge a hilly effort on grade-adjusted time
+    // so a tough climb doesn't under-rate VDOT (and a downhill doesn't inflate it).
+    const gap = gapFromSplits(r.splits as GapSplit[] | null);
+    const effortT = gap?.significant ? Math.round(gap.gapSecPerKm * (m / 1000)) : t;
+    const raw = vdotFromRace({ distanceMeters: m, timeSeconds: effortT });
     if (!Number.isFinite(raw) || raw < 20 || raw > 90) continue;
     scored.push({
       day: r.startTime.toISOString().slice(0, 10),
@@ -136,6 +143,8 @@ export async function suggestAnchorCandidates(
       distanceLabel: nearestStandard(m),
       timeLabel: fmtTime(t),
       paceLabel: paceMinPerMile(m, t),
+      gradeAdjusted: !!gap?.significant,
+      climbMeters: gap?.climbMeters ?? 0,
       ts: r.startTime.getTime(),
       rawVdot: raw,
       isRace,

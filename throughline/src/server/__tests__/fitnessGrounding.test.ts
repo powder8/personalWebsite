@@ -60,3 +60,8 @@ test('stated goal far above demonstrated → goalStretch flag + honest note', ()
 test('modest gap within tolerance is not flagged', () => {
   assert.equal(assessGrounding({ anchorVdot: 53.5, demonstrated: eff(52) }).status, 'confirmed');
 });
+
+test('grade-adjusted effort is called out in the note', () => {
+  const g = assessGrounding({ anchorVdot: 53, demonstrated: { ...eff(52.5), gradeAdjusted: true } });
+  assert.match(g.note, /grade-adjusted for the hills/i);
+});
