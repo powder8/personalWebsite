@@ -32,6 +32,8 @@ import { RunFeedbackCard } from '@/components/RunFeedbackCard';
 import { getLatestRunFeedback } from '@/server/runFeedback';
 import { BottomNav } from '@/components/BottomNav';
 import { getDb } from '@/db';
+import { ensureSeasonCoverage } from '@/server/seasonCoverage';
+import { todayISO } from '@/server/console';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,11 +57,20 @@ function dow(day: string): string {
  */
 export default async function PortalPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
+  // Self-heal coverage before reading: an athlete with a live plan should never
+  // see an empty current week (publish the rolling horizon; regenerate if a
+  // goaled athlete has no plan at all). Never let this break the page.
+  const db = await getDb();
+  try {
+    await ensureSeasonCoverage(db, id, todayISO());
+  } catch {
+    /* coverage is best-effort; fall through to whatever exists */
+  }
+
   const portal = await getAthletePortal(id);
   if (!portal) notFound();
   const insights = await getTrainingInsights(id);
-
-  const db = await getDb();
   const cycleSettings = await getCycle(db, id);
   const cycleStatus = computeCycle(cycleSettings, portal.today);
   const trainingSummary = await getTrainingSummary(db, id, portal.today, 12);
