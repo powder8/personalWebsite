@@ -11,6 +11,7 @@ import type { DB } from '@/db';
 import { athletes } from '@/db/schema';
 import { getAthletePortal } from '@/server/portal';
 import { getTrainingInsights } from '@/server/insights';
+import { getAdaptationState } from '@/server/adaptation';
 import { getAthleteZones, getAthleteVdot } from '@/db/paceConfig';
 import { equivalentPerformances, secPerKmToMinPerMile, paceRangeLabel } from '@/engine/plan';
 import { CHAT_TOOLS, executeChatTool, type ChatActor, type ActionTaken } from '@/server/chatTools';
@@ -36,6 +37,7 @@ Answering:
 - When asked what to do, explain what the plan / engine already prescribes and the reasoning. Don't invent prescriptions that contradict their plan or paces.
 - The fitness benchmark is RECENT training. If asked about a faster past, note it's a different stage and that current targets use recent data.
 - This is coaching guidance, not medical advice. For pain, injury, or medical questions, advise seeing a professional.
+- If they've missed sessions or fallen behind: be warm and encouraging, never guilt-trip. NEVER tell them to "make up" missed miles by stacking them — that causes injury and quitting. A missed day is forgiven; after a real layoff, ease back in (lighter for a few days) rather than cramming. Calendar dates don't move.
 - If the data doesn't contain the answer, say so plainly rather than guessing.
 - Be concise, specific, and encouraging. Plain text, no markdown headers.
 
@@ -145,6 +147,18 @@ async function buildContext(
       lines.push('System-flagged suggestions: ' + insights.suggestions.map((s) => `[${s.basis}] ${s.text}`).join(' '));
     }
   }
+
+  const adaptation = await getAdaptationState(athleteId, portal.today);
+  if (adaptation) {
+    lines.push(
+      `Adherence: ${adaptation.tone}${
+        adaptation.lastRunDay ? `, last run ${adaptation.layoffDays}d ago` : ''
+      }, ${adaptation.missedRecent} missed in last 2 weeks, current streak ${adaptation.streakDays} days.${
+        adaptation.tone !== 'on_track' ? ' If they bring it up, encourage — do not suggest making up the missed miles.' : ''
+      }`,
+    );
+  }
+
   return { context: lines.join('\n'), today: portal.today, firstName };
 }
 

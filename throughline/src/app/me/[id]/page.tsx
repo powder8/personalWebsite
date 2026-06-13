@@ -24,6 +24,8 @@ import { RacePlanCard } from '@/components/RacePlanCard';
 import { PlanTimeline } from '@/components/PlanTimeline';
 import { WeekStrip, SESSION_COLOR, SESSION_LABEL, SESSION_TERRAIN } from '@/components/WeekStrip';
 import { SegmentList } from '@/components/SegmentList';
+import { AdaptationCard } from '@/components/AdaptationCard';
+import { getAdaptationState } from '@/server/adaptation';
 import { BottomNav } from '@/components/BottomNav';
 import { getDb } from '@/db';
 
@@ -62,6 +64,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
   const hasAnchor = (await getAthleteVdot(db, id)) != null;
   const timeline = await getSeasonTimeline(db, id, portal.today);
   const racePlan = await getRacePlan(db, id, portal.today);
+  const adaptation = await getAdaptationState(id, portal.today);
 
   const {
     athlete,
@@ -200,6 +203,9 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
           <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal={!!goalRace.name} startOpen />
         </Card>
       )}
+
+      {/* Missed-day adaptation — encouragement + ease-back (keeps people going) */}
+      {adaptation?.show && <AdaptationCard state={adaptation} athleteId={athlete.id} today={today} />}
 
       {/* Chat — ask anything or change the plan */}
       <Card title="Your coach, on demand">
