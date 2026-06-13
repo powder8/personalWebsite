@@ -40,7 +40,7 @@ function isCoachEmail(email: string | null | undefined): boolean {
 /** Coach-only path prefixes (the console). Everything else is athlete-facing. */
 const COACH_PREFIXES = ['/athletes', '/escalations', '/feedback', '/import'];
 /** Paths anyone (even signed-out) may hit. */
-const PUBLIC_PREFIXES = ['/signin', '/api/auth', '/api/webhooks', '/api/inngest'];
+const PUBLIC_PREFIXES = ['/signin', '/api/auth', '/api/webhooks', '/api/inngest', '/api/cron'];
 
 /**
  * Extract the athlete id an athlete-scoped path is addressing, so a non-coach

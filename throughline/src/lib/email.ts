@@ -39,3 +39,21 @@ export async function sendMorningEmail(msg: MorningEmail) {
     ].join('\n'),
   });
 }
+
+export interface NudgeEmail {
+  to: string;
+  subject: string;
+  body: string;
+  portalUrl: string;
+}
+
+/** Proactive nudge (workout reminder / streak protection / comeback). */
+export async function sendNudgeEmail(msg: NudgeEmail) {
+  const from = process.env.EMAIL_FROM ?? 'Throughline <coach@throughline.app>';
+  return resend().emails.send({
+    from,
+    to: msg.to,
+    subject: msg.subject,
+    text: [msg.body, '', `Open your plan: ${msg.portalUrl}`, '', 'Reply STOP to turn off these nudges.'].join('\n'),
+  });
+}

@@ -183,6 +183,7 @@ export const athletes = pgTable(
     // Who coaches this athlete: a human (assisted) or the app (autonomous).
     coachingMode: coachingModeEnum('coaching_mode').notNull().default('assisted'),
     active: boolean('active').notNull().default(true),
+    notifyEmail: boolean('notify_email').notNull().default(true), // opt-in for proactive nudges
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -832,4 +833,29 @@ export const verificationTokens = pgTable(
     expires: timestamp('expires', { mode: 'date', withTimezone: true }).notNull(),
   },
   (t) => [primaryKey({ columns: [t.identifier, t.token] })],
+);
+
+// ---------------------------------------------------------------------------
+// Notifications: append-only log of proactive nudges actually sent. Doubles as
+// the dedup ledger — the nudge sender checks "did we already send today?" here.
+// ---------------------------------------------------------------------------
+
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    athleteId: uuid('athlete_id')
+      .notNull()
+      .references(() => athletes.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(), // NudgeKind: workout_today | streak_protect | comeback
+    channel: text('channel').notNull().default('email'),
+    localDay: date('local_day').notNull(), // athlete-local date the nudge was for (dedup key)
+    subject: text('subject'),
+    sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('notifications_athlete_idx').on(t.athleteId, t.localDay),
+    // At most one nudge per athlete per local day (dedup guarantee).
+    uniqueIndex('notifications_athlete_day_uq').on(t.athleteId, t.localDay),
+  ],
 );
