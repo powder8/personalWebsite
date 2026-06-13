@@ -230,7 +230,9 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
       {consistency?.show && <ConsistencyStrip stats={consistency} />}
 
       {/* Missed-day adaptation — encouragement + ease-back (keeps people going) */}
-      {adaptation?.show && <AdaptationCard state={adaptation} athleteId={athlete.id} today={today} />}
+      {adaptation?.show && (
+        <AdaptationCard state={adaptation} athleteId={athlete.id} today={today} todaySession={todaySession} />
+      )}
 
       {/* Chat — ask anything or change the plan */}
       <Card title="Your coach, on demand">

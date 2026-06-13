@@ -8,6 +8,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { activities } from '@/db/schema';
 import { getComplianceWeeks } from '@/server/compliance';
+import { listActiveDirectives } from '@/server/directives';
 import { analyzeAdherence, type AdaptationState, type AdherenceDay } from '@/server/adaptationLogic';
 
 export type { AdaptationState } from '@/server/adaptationLogic';
@@ -41,7 +42,17 @@ export async function getAdaptationState(athleteId: string, today: string): Prom
   // Need at least one past planned day OR a genuine layoff to say anything.
   if (days.filter((d) => d.day < today).length === 0 && addDaysDiff(lastRunDay, today) < 4) return null;
 
-  return analyzeAdherence({ today, days, lastRunDay });
+  const state = analyzeAdherence({ today, days, lastRunDay });
+  if (!state) return null;
+
+  // Did the athlete already tap "ease me back in"? If a windowed ease-back
+  // directive is active over today, flip the card to its confirmation state so
+  // it stops re-prompting (the layoff signal alone can't tell us they acted).
+  const active = await listActiveDirectives(db, athleteId);
+  state.easeBackApplied = active.some(
+    (d) => d.type === 'reduce_volume' && /easing back/i.test(d.label ?? '') && d.from <= today && (d.to == null || d.to >= today),
+  );
+  return state;
 }
 
 function addDaysDiff(from: string, to: string): number {

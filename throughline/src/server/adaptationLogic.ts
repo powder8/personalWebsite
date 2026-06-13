@@ -40,6 +40,8 @@ export interface AdaptationState {
   headline: string;
   body: string;
   easeBack: EaseBack | null;
+  /** An ease-back is already active (directive applied) — show confirmation, not the CTA. */
+  easeBackApplied?: boolean;
 }
 
 function dayDiff(from: string, to: string): number {
