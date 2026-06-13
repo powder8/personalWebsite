@@ -19,6 +19,13 @@ function fmtShort(day: string): string {
   return `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m - 1]} ${d}`;
 }
 
+const FEAS_TONE: Record<string, string> = {
+  ahead: 'bg-emerald-400/10 ring-emerald-400/30 [&_span]:text-emerald-300',
+  on_track: 'bg-emerald-400/10 ring-emerald-400/30 [&_span]:text-emerald-300',
+  stretch: 'bg-amber-400/10 ring-amber-400/30 [&_span]:text-amber-300',
+  unrealistic: 'bg-rose-400/10 ring-rose-400/30 [&_span]:text-rose-300',
+};
+
 const WINDOW_CHIP: Record<string, string> = {
   final_sharpener: 'bg-violet-400/10 text-violet-300 ring-violet-400/30',
   specificity_tuneup: 'bg-rose-400/10 text-rose-300 ring-rose-400/30',
@@ -54,6 +61,16 @@ export function RacePlanCard({ plan, athleteId }: { plan: RacePlan; athleteId: s
 
       {/* Reality check: do these targets match what they've actually run? */}
       <GroundingNotice athleteId={athleteId} grounding={plan.grounding} offer={plan.recentAnchorOffer} />
+
+      {/* Feasibility: is the stated goal reachable by race day? */}
+      {plan.feasibility && (
+        <div className={`mt-3 rounded-2xl p-3 ring-1 ring-inset ${FEAS_TONE[plan.feasibility.verdict]}`}>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wide">{plan.feasibility.headline}</span>
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-slate-600">{plan.feasibility.note}</p>
+        </div>
+      )}
 
       {/* Tune-up race windows */}
       {plan.windows.length > 0 && (

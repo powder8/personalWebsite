@@ -13,7 +13,9 @@ import {
   annotateWindows,
   predictRaceTimeSeconds,
   vdotFromRace,
+  assessGoalFeasibility,
   type RaceWindow,
+  type GoalFeasibility,
 } from '@/engine/plan';
 import { getAthleteVdot, getAthleteZones } from '@/db/paceConfig';
 import { suggestAnchorCandidates } from '@/server/anchor';
@@ -45,6 +47,11 @@ export interface RacePlan {
   grounding: Grounding;
   /** The demonstrated effort to anchor to, if the athlete accepts the offer. */
   recentAnchorOffer: { distanceMeters: number; timeSeconds: number; label: string } | null;
+  /**
+   * Is the STATED goal reachable by race day given the weeks left and realistic
+   * improvement rates? Null when there's no stated goal time to assess against.
+   */
+  feasibility: GoalFeasibility | null;
 }
 
 const STRETCH_VDOT_GAIN = 1.5;
@@ -106,6 +113,22 @@ export async function getRacePlan(db: DB, athleteId: string, today: string): Pro
       ? { distanceMeters: best.distanceMeters, timeSeconds: best.durationSeconds, label: `${best.distanceLabel} ${best.timeLabel}` }
       : null;
 
+  // --- Feasibility: is the stated goal reachable by race day? ---
+  // Use the most honest read of current fitness (demonstrated effort if we have
+  // one, else the anchor) vs the goal VDOT, over the weeks remaining.
+  const currentVdotForGoal = demonstrated?.vdot ?? (vdot != null ? Math.round(vdot * 10) / 10 : null);
+  const weeksToRace = Math.floor((Date.parse(goal.date) - Date.parse(today)) / (7 * 86400000));
+  const feasibility =
+    statedGoalVdot != null && goal.distanceMeters && currentVdotForGoal != null && weeksToRace >= 1
+      ? assessGoalFeasibility({
+          currentVdot: currentVdotForGoal,
+          goalVdot: statedGoalVdot,
+          weeksToRace,
+          goalDistanceMeters: goal.distanceMeters,
+          goalLabel: goal.targetTimeSeconds && goal.distanceLabel ? `${fmtClock(goal.targetTimeSeconds)} ${goal.distanceLabel.toLowerCase()}` : null,
+        })
+      : null;
+
   return {
     goal: {
       name: goal.name,
@@ -120,5 +143,6 @@ export async function getRacePlan(db: DB, athleteId: string, today: string): Pro
       'Chasing a time? Course choice matters: pick a flat, fast course (and do your key timed sessions on flat ground too — save hills for easy and strength days).',
     grounding,
     recentAnchorOffer,
+    feasibility,
   };
 }

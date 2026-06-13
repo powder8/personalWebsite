@@ -16,6 +16,7 @@ export * from './adapt';
 export * from './diff';
 export * from './vdot';
 export * from './gap';
+export * from './feasibility';
 export * from './paceConfig';
 export * from './raceWindows';
 export * from './racePurpose';
