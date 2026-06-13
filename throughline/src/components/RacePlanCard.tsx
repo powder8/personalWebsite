@@ -4,6 +4,7 @@
  * Pure server markup; data from server/racePlan.ts.
  */
 import type { RacePlan } from '@/server/racePlan';
+import { GroundingNotice } from '@/components/GroundingNotice';
 
 function fmtTime(s: number): string {
   const h = Math.floor(s / 3600);
@@ -25,7 +26,7 @@ const WINDOW_CHIP: Record<string, string> = {
   opener: 'bg-sky-400/10 text-sky-300 ring-sky-400/30',
 };
 
-export function RacePlanCard({ plan }: { plan: RacePlan }) {
+export function RacePlanCard({ plan, athleteId }: { plan: RacePlan; athleteId: string }) {
   return (
     <div>
       {/* Target window — grounded in current fitness */}
@@ -50,6 +51,9 @@ export function RacePlanCard({ plan }: { plan: RacePlan }) {
           </p>
         </div>
       )}
+
+      {/* Reality check: do these targets match what they've actually run? */}
+      <GroundingNotice athleteId={athleteId} grounding={plan.grounding} offer={plan.recentAnchorOffer} />
 
       {/* Tune-up race windows */}
       {plan.windows.length > 0 && (

@@ -241,7 +241,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
       {/* Race plan: fitness-grounded target window + warm-up race windows */}
       {racePlan && (
         <Card title="Race plan">
-          <RacePlanCard plan={racePlan} />
+          <RacePlanCard plan={racePlan} athleteId={athlete.id} />
         </Card>
       )}
 
