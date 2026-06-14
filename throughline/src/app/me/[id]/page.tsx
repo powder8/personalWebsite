@@ -24,8 +24,9 @@ import { RacePlanCard } from '@/components/RacePlanCard';
 import { PlanTimeline } from '@/components/PlanTimeline';
 import { WeekStrip, SESSION_COLOR, SESSION_LABEL, SESSION_TERRAIN } from '@/components/WeekStrip';
 import { SegmentList } from '@/components/SegmentList';
-import { AdaptationCard } from '@/components/AdaptationCard';
-import { getAdaptationState } from '@/server/adaptation';
+import { NextStepBanner } from '@/components/NextStepBanner';
+import { getAdaptationState, easeBackDirectives } from '@/server/adaptation';
+import { decideNextStep } from '@/server/nextStepLogic';
 import { ConsistencyStrip } from '@/components/ConsistencyStrip';
 import { getConsistency } from '@/server/consistency';
 import { RunFeedbackCard } from '@/components/RunFeedbackCard';
@@ -104,8 +105,41 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
   const goalDone = !!goalRace.name && goalRace.daysAway != null && goalRace.daysAway < 0;
   const needsGoal = !goalRace.name || goalDone;
 
+  // The single "do this next" guide — one focal action for whatever state.
+  const ranToday = latestRun?.day === today || adaptation?.layoffDays === 0;
+  const nextStep = decideNextStep({
+    firstName,
+    hasAnchor,
+    hasGoal: !!goalRace.name,
+    goalDone,
+    layoffDays: adaptation?.layoffDays ?? null,
+    easeBackAvailable: !!adaptation?.easeBack,
+    easeBackApplied: !!adaptation?.easeBackApplied,
+    ranToday,
+    today: todaySession
+      ? {
+          sessionType: todaySession.sessionType,
+          miles: todaySession.distanceMeters != null ? todaySession.distanceMeters / 1609.344 : 0,
+          paceLabel:
+            todaySession.paceFastSecPerKm != null
+              ? `${pace(todaySession.paceFastSecPerKm)}–${pace(todaySession.paceSlowSecPerKm)}`
+              : null,
+          eased: todaySession.adjustments.length > 0,
+        }
+      : null,
+  });
+  const easeDirectives = adaptation ? easeBackDirectives(adaptation, today) : [];
+
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-20 sm:pb-4">
+      {/* ── NEXT STEP: the one thing to do right now (any lifecycle state) ── */}
+      <NextStepBanner
+        step={nextStep}
+        athleteId={athlete.id}
+        easeDirectives={easeDirectives}
+        latestActivityId={latestRun?.activityId ?? null}
+      />
+
       {/* ── HERO: who you are + what you're chasing ─────────────────────── */}
       <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 text-white shadow-lg">
         <div className="flex items-start justify-between gap-4">
@@ -228,11 +262,6 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
 
       {/* Consistency / streak — positive reinforcement */}
       {consistency?.show && <ConsistencyStrip stats={consistency} />}
-
-      {/* Missed-day adaptation — encouragement + ease-back (keeps people going) */}
-      {adaptation?.show && (
-        <AdaptationCard state={adaptation} athleteId={athlete.id} today={today} todaySession={todaySession} />
-      )}
 
       {/* Chat — ask anything or change the plan */}
       <Card title="Your coach, on demand">
