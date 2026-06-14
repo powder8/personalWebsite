@@ -31,12 +31,18 @@ export function GoalSetup({
   hasAnchor,
   hasGoal,
   startOpen,
+  redirectTo,
+  submitLabel,
 }: {
   athleteId: string;
   hasAnchor: boolean;
   hasGoal: boolean;
   /** Force the form open initially (e.g. post-race "what's next?" prompt). */
   startOpen?: boolean;
+  /** Where to go after success (onboarding → portal). Defaults to a reload. */
+  redirectTo?: string;
+  /** Override the submit button text (e.g. "Build my plan"). */
+  submitLabel?: string;
 }) {
   const [open, setOpen] = useState(startOpen ?? !hasGoal);
   const [kind, setKind] = useState<GoalKind>('finish');
@@ -85,7 +91,10 @@ export function GoalSetup({
       });
       const j = await res.json();
       if (j.ok) {
-        setTimeout(() => window.location.reload(), 700);
+        setTimeout(() => {
+          if (redirectTo) window.location.assign(redirectTo);
+          else window.location.reload();
+        }, 700);
       } else {
         setErr(j.error ?? 'Failed.');
         setPending(false);
@@ -217,7 +226,7 @@ export function GoalSetup({
           disabled={pending}
           className="rounded bg-violet-700 px-4 py-2 text-sm font-medium text-white hover:bg-violet-800 disabled:opacity-50"
         >
-          {pending ? 'Building your plan…' : hasGoal ? 'Update goal & rebuild plan' : 'Set goal & build my plan'}
+          {pending ? 'Building your plan…' : submitLabel ?? (hasGoal ? 'Update goal & rebuild plan' : 'Set goal & build my plan')}
         </button>
         {hasGoal && (
           <button type="button" onClick={() => setOpen(false)} className="text-xs text-slate-500 hover:underline">

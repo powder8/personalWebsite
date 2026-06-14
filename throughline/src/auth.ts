@@ -42,7 +42,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user?.email && db) {
         const coach = isCoachEmail(user.email);
-        const [athlete] = await db
+        let [athlete] = await db
           .select({ id: athletes.id, userId: athletes.userId })
           .from(athletes)
           .where(eq(athletes.email, user.email))
@@ -50,6 +50,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // First sign-in: bind this athlete record to the user account.
         if (athlete && !athlete.userId && user.id) {
           await db.update(athletes).set({ userId: user.id, updatedAt: new Date() }).where(eq(athletes.id, athlete.id));
+        }
+        // Self-service: a non-coach with no athlete record yet gets one created
+        // (autonomous — no human coach), so the front door is never locked. The
+        // onboarding wizard then collects their fitness + goal.
+        if (!athlete && !coach && user.id) {
+          const [created] = await db
+            .insert(athletes)
+            .values({
+              fullName: user.name?.trim() || user.email.split('@')[0],
+              email: user.email,
+              userId: user.id,
+              coachingMode: 'autonomous',
+            })
+            .returning({ id: athletes.id, userId: athletes.userId });
+          athlete = created;
         }
         if (coach && user.id) {
           await db.update(users).set({ role: 'coach' }).where(eq(users.id, user.id));

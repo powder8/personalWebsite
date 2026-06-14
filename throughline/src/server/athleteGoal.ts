@@ -102,8 +102,11 @@ export async function setupAthleteGoal(
   });
 
   // Self-service = no human coach. Run in autonomous mode so the app provides
-  // ALL guidance (full plan published, no drafts waiting on a coach).
-  await db.update(athletes).set({ coachingMode: 'autonomous', updatedAt: new Date() }).where(eq(athletes.id, athleteId));
+  // ALL guidance (full plan published, no drafts), and mark onboarding done.
+  await db
+    .update(athletes)
+    .set({ coachingMode: 'autonomous', onboardedAt: new Date(), updatedAt: new Date() })
+    .where(eq(athletes.id, athleteId));
 
   return { weeks: result.weeks };
 }

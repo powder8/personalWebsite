@@ -184,6 +184,7 @@ export const athletes = pgTable(
     coachingMode: coachingModeEnum('coaching_mode').notNull().default('assisted'),
     active: boolean('active').notNull().default(true),
     notifyEmail: boolean('notify_email').notNull().default(true), // opt-in for proactive nudges
+    onboardedAt: timestamp('onboarded_at', { withTimezone: true }), // self-service onboarding finished
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
