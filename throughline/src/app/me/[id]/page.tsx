@@ -58,8 +58,16 @@ function dow(day: string): string {
  * Athlete-facing portal. Reads top-to-bottom as a story: goal (hero) → today →
  * the season's blocks → this week → progress → your inputs → setup.
  */
-export default async function PortalPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PortalPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ import?: string; strava?: string }>;
+}) {
   const { id } = await params;
+  const { import: importFlag } = await searchParams;
+  const autoImportStrava = importFlag === '1'; // just connected → auto-run import
 
   // Self-heal coverage before reading: an athlete with a live plan should never
   // see an empty current week (publish the rolling horizon; regenerate if a
@@ -244,6 +252,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
 
       {/* Goal setup — prominent (and open) whenever there's no LIVE goal:
           never trained with us yet, or the goal race just happened. */}
+      <div id="goal-setup" className="scroll-mt-4" />
       {needsGoal && (
         <Card
           title={goalDone ? 'What’s next?' : 'What are you training for?'}
@@ -433,8 +442,9 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
         </Card>
       )}
 
-      {/* Cycle tracking — not shown for athletes who've indicated it's N/A. */}
-      {athlete.sex !== 'male' && athlete.sex !== 'other' && (
+      {/* Cycle tracking — only for athletes who've said it's relevant (female)
+          or already turned it on. Hidden by default otherwise (no noise). */}
+      {(athlete.sex === 'female' || cycleSettings.enabled) && (
         <Card title="Cycle tracking">
           <CycleTracking athleteId={athlete.id} initial={cycleSettings} status={cycleStatus} dismissable />
         </Card>
@@ -449,6 +459,7 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
           connected={strava.connected}
           configured={strava.configured}
           lastActivityDay={strava.lastActivityDay}
+          autoImport={autoImportStrava}
         />
       </Card>
 

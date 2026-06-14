@@ -10,12 +10,20 @@ const DISTANCES = [
   { label: 'Marathon', value: 'Marathon' },
 ];
 
-/** "mm:ss" or "h:mm:ss" → seconds; null if blank/invalid. */
+/**
+ * Forgiving race-time parser → seconds. Accepts:
+ *   "22"        → 22:00  (bare number = minutes)
+ *   "22:30"     → 22m30s
+ *   "1:45:00"   → 1h45m
+ *   "1.45.00" / "1 45 00" → same (./space treated like :)
+ * Returns null only if it's blank or truly unparseable.
+ */
 function parseClock(s: string): number | null {
   const t = s.trim();
   if (!t) return null;
-  const parts = t.split(':').map(Number);
+  const parts = t.split(/[:.\s]+/).map(Number);
   if (parts.some((n) => Number.isNaN(n))) return null;
+  if (parts.length === 1) return parts[0] * 60; // bare minutes
   if (parts.length === 2) return parts[0] * 60 + parts[1];
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
   return null;
@@ -33,6 +41,7 @@ export function GoalSetup({
   startOpen,
   redirectTo,
   submitLabel,
+  recentRaces,
 }: {
   athleteId: string;
   hasAnchor: boolean;
@@ -43,10 +52,16 @@ export function GoalSetup({
   redirectTo?: string;
   /** Override the submit button text (e.g. "Build my plan"). */
   submitLabel?: string;
+  /** The athlete's actual recent races (from synced runs) — pick instead of recall. */
+  recentRaces?: { distanceLabel: string; timeLabel: string; distanceMeters: number; durationSeconds: number; day: string; paceLabel: string }[];
 }) {
   const [open, setOpen] = useState(startOpen ?? !hasGoal);
   const [kind, setKind] = useState<GoalKind>('finish');
   const [fitnessKind, setFitnessKind] = useState<'existing' | 'race'>(hasAnchor ? 'existing' : 'race');
+  // Controlled so the recent-race picker can prefill them.
+  const [fitDistance, setFitDistance] = useState('5K');
+  const [fitTime, setFitTime] = useState('');
+  const [pickedDay, setPickedDay] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -72,12 +87,13 @@ export function GoalSetup({
       }
     }
     if (fitnessKind === 'race') {
-      const secs = parseClock(String(fd.get('fitnessTime') || ''));
+      const secs = parseClock(fitTime);
       if (!secs) {
-        setErr('Enter your recent race time like 22:30.');
+        setErr('Add a recent race time — pick one of your runs above, or type it like 22:30 (or just 22 for 22 min).');
         return;
       }
-      body.fitness = { kind: 'race', distanceLabel: String(fd.get('fitnessDistance') || ''), timeSeconds: secs };
+      const picked = pickedDay ? recentRaces?.find((r) => r.day === pickedDay) : undefined;
+      body.fitness = { kind: 'race', distanceLabel: fitDistance, timeSeconds: secs, distanceMeters: picked?.distanceMeters };
     } else {
       body.fitness = { kind: 'existing' };
     }
@@ -188,21 +204,58 @@ export function GoalSetup({
             From a recent race
           </label>
           {fitnessKind === 'race' && (
-            <div className="grid grid-cols-2 gap-3 pl-6">
-              <label className="text-xs text-slate-600">
-                Distance
-                <select name="fitnessDistance" defaultValue="5K" className={`block w-full ${field}`}>
-                  {DISTANCES.map((d) => (
-                    <option key={d.value} value={d.value}>
-                      {d.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-xs text-slate-600">
-                Time (h:mm:ss)
-                <input name="fitnessTime" placeholder="22:30" className={`block w-full ${field}`} />
-              </label>
+            <div className="space-y-2 pl-6">
+              {recentRaces && recentRaces.length > 0 && (
+                <div>
+                  <div className="text-xs text-slate-500">Pick one of your recent runs:</div>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {recentRaces.map((r) => (
+                      <button
+                        key={r.day}
+                        type="button"
+                        onClick={() => {
+                          setPickedDay(r.day);
+                          if (DISTANCES.some((d) => d.value === r.distanceLabel)) setFitDistance(r.distanceLabel);
+                          setFitTime(r.timeLabel);
+                        }}
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
+                          pickedDay === r.day
+                            ? 'bg-violet-400/20 text-violet-100 ring-violet-400/40'
+                            : 'bg-card text-slate-600 ring-slate-200 hover:bg-slate-50'
+                        }`}
+                        title={`${r.paceLabel} · ${r.day}`}
+                      >
+                        {r.distanceLabel} {r.timeLabel}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2 text-xs text-slate-500">…or enter it yourself:</div>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <label className="text-xs text-slate-600">
+                  Distance
+                  <select value={fitDistance} onChange={(e) => setFitDistance(e.target.value)} className={`block w-full ${field}`}>
+                    {DISTANCES.map((d) => (
+                      <option key={d.value} value={d.value}>
+                        {d.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-xs text-slate-600">
+                  Time (e.g. 22:30)
+                  <input
+                    value={fitTime}
+                    onChange={(e) => {
+                      setFitTime(e.target.value);
+                      setPickedDay(null);
+                    }}
+                    placeholder="22:30"
+                    className={`block w-full ${field}`}
+                  />
+                </label>
+              </div>
             </div>
           )}
         </div>

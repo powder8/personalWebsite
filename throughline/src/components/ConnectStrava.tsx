@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 /**
  * Strava connection control. Connect when unlinked; once linked, run a chunked
@@ -14,14 +14,27 @@ export function ConnectStrava({
   connected,
   configured,
   lastActivityDay,
+  autoImport,
 }: {
   athleteId: string;
   connected: boolean;
   configured: boolean;
   lastActivityDay?: string | null;
+  /** Just came back from connecting (?import=1) — run the import automatically. */
+  autoImport?: boolean;
 }) {
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const autoStarted = useRef(false);
+
+  // Auto-run the history import right after connecting — no manual click.
+  useEffect(() => {
+    if (autoImport && connected && configured && !autoStarted.current) {
+      autoStarted.current = true;
+      run(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoImport, connected, configured]);
 
   async function run(full: boolean) {
     setRunning(true);

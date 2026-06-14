@@ -10,20 +10,42 @@ import { GoalSetup } from '@/components/GoalSetup';
 
 type Step = 'welcome' | 'connect' | 'plan';
 
+interface RecentRace {
+  distanceLabel: string;
+  timeLabel: string;
+  distanceMeters: number;
+  durationSeconds: number;
+  day: string;
+  paceLabel: string;
+}
+
 export function OnboardingWizard({
   athleteId,
   firstName,
   hasAnchor,
   stravaConfigured,
+  recentRaces,
 }: {
   athleteId: string;
   firstName: string;
   hasAnchor: boolean;
   stravaConfigured: boolean;
+  recentRaces?: RecentRace[];
 }) {
   // If runs already synced (came back from Strava), jump to the plan step.
   const [step, setStep] = useState<Step>(hasAnchor ? 'plan' : 'welcome');
+  const [sex, setSex] = useState<'female' | 'male' | 'other' | null>(null);
   const steps: Step[] = ['welcome', 'connect', 'plan'];
+
+  function pickSex(s: 'female' | 'male' | 'other') {
+    setSex(s);
+    // Save immediately (fire-and-forget) — gates cycle tracking, age-grading.
+    fetch(`/api/athletes/${athleteId}/profile`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sex: s }),
+    }).catch(() => {});
+  }
 
   return (
     <div className="mx-auto max-w-xl px-4 py-10">
@@ -97,6 +119,23 @@ export function OnboardingWizard({
               ? 'Got your fitness from your runs. Now pick a goal and we’ll build the plan.'
               : 'A rough read of where you are and what you’re training for — we’ll handle the rest.'}
           </p>
+          {/* Quick "about you" — drives age-grading + whether cycle tracking shows */}
+          <div className="mb-4">
+            <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">Sex (for pacing & tracking)</div>
+            <div className="flex gap-2">
+              {(['female', 'male', 'other'] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => pickSex(s)}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium ring-1 ring-inset transition ${
+                    sex === s ? 'bg-lime-300 text-[#0c1018] ring-lime-300' : 'bg-slate-800 text-slate-300 ring-slate-600 hover:bg-slate-700'
+                  }`}
+                >
+                  {s[0].toUpperCase() + s.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
           <GoalSetup
             athleteId={athleteId}
             hasAnchor={hasAnchor}
@@ -104,6 +143,7 @@ export function OnboardingWizard({
             startOpen
             redirectTo={`/me/${athleteId}`}
             submitLabel="Build my plan"
+            recentRaces={recentRaces}
           />
           {!hasAnchor && (
             <button onClick={() => setStep('connect')} className="mt-4 text-xs text-slate-500 hover:underline">

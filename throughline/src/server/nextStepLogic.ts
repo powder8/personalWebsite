@@ -66,7 +66,7 @@ export function decideNextStep(input: NextStepInput): NextStep {
       emoji: '🎯',
       headline: `Let’s set your starting point, ${name}`,
       detail: 'Add a recent race or your typical training pace and I’ll build your whole plan around it.',
-      cta: { type: 'scroll', href: '#setup', label: 'Set my fitness' },
+      cta: { type: 'scroll', href: '#goal-setup', label: 'Set my fitness' },
       tone: 'action',
     };
   }
@@ -78,7 +78,7 @@ export function decideNextStep(input: NextStepInput): NextStep {
       emoji: '🎉',
       headline: 'That’s a wrap on this goal',
       detail: 'Big effort. The fitness you built fades fast if it sits — pick your next race or focus and we’ll start a fresh block.',
-      cta: { type: 'scroll', href: '#setup', label: 'Set my next goal' },
+      cta: { type: 'scroll', href: '#goal-setup', label: 'Set my next goal' },
       tone: 'positive',
     };
   }
@@ -88,7 +88,7 @@ export function decideNextStep(input: NextStepInput): NextStep {
       emoji: '🎯',
       headline: 'Pick your next goal',
       detail: 'Choose a race or just “stay fit,” and I’ll build the week-by-week plan to get you there.',
-      cta: { type: 'scroll', href: '#setup', label: 'Set a goal' },
+      cta: { type: 'scroll', href: '#goal-setup', label: 'Set a goal' },
       tone: 'action',
     };
   }

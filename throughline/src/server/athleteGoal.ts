@@ -23,7 +23,7 @@ export interface AthleteGoalInput {
   targetTimeSeconds?: number; // for time
   date?: string; // YYYY-MM-DD — required for finish/time
   /** Where the athlete's fitness is now. 'existing' reuses their current anchor. */
-  fitness: { kind: 'existing' | 'race'; distanceLabel?: string; timeSeconds?: number };
+  fitness: { kind: 'existing' | 'race'; distanceLabel?: string; distanceMeters?: number; timeSeconds?: number };
   currentWeeklyMiles: number;
   peakWeeklyMiles?: number;
 }
@@ -71,7 +71,7 @@ export async function setupAthleteGoal(
   // --- Fitness anchor ---
   let fitness: { race?: { distanceMeters: number; timeSeconds: number } } | undefined;
   if (input.fitness.kind === 'race') {
-    const m = metersFor(input.fitness.distanceLabel);
+    const m = input.fitness.distanceMeters ?? metersFor(input.fitness.distanceLabel);
     const t = Number(input.fitness.timeSeconds);
     if (!m || !(t > 0)) throw new Error('Enter a recent race distance and time, or choose “use my current fitness”.');
     fitness = { race: { distanceMeters: m, timeSeconds: Math.round(t) } };

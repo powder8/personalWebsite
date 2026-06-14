@@ -6,6 +6,7 @@ import { getDb } from '@/db';
 import { athletes } from '@/db/schema';
 import { getAthleteVdot } from '@/db/paceConfig';
 import { stravaConfigured } from '@/providers/strava/env';
+import { suggestAnchorCandidates } from '@/server/anchor';
 import { OnboardingWizard } from '@/components/OnboardingWizard';
 
 export const dynamic = 'force-dynamic';
@@ -37,6 +38,15 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
 
   const hasAnchor = (await getAthleteVdot(db, athlete.id)) != null;
   const firstName = athlete.fullName.split(' ')[0];
+  // Their actual recent races (from synced runs) — pick instead of recall.
+  const recentRaces = (await suggestAnchorCandidates(db, athlete.id, { limit: 5 })).map((c) => ({
+    distanceLabel: c.distanceLabel,
+    timeLabel: c.timeLabel,
+    distanceMeters: c.distanceMeters,
+    durationSeconds: c.durationSeconds,
+    day: c.day,
+    paceLabel: c.paceLabel,
+  }));
 
   return (
     <OnboardingWizard
@@ -44,6 +54,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
       firstName={firstName}
       hasAnchor={hasAnchor}
       stravaConfigured={stravaConfigured()}
+      recentRaces={recentRaces}
     />
   );
 }
