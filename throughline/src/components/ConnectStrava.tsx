@@ -27,7 +27,7 @@ export function ConnectStrava({
   const [msg, setMsg] = useState<string | null>(null);
   const autoStarted = useRef(false);
 
-  // Auto-run the history import right after connecting — no manual click.
+  // Auto-run the FULL history import right after connecting — no manual click.
   useEffect(() => {
     if (autoImport && connected && configured && !autoStarted.current) {
       autoStarted.current = true;
@@ -36,9 +36,20 @@ export function ConnectStrava({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoImport, connected, configured]);
 
-  async function run(full: boolean) {
+  // Auto-pull RECENT activity on load (once per browser session) so today's run
+  // shows up without a manual "Sync now". Silent; reloads only if it found new
+  // runs. Skipped when the full post-connect import is already running.
+  useEffect(() => {
+    if (autoImport || !connected || !configured) return;
+    if (typeof window === 'undefined' || sessionStorage.getItem('tl_recentSync')) return;
+    sessionStorage.setItem('tl_recentSync', '1');
+    run(false, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoImport, connected, configured]);
+
+  async function run(full: boolean, silent = false) {
     setRunning(true);
-    setMsg(full ? 'Importing your history…' : 'Syncing…');
+    if (!silent) setMsg(full ? 'Importing your history…' : 'Syncing…');
     let total = 0;
     let url = `/api/athletes/${athleteId}/strava/sync${full ? '?full=1' : ''}`;
     try {
@@ -47,20 +58,24 @@ export function ConnectStrava({
         const res = await fetch(url, { method: 'POST' });
         const j = await res.json();
         if (!j.ok) {
-          setMsg(j.error ?? 'Sync failed.');
+          if (!silent) setMsg(j.error ?? 'Sync failed.');
           break;
         }
         total += j.fetched ?? 0;
         if (j.done || j.nextAfter == null) {
-          setMsg(`Done — ${total} activities synced.`);
-          setTimeout(() => window.location.reload(), 1200);
+          // Reload to surface new runs + their evaluation. When silent, only
+          // reload if something actually came in (avoids a pointless refresh).
+          if (!silent || total > 0) {
+            if (!silent) setMsg(`Done — ${total} activities synced.`);
+            setTimeout(() => window.location.reload(), silent ? 250 : 1200);
+          }
           break;
         }
-        setMsg(`Imported ${total} activities…`);
+        if (!silent) setMsg(`Imported ${total} activities…`);
         url = `/api/athletes/${athleteId}/strava/sync?after=${j.nextAfter}`;
       }
     } catch {
-      setMsg('Network error during sync.');
+      if (!silent) setMsg('Network error during sync.');
     } finally {
       setRunning(false);
     }
