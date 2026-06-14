@@ -49,6 +49,8 @@ export async function persistNormalizedBatch(
           name: batch.activities[0].name,
           distanceMeters: batch.activities[0].distanceMeters,
           durationSeconds: batch.activities[0].durationSeconds,
+          elapsedSeconds: batch.activities[0].elapsedSeconds,
+          surface: batch.activities[0].surface,
           avgHr: batch.activities[0].avgHr,
           maxHr: batch.activities[0].maxHr,
           avgPaceSecPerKm: batch.activities[0].avgPaceSecPerKm,

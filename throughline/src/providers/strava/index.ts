@@ -167,6 +167,8 @@ export function normalizeActivity(a: StravaActivity): NonNullable<NormalizedBatc
     workoutType: a.workout_type ?? null,
     startTime: a.start_date ? new Date(a.start_date) : new Date(0),
     durationSeconds: a.moving_time ?? a.elapsed_time ?? null,
+    elapsedSeconds: a.elapsed_time ?? null,
+    surface: isRun ? mapSurface(a.sport_type ?? a.type) : null,
     distanceMeters: a.distance ?? null,
     avgHr: a.average_heartrate != null ? Math.round(a.average_heartrate) : null,
     maxHr: a.max_heartrate != null ? Math.round(a.max_heartrate) : null,
@@ -198,6 +200,14 @@ export function normalizeSplits(
         elevDiffMeters: s.elevation_difference ?? null,
       };
     });
+}
+
+/** Running surface from the provider sport_type (trail vs road), null if N/A. */
+export function mapSurface(t: string | undefined): 'road' | 'trail' | null {
+  const s = (t ?? '').toLowerCase();
+  if (s === 'trailrun') return 'trail';
+  if (s === 'run' || s === 'virtualrun') return 'road';
+  return null;
 }
 
 export function mapSport(t: string | undefined): 'run' | 'bike' | 'swim' | 'other' {

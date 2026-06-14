@@ -379,7 +379,9 @@ export const activities = pgTable(
     name: text('name'), // activity title from the provider (e.g. Strava "Morning Run")
     workoutType: integer('workout_type'), // provider workout type (Strava: 1 = race)
     startTime: timestamp('start_time', { withTimezone: true }).notNull(),
-    durationSeconds: integer('duration_seconds'), // nullable: manual imports often lack duration
+    durationSeconds: integer('duration_seconds'), // MOVING time (nullable: manual imports often lack duration)
+    elapsedSeconds: integer('elapsed_seconds'), // wall-clock incl. stops; elapsed − moving = time stopped
+    surface: text('surface'), // 'road' | 'trail' | null (from provider sport_type)
     distanceMeters: doublePrecision('distance_meters'),
     avgHr: integer('avg_hr'),
     maxHr: integer('max_hr'),
