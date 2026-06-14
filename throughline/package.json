@@ -25,6 +25,7 @@
     "@anthropic-ai/sdk": "^0.102.0",
     "@auth/drizzle-adapter": "^1.11.2",
     "@neondatabase/serverless": "^1.1.0",
+    "@vercel/analytics": "^2.0.1",
     "drizzle-orm": "^0.45.2",
     "exceljs": "^4.4.0",
     "inngest": "^4.5.0",
