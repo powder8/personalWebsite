@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/migrate.mjs",
     "build": "next build",
-    "vercel-build": "drizzle-kit migrate && next build",
+    "vercel-build": "node scripts/migrate.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
