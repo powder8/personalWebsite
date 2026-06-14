@@ -862,3 +862,30 @@ export const notifications = pgTable(
     uniqueIndex('notifications_athlete_day_uq').on(t.athleteId, t.localDay),
   ],
 );
+
+// ---------------------------------------------------------------------------
+// Athlete's own post-run read ("how did it feel?") — the subjective signal the
+// sensors can't see (felt unwell, took breaks, surface). Kept separate from the
+// provider-synced `activities` row; feeds the post-run debrief.
+// ---------------------------------------------------------------------------
+
+export const activityFeedback = pgTable(
+  'activity_feedback',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    athleteId: uuid('athlete_id')
+      .notNull()
+      .references(() => athletes.id, { onDelete: 'cascade' }),
+    activityId: uuid('activity_id')
+      .notNull()
+      .references(() => activities.id, { onDelete: 'cascade' }),
+    feel: text('feel'), // 'strong' | 'fine' | 'rough'
+    effort: integer('effort'), // optional RPE 1–10
+    tookBreaks: boolean('took_breaks'), // null = not answered
+    surface: text('surface'), // athlete-reported: 'road' | 'trail' | 'track' | 'treadmill'
+    unwell: boolean('unwell'),
+    note: text('note'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('activity_feedback_activity_uq').on(t.activityId)],
+);

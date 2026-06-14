@@ -9,7 +9,7 @@ import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
 import { and, desc, eq, gte, lt, lte } from 'drizzle-orm';
 import { getDb } from '@/db';
-import { activities, plannedSessions, plans, sleepRecords, checkIns } from '@/db/schema';
+import { activities, plannedSessions, plans, sleepRecords, checkIns, activityFeedback } from '@/db/schema';
 import { gapFromSplits, type GapSplit } from '@/engine/plan';
 import { buildDebrief, type RunSignal, type DebriefInput } from '@/server/runDebriefLogic';
 import type { PlannedRef } from '@/server/runFeedbackLogic';
@@ -48,6 +48,56 @@ async function plannedFor(athleteId: string, day: string): Promise<PlannedRef | 
   };
 }
 
+export interface RunFeedbackInput {
+  feel?: 'strong' | 'fine' | 'rough' | null;
+  tookBreaks?: boolean;
+  surface?: 'road' | 'trail' | 'track' | 'treadmill' | null;
+  unwell?: boolean;
+  note?: string | null;
+}
+
+/** Save the athlete's post-run "how did it feel?" read (one per activity). */
+export async function saveRunFeedback(athleteId: string, activityId: string, input: RunFeedbackInput): Promise<void> {
+  const db = await getDb();
+  const [run] = await db
+    .select({ id: activities.id })
+    .from(activities)
+    .where(and(eq(activities.id, activityId), eq(activities.athleteId, athleteId)))
+    .limit(1);
+  if (!run) throw new Error('Run not found.');
+  const values = {
+    athleteId,
+    activityId,
+    feel: input.feel ?? null,
+    tookBreaks: input.tookBreaks ?? null,
+    surface: input.surface ?? null,
+    unwell: input.unwell ?? null,
+    note: input.note?.trim() || null,
+  };
+  await db
+    .insert(activityFeedback)
+    .values(values)
+    .onConflictDoUpdate({ target: activityFeedback.activityId, set: { ...values } });
+}
+
+/** The athlete's saved post-run read (for prefilling the prompt), if any. */
+export async function getRunFeedbackReport(athleteId: string, activityId: string): Promise<RunFeedbackInput | null> {
+  const db = await getDb();
+  const [r] = await db
+    .select()
+    .from(activityFeedback)
+    .where(and(eq(activityFeedback.athleteId, athleteId), eq(activityFeedback.activityId, activityId)))
+    .limit(1);
+  if (!r) return null;
+  return {
+    feel: (r.feel as 'strong' | 'fine' | 'rough' | null) ?? null,
+    tookBreaks: r.tookBreaks ?? false,
+    surface: (r.surface as 'road' | 'trail' | 'track' | 'treadmill' | null) ?? null,
+    unwell: r.unwell ?? false,
+    note: r.note ?? null,
+  };
+}
+
 export async function getRunDebrief(athleteId: string, activityId: string): Promise<RunDebriefResult | null> {
   const db = await getDb();
   const [run] = await db
@@ -80,6 +130,13 @@ export async function getRunDebrief(athleteId: string, activityId: string): Prom
     .where(and(eq(checkIns.athleteId, athleteId), eq(checkIns.day, day)))
     .limit(1);
 
+  // The athlete's own post-run read ("how did it feel?"), if they left one.
+  const [report] = await db
+    .select()
+    .from(activityFeedback)
+    .where(eq(activityFeedback.activityId, activityId))
+    .limit(1);
+
   const input: DebriefInput = {
     planned,
     actualMiles: run.distanceMeters / MI,
@@ -93,6 +150,10 @@ export async function getRunDebrief(athleteId: string, activityId: string): Prom
     sleepNormHours: sleepNormHours != null ? Math.round(sleepNormHours * 10) / 10 : null,
     energy: todayCheck?.energy ?? null,
     soreness: todayCheck?.soreness ?? null,
+    reportedFeel: (report?.feel as 'strong' | 'fine' | 'rough' | null) ?? null,
+    reportedUnwell: report?.unwell ?? false,
+    reportedBreaks: report?.tookBreaks ?? false,
+    reportedSurface: (report?.surface as 'road' | 'trail' | 'track' | 'treadmill' | null) ?? null,
   };
 
   const debrief = buildDebrief(input);

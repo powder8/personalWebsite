@@ -6,7 +6,8 @@ import { activities, shoes } from '@/db/schema';
 import { Card } from '@/components/ui';
 import { RouteMap } from '@/components/RouteMap';
 import { RunDebriefCard } from '@/components/RunDebriefCard';
-import { getRunDebrief } from '@/server/runDebrief';
+import { RunFeedbackPrompt } from '@/components/RunFeedbackPrompt';
+import { getRunDebrief, getRunFeedbackReport } from '@/server/runDebrief';
 import { secPerKmToMinPerMile, gapFromSplits, type GapSplit } from '@/engine/plan';
 
 export const dynamic = 'force-dynamic';
@@ -54,6 +55,7 @@ export default async function RunDetailPage({
 
   const day = run.startTime.toISOString().slice(0, 10);
   const debrief = await getRunDebrief(id, activityId);
+  const feedbackReport = await getRunFeedbackReport(id, activityId);
   const gap = gapFromSplits(run.splits as GapSplit[] | null);
   const miles = run.distanceMeters != null ? run.distanceMeters / MI : null;
   const splits = (run.splits as Split[] | null) ?? [];
@@ -100,6 +102,9 @@ export default async function RunDetailPage({
 
       {/* Coach's debrief — what went well + focus next */}
       {debrief && <RunDebriefCard debrief={debrief} />}
+
+      {/* Athlete's own read — what the sensors can't see */}
+      <RunFeedbackPrompt athleteId={id} activityId={activityId} existing={feedbackReport} />
 
       {/* Route */}
       {run.mapPolyline ? (

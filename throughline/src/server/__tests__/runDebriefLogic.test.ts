@@ -66,6 +66,43 @@ test('clean day, nailed quality → positive, minimal focus', () => {
   assert.ok(d.focusNext.length >= 1); // always at least the "nothing to change" line
 });
 
+const cleanRoadRun: DebriefInput = {
+  planned: easy,
+  actualMiles: 6,
+  actualPaceSecPerKm: 348,
+  gapSecPerKm: null,
+  movingSeconds: 6 * 348,
+  elapsedSeconds: 6 * 348,
+  surface: 'road',
+  climbFeet: 20,
+  sleepHours: 8,
+  sleepNormHours: 7.5,
+  energy: 8,
+  soreness: 1,
+};
+
+test("athlete's report: 'rough'/unwell → treated as a tough day even with clean sensors", () => {
+  const d = buildDebrief({ ...cleanRoadRun, reportedUnwell: true });
+  assert.match(d.headline, /tough day/i);
+  assert.ok(d.signals.some((s) => s.key === 'feel' && /feeling well/i.test(s.fact)));
+  assert.ok(d.wentWell.some((w) => /rough day|hardest part/i.test(w)));
+});
+
+test("athlete's report: breaks with no sensor stop still surfaces a Breaks signal", () => {
+  const d = buildDebrief({ ...cleanRoadRun, reportedBreaks: true });
+  assert.ok(d.signals.some((s) => s.key === 'stops' && /breaks/i.test(s.fact)));
+});
+
+test("athlete's report: surface override drives the terrain read (manual run, no sport_type)", () => {
+  const d = buildDebrief({ ...cleanRoadRun, surface: null, reportedSurface: 'trail', climbFeet: 250 });
+  assert.ok(d.signals.some((s) => s.key === 'terrain' && /trail/i.test(s.fact)));
+});
+
+test("athlete's report: 'strong' on a clean day → positive feel + banked win", () => {
+  const d = buildDebrief({ ...cleanRoadRun, reportedFeel: 'strong' });
+  assert.ok(d.signals.some((s) => s.key === 'feel' && s.polarity === 'positive'));
+});
+
 test('easy day run too hard (even on GAP) → caution in focus', () => {
   const d = buildDebrief({
     planned: easy,

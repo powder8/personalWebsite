@@ -23,6 +23,12 @@ export interface DebriefInput {
   sleepNormHours: number | null; // athlete's typical
   energy: number | null; // 0–10
   soreness: number | null; // 0–10
+  // The athlete's own post-run read — what the sensors can't see. Takes
+  // precedence when present (they were there; the data wasn't).
+  reportedFeel?: 'strong' | 'fine' | 'rough' | null;
+  reportedUnwell?: boolean;
+  reportedBreaks?: boolean;
+  reportedSurface?: 'road' | 'trail' | 'track' | 'treadmill' | null;
 }
 
 export type SignalPolarity = 'positive' | 'caution' | 'context';
@@ -50,9 +56,19 @@ export function buildDebrief(input: DebriefInput): RunDebrief {
   const adverseSleep = input.sleepHours != null && input.sleepHours < (input.sleepNormHours != null ? input.sleepNormHours - 1.5 : 6);
   const lowEnergy = input.energy != null && input.energy <= 4;
   const sore = input.soreness != null && input.soreness >= 6;
-  const adverse = adverseSleep || lowEnergy || sore;
+  // The athlete's own report takes precedence over (or adds to) the sensors.
+  const feltRough = input.reportedUnwell === true || input.reportedFeel === 'rough';
+  const adverse = adverseSleep || lowEnergy || sore || feltRough;
+  const surface = input.reportedSurface ?? input.surface; // their word beats sport_type
 
-  // --- Wellness context ---
+  // --- Wellness context (sensors + their own read) ---
+  if (input.reportedUnwell) {
+    signals.push({ key: 'feel', polarity: 'context', fact: 'You said you weren’t feeling well.' });
+  } else if (input.reportedFeel === 'rough') {
+    signals.push({ key: 'feel', polarity: 'context', fact: 'You said it felt rough.' });
+  } else if (input.reportedFeel === 'strong') {
+    signals.push({ key: 'feel', polarity: 'positive', fact: 'You said it felt strong.' });
+  }
   if (input.sleepHours != null && adverseSleep) {
     signals.push({
       key: 'sleep',
@@ -66,35 +82,39 @@ export function buildDebrief(input: DebriefInput): RunDebrief {
   // --- Showing up despite a rough day is the headline win ---
   if (adverse && input.actualMiles > 0) {
     signals.push({ key: 'showed_up', polarity: 'positive', fact: 'Got the run done on a day the body wasn’t at its best.' });
-    wentWell.push('You got out the door on a rough day — poor sleep and low energy make that the hardest part, and you did it.');
+    wentWell.push('You got out the door on a rough day — when sleep, energy, or how you feel is off, that’s the hardest part, and you did it.');
+  } else if (input.reportedFeel === 'strong' && input.actualMiles > 0) {
+    wentWell.push('You felt strong out there — bank that; the days everything clicks are the ones to build on.');
   }
 
-  // --- Mid-run stops (elapsed − moving) ---
-  if (input.movingSeconds != null && input.elapsedSeconds != null) {
-    const stopped = input.elapsedSeconds - input.movingSeconds;
-    if (stopped >= 90) {
-      const min = Math.round(stopped / 60);
-      signals.push({ key: 'stops', polarity: 'positive', fact: `Paused ~${min} min mid-run (moving vs elapsed time).` });
-      wentWell.push(`You took ~${min} min of breaks — listening to your body and walking when you need to is smart, not a setback.`);
-    }
+  // --- Mid-run stops: sensor (elapsed − moving) OR the athlete telling us ---
+  const stoppedSec = input.movingSeconds != null && input.elapsedSeconds != null ? input.elapsedSeconds - input.movingSeconds : 0;
+  if (stoppedSec >= 90) {
+    const min = Math.round(stoppedSec / 60);
+    signals.push({ key: 'stops', polarity: 'positive', fact: `Paused ~${min} min mid-run (moving vs elapsed time).` });
+    wentWell.push(`You took ~${min} min of breaks — listening to your body and walking when you need to is smart, not a setback.`);
+  } else if (input.reportedBreaks) {
+    signals.push({ key: 'stops', polarity: 'positive', fact: 'You noted you took a few breaks mid-run.' });
+    wentWell.push('Taking breaks when your body asks is a strength, not a failure — better a paused run than a skipped one.');
   }
 
   // --- Terrain: trail/hills, and GAP vs raw ---
+  const isTrail = surface === 'trail';
   const gapFaster = input.gapSecPerKm != null && input.actualPaceSecPerKm != null && input.gapSecPerKm < input.actualPaceSecPerKm - 6;
   if (gapFaster) {
     signals.push({
       key: 'terrain',
       polarity: 'positive',
-      fact: `On ${input.surface === 'trail' ? 'the trails' : 'the hills'}, effort beat the clock — grade-adjusted ${pm(input.gapSecPerKm!)} vs ${pm(input.actualPaceSecPerKm!)} actual.`,
+      fact: `On ${isTrail ? 'the trails' : 'the hills'}, effort beat the clock — grade-adjusted ${pm(input.gapSecPerKm!)} vs ${pm(input.actualPaceSecPerKm!)} actual.`,
     });
     wentWell.push(
-      `Don’t be fooled by the raw pace — over ${input.climbFeet}+ ft${input.surface === 'trail' ? ' of trail' : ''}, your grade-adjusted effort was ${pm(input.gapSecPerKm!)}. That’s the honest read, and it was strong.`,
+      `Don’t be fooled by the raw pace — over ${input.climbFeet}+ ft${isTrail ? ' of trail' : ''}, your grade-adjusted effort was ${pm(input.gapSecPerKm!)}. That’s the honest read, and it was strong.`,
     );
-  } else if (input.surface === 'trail' || input.climbFeet >= 200) {
+  } else if (isTrail || input.climbFeet >= 200) {
     signals.push({
       key: 'terrain',
       polarity: 'context',
-      fact: `${input.climbFeet} ft of climb${input.surface === 'trail' ? ' on trail' : ''} — softer ground and hills cost pace.`,
+      fact: `${input.climbFeet} ft of climb${isTrail ? ` on ${surface}` : ''} — softer ground and hills cost pace, so judge it by effort.`,
     });
   }
 
