@@ -5,7 +5,9 @@
  * an existing fitness anchor (e.g. auto-detected from Strava) when they have
  * one, so they don't have to re-enter it.
  */
+import { eq } from 'drizzle-orm';
 import type { DB } from '@/db';
+import { athletes } from '@/db/schema';
 import { setupSeason, type SeasonRaceInput } from '@/server/season';
 import { getAthleteVdot } from '@/db/paceConfig';
 import { STANDARD_DISTANCES } from '@/engine/plan';
@@ -98,5 +100,10 @@ export async function setupAthleteGoal(
     // immediately so "this week" and "up today" light up right away.
     publish: true,
   });
+
+  // Self-service = no human coach. Run in autonomous mode so the app provides
+  // ALL guidance (full plan published, no drafts waiting on a coach).
+  await db.update(athletes).set({ coachingMode: 'autonomous', updatedAt: new Date() }).where(eq(athletes.id, athleteId));
+
   return { weeks: result.weeks };
 }
