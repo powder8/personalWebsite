@@ -19,14 +19,37 @@ export function CycleTracking({
   athleteId,
   initial,
   status,
+  dismissable,
 }: {
   athleteId: string;
   initial: CycleSettings;
   status: CycleStatus;
+  /** Show a "not relevant to me" link that hides cycle tracking for good. */
+  dismissable?: boolean;
 }) {
   const [enabled, setEnabled] = useState(initial.enabled);
   const [pending, setPending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  async function dismiss() {
+    setPending(true);
+    try {
+      await fetch(`/api/athletes/${athleteId}/profile`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sex: 'other' }),
+      });
+      window.location.reload();
+    } catch {
+      setPending(false);
+    }
+  }
+
+  const dismissLink = dismissable ? (
+    <button onClick={dismiss} disabled={pending} className="block text-xs text-slate-500 hover:underline">
+      Not relevant to you? Hide cycle tracking
+    </button>
+  ) : null;
 
   async function save(next: CycleSettings) {
     setPending(true);
@@ -84,6 +107,7 @@ export function CycleTracking({
           {pending ? 'Enabling…' : 'Turn on cycle tracking'}
         </button>
         {err && <p className="text-sm text-rose-600">{err}</p>}
+        {dismissLink}
       </div>
     );
   }

@@ -31,6 +31,8 @@ import { ConsistencyStrip } from '@/components/ConsistencyStrip';
 import { getConsistency } from '@/server/consistency';
 import { RunFeedbackCard } from '@/components/RunFeedbackCard';
 import { getLatestRunFeedback } from '@/server/runFeedback';
+import { RunDebriefCard } from '@/components/RunDebriefCard';
+import { getRunDebrief } from '@/server/runDebrief';
 import { BottomNav } from '@/components/BottomNav';
 import { getDb } from '@/db';
 import { ensureSeasonCoverage } from '@/server/seasonCoverage';
@@ -83,6 +85,9 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
   const adaptation = await getAdaptationState(id, portal.today);
   const consistency = await getConsistency(id, portal.today);
   const latestRun = await getLatestRunFeedback(id, portal.today);
+  // The richer debrief for the latest run, surfaced right on the portal
+  // (deterministic here to keep portal loads cheap; the run page narrates).
+  const latestDebrief = latestRun ? await getRunDebrief(id, latestRun.activityId, { narrate: false }) : null;
 
   const {
     athlete,
@@ -255,9 +260,15 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
         </Card>
       )}
 
-      {/* Coach's take on your most recent run */}
-      {latestRun && (
-        <RunFeedbackCard feedback={latestRun.feedback} href={`/me/${athlete.id}/runs/${latestRun.activityId}`} />
+      {/* Your latest run, evaluated — the full debrief, with a link to details */}
+      {latestDebrief ? (
+        <Link href={`/me/${athlete.id}/runs/${latestRun!.activityId}`} className="block transition hover:opacity-95">
+          <RunDebriefCard debrief={latestDebrief} />
+        </Link>
+      ) : (
+        latestRun && (
+          <RunFeedbackCard feedback={latestRun.feedback} href={`/me/${athlete.id}/runs/${latestRun.activityId}`} />
+        )
       )}
 
       {/* Consistency / streak — positive reinforcement */}
@@ -422,9 +433,12 @@ export default async function PortalPage({ params }: { params: Promise<{ id: str
         </Card>
       )}
 
-      <Card title="Cycle tracking">
-        <CycleTracking athleteId={athlete.id} initial={cycleSettings} status={cycleStatus} />
-      </Card>
+      {/* Cycle tracking — not shown for athletes who've indicated it's N/A. */}
+      {athlete.sex !== 'male' && athlete.sex !== 'other' && (
+        <Card title="Cycle tracking">
+          <CycleTracking athleteId={athlete.id} initial={cycleSettings} status={cycleStatus} dismissable />
+        </Card>
+      )}
 
       {/* ── SETUP & GEAR ─────────────────────────────────────────────────── */}
       <div id="setup" className="scroll-mt-4" />

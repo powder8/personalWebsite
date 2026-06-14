@@ -98,7 +98,12 @@ export async function getRunFeedbackReport(athleteId: string, activityId: string
   };
 }
 
-export async function getRunDebrief(athleteId: string, activityId: string): Promise<RunDebriefResult | null> {
+export async function getRunDebrief(
+  athleteId: string,
+  activityId: string,
+  opts: { narrate?: boolean } = {},
+): Promise<RunDebriefResult | null> {
+  const narrate = opts.narrate ?? true; // detail page narrates; portal uses deterministic
   const db = await getDb();
   const [run] = await db
     .select()
@@ -165,9 +170,9 @@ export async function getRunDebrief(athleteId: string, activityId: string): Prom
     narrated: false,
   };
 
-  if (!process.env.ANTHROPIC_API_KEY || debrief.signals.length === 0) return fallback;
+  if (!narrate || !process.env.ANTHROPIC_API_KEY || debrief.signals.length === 0) return fallback;
   try {
-    const narrated = await narrate(debrief.signals);
+    const narrated = await narrateSignals(debrief.signals);
     return narrated ? { ...fallback, ...narrated, narrated: true } : fallback;
   } catch {
     return fallback; // never fail the page on the LLM
@@ -175,7 +180,7 @@ export async function getRunDebrief(athleteId: string, activityId: string): Prom
 }
 
 /** Phrase the grounded signals into two short coach paragraphs. */
-async function narrate(signals: RunSignal[]): Promise<{ headline: string; wentWell: string; focusNext: string } | null> {
+async function narrateSignals(signals: RunSignal[]): Promise<{ headline: string; wentWell: string; focusNext: string } | null> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
   const model = process.env.ANTHROPIC_MODEL ?? 'claude-haiku-4-5';
   const facts = signals.map((s) => `- [${s.polarity}] ${s.fact}`).join('\n');

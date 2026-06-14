@@ -169,6 +169,7 @@ export const athletes = pgTable(
     phone: text('phone'),
     timezone: text('timezone').notNull().default('UTC'), // IANA tz, e.g. 'America/New_York'
     dateOfBirth: date('date_of_birth'), // for age-grading / masters pace defaults
+    sex: text('sex'), // 'female' | 'male' | 'other' | null — gates cycle tracking, age-grading
     goalRace: text('goal_race'),
     goalRaceDate: date('goal_race_date'),
     // Per-athlete pace customization (AthletePaceConfig): VDOT/threshold anchor
