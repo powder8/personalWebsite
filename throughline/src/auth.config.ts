@@ -76,7 +76,13 @@ export const authConfig = {
       if (role === 'coach') return true; // coaches have full access
 
       const needsCoach = COACH_PREFIXES.some((p) => pathname.startsWith(p)) || pathname === '/';
-      if (needsCoach) return false;
+      if (needsCoach) {
+        // A signed-in ATHLETE on a coach-only path (incl. '/') must go to their
+        // own area — NOT back to /signin, which would infinite-loop since they're
+        // already authenticated. Only truly signed-out users get the sign-in page.
+        if (signedIn) return Response.redirect(new URL('/me', request.nextUrl));
+        return false;
+      }
       if (!signedIn) return false;
 
       // Ownership: athlete-scoped paths must match the signed-in athlete.
