@@ -402,6 +402,8 @@ export default async function PortalPage({
           connected={strava.connected}
           configured={strava.configured}
           lastActivityDay={strava.lastActivityDay}
+          firstActivityDay={strava.firstActivityDay}
+          activityCount={strava.activityCount}
           autoImport={autoImportStrava}
         />
       </Card>

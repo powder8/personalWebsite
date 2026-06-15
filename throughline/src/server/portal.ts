@@ -7,7 +7,7 @@ import 'server-only';
  * "Today" comes from todayISO() — the real current date (APP_TODAY pins it for
  * demos/tests).
  */
-import { and, eq, gte, lte, desc } from 'drizzle-orm';
+import { and, asc, eq, gte, lte, desc, sql } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { applyDirectives } from '@/engine/plan';
 import { getUpcomingWeeks } from '@/server/season';
@@ -66,7 +66,13 @@ export interface AthletePortal {
   unavailable: DirectiveRow[];
   checkedInToday: boolean;
   recentCheckIns: { day: string; soreness: number | null; energy: number | null; yesterdayRpe: number | null }[];
-  strava: { configured: boolean; connected: boolean; lastActivityDay: string | null };
+  strava: {
+    configured: boolean;
+    connected: boolean;
+    lastActivityDay: string | null;
+    firstActivityDay: string | null;
+    activityCount: number;
+  };
 }
 
 function daysBetween(a: string, b: string): number {
@@ -162,6 +168,8 @@ export async function getAthletePortal(id: string): Promise<AthletePortal | null
 
   const stravaAcct = await getStravaAccount(db, id);
   let lastActivityDay: string | null = null;
+  let firstActivityDay: string | null = null;
+  let activityCount = 0;
   if (stravaAcct) {
     const [latest] = await db
       .select({ startTime: activities.startTime })
@@ -170,6 +178,20 @@ export async function getAthletePortal(id: string): Promise<AthletePortal | null
       .orderBy(desc(activities.startTime))
       .limit(1);
     lastActivityDay = latest?.startTime ? latest.startTime.toISOString().slice(0, 10) : null;
+    if (lastActivityDay) {
+      const [earliest] = await db
+        .select({ startTime: activities.startTime })
+        .from(activities)
+        .where(eq(activities.athleteId, id))
+        .orderBy(asc(activities.startTime))
+        .limit(1);
+      firstActivityDay = earliest?.startTime ? earliest.startTime.toISOString().slice(0, 10) : null;
+      const [agg] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(activities)
+        .where(eq(activities.athleteId, id));
+      activityCount = agg?.n ?? 0;
+    }
   }
 
   return {
@@ -196,6 +218,8 @@ export async function getAthletePortal(id: string): Promise<AthletePortal | null
       configured: stravaConfigured(),
       connected: !!stravaAcct && stravaAcct.status === 'active',
       lastActivityDay,
+      firstActivityDay,
+      activityCount,
     },
   };
 }

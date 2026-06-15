@@ -34,12 +34,16 @@ export function ConnectStrava({
   connected,
   configured,
   lastActivityDay,
+  firstActivityDay,
+  activityCount = 0,
   autoImport,
 }: {
   athleteId: string;
   connected: boolean;
   configured: boolean;
   lastActivityDay?: string | null;
+  firstActivityDay?: string | null;
+  activityCount?: number;
   /** Just came back from connecting (?import=1) — run the import automatically. */
   autoImport?: boolean;
 }) {
@@ -181,15 +185,36 @@ export function ConnectStrava({
     );
   }
 
-  const neverImported = !lastActivityDay;
+  const imported = activityCount > 0 || !!lastActivityDay;
   return (
     <div className="space-y-2">
+      <span className="inline-flex items-center rounded-full bg-orange-400/15 px-2 py-0.5 text-xs font-medium text-orange-200 ring-1 ring-inset ring-orange-400/30">
+        Strava connected ✓
+      </span>
+
+      {/* Unambiguous import state: imported (with proof) vs not yet. */}
+      {imported ? (
+        <div className="rounded-lg bg-emerald-400/10 px-3 py-2 text-xs ring-1 ring-inset ring-emerald-400/20">
+          <div className="font-semibold text-emerald-300">
+            ✓ {activityCount > 0 ? `${activityCount.toLocaleString()} ` : ''}activit{activityCount === 1 ? 'y' : 'ies'} imported
+          </div>
+          <div className="mt-0.5 text-slate-400">
+            {firstActivityDay && firstActivityDay !== lastActivityDay
+              ? `${fmtDate(firstActivityDay)} → ${fmtDate(lastActivityDay)}`
+              : lastActivityDay
+                ? `last activity ${fmtDate(lastActivityDay)}`
+                : null}
+            {' · new runs sync automatically.'}
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg bg-slate-400/10 px-3 py-2 text-xs text-slate-400 ring-1 ring-inset ring-slate-400/20">
+          Connected, but no activities imported yet. Tap below to pull your history.
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-3">
-        <span className="inline-flex items-center rounded-full bg-orange-400/15 px-2 py-0.5 text-xs font-medium text-orange-200 ring-1 ring-inset ring-orange-400/30">
-          Strava connected ✓
-        </span>
-        {lastActivityDay && <span className="text-xs text-slate-400">last activity {lastActivityDay}</span>}
-        {neverImported ? (
+        {!imported ? (
           <button
             type="button"
             onClick={() => run({ full: true })}
@@ -222,4 +247,11 @@ export function ConnectStrava({
       {msg && <p className="text-xs text-slate-500">{msg}</p>}
     </div>
   );
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function fmtDate(day: string | null | undefined): string {
+  if (!day) return '';
+  const [y, m, d] = day.split('-').map(Number);
+  return `${MONTHS[m - 1]} ${d}, ${y}`;
 }
