@@ -6,9 +6,29 @@ import { useState, useEffect, useRef } from 'react';
  * Strava connection control. Connect when unlinked; once linked, run a chunked
  * import. The import calls the resumable sync endpoint in a loop (each call
  * handles a bounded number of pages and returns a cursor), so it works for any
- * history size — 200 activities or 20,000 — without hitting a request timeout,
- * and shows live progress.
+ * history size — 200 activities or 20,000 — without hitting a request timeout.
+ *
+ * Robustness (a long import used to strand silently):
+ *  - Progress (the resume cursor) is persisted to localStorage every chunk, so a
+ *    closed/reloaded tab RESUMES instead of starting over or stalling.
+ *  - Strava rate limits (429) are handled: we back off the suggested time and
+ *    continue from the saved cursor rather than dying.
+ *  - A non-advancing cursor or repeated failure stops cleanly with a real
+ *    message — never an invisible hang.
  */
+
+interface SyncResponse {
+  ok: boolean;
+  fetched?: number;
+  done?: boolean;
+  nextAfter?: number | null;
+  rateLimited?: boolean;
+  retryAfterSec?: number;
+  error?: string;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export function ConnectStrava({
   athleteId,
   connected,
@@ -25,57 +45,113 @@ export function ConnectStrava({
 }) {
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const autoStarted = useRef(false);
+  const started = useRef(false); // guard against double-start (StrictMode / re-render)
 
-  // Auto-run the FULL history import right after connecting — no manual click.
+  const progressKey = `tl_import_${athleteId}`;
+  const readCursor = (): number | null => {
+    if (typeof window === 'undefined') return null;
+    const v = window.localStorage.getItem(progressKey);
+    return v == null ? null : Number(v);
+  };
+  const writeCursor = (after: number | null) => {
+    if (typeof window === 'undefined') return;
+    if (after == null) window.localStorage.removeItem(progressKey);
+    else window.localStorage.setItem(progressKey, String(after));
+  };
+
+  // First effect to fire wins (one import at a time): a just-connected full
+  // import, an interrupted import to resume, or a quiet recent-activity sync.
   useEffect(() => {
-    if (autoImport && connected && configured && !autoStarted.current) {
-      autoStarted.current = true;
-      run(true);
+    if (!connected || !configured || started.current) return;
+    started.current = true;
+
+    if (autoImport) {
+      run({ full: true });
+    } else if (readCursor() != null) {
+      // An import was interrupted (closed tab, rate limit) — pick it back up.
+      run({ resume: true });
+    } else if (typeof window !== 'undefined' && !sessionStorage.getItem('tl_recentSync')) {
+      sessionStorage.setItem('tl_recentSync', '1');
+      run({ full: false, silent: true });
+    } else {
+      started.current = false; // nothing to do this load; allow manual buttons
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoImport, connected, configured]);
 
-  // Auto-pull RECENT activity on load (once per browser session) so today's run
-  // shows up without a manual "Sync now". Silent; reloads only if it found new
-  // runs. Skipped when the full post-connect import is already running.
-  useEffect(() => {
-    if (autoImport || !connected || !configured) return;
-    if (typeof window === 'undefined' || sessionStorage.getItem('tl_recentSync')) return;
-    sessionStorage.setItem('tl_recentSync', '1');
-    run(false, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoImport, connected, configured]);
-
-  async function run(full: boolean, silent = false) {
+  async function run({
+    full = false,
+    silent = false,
+    resume = false,
+  }: { full?: boolean; silent?: boolean; resume?: boolean }) {
     setRunning(true);
-    if (!silent) setMsg(full ? 'Importing your history…' : 'Syncing…');
+    if (!silent) setMsg(full || resume ? 'Importing your history…' : 'Syncing…');
+
     let total = 0;
-    let url = `/api/athletes/${athleteId}/strava/sync${full ? '?full=1' : ''}`;
+    let after: number | null = resume ? readCursor() : null;
+    let url = after != null ? `?after=${after}` : full ? '?full=1' : '';
+    let consecutiveErrors = 0;
+
     try {
-      // Safety cap on iterations (covers ~40k activities at 1000/call).
-      for (let i = 0; i < 60; i++) {
-        const res = await fetch(url, { method: 'POST' });
-        const j = await res.json();
-        if (!j.ok) {
-          if (!silent) setMsg(j.error ?? 'Sync failed.');
-          break;
-        }
-        total += j.fetched ?? 0;
-        if (j.done || j.nextAfter == null) {
-          // Reload to surface new runs + their evaluation. When silent, only
-          // reload if something actually came in (avoids a pointless refresh).
-          if (!silent || total > 0) {
-            if (!silent) setMsg(`Done — ${total} activities synced.`);
-            setTimeout(() => window.location.reload(), silent ? 250 : 1200);
+      // Iteration cap covers ~40k activities at 1000/call, with headroom for
+      // rate-limit pauses; the cursor guard below ends it the moment we stop
+      // making progress.
+      for (let i = 0; i < 200; i++) {
+        let res: Response;
+        try {
+          res = await fetch(`/api/athletes/${athleteId}/strava/sync${url}`, { method: 'POST' });
+        } catch {
+          if (++consecutiveErrors >= 3) {
+            if (!silent) setMsg('Network trouble — your progress is saved. Tap “Sync now” to resume.');
+            break;
           }
+          await sleep(2000);
+          continue;
+        }
+        const j: SyncResponse = await res.json().catch(() => ({ ok: false, error: 'Bad response.' }));
+
+        if (!j.ok) {
+          if (!silent) setMsg(j.error ?? 'Sync failed — progress saved; tap “Sync now” to resume.');
           break;
         }
+        consecutiveErrors = 0;
+        total += j.fetched ?? 0;
+
+        // Rate limited: persist where we are and back off (or stop if the wait
+        // is long), so we never silently spin.
+        if (j.rateLimited) {
+          if (j.nextAfter != null) writeCursor(j.nextAfter);
+          const wait = j.retryAfterSec ?? 120;
+          if (wait > 180) {
+            if (!silent) setMsg(`Strava’s rate limit hit (${total} so far). Progress saved — tap “Sync now” in a few minutes to continue.`);
+            break;
+          }
+          if (!silent) setMsg(`Strava rate limit — pausing ${wait}s, then continuing… (${total} so far)`);
+          await sleep(wait * 1000);
+          url = j.nextAfter != null ? `?after=${j.nextAfter}` : url;
+          continue;
+        }
+
+        if (j.done || j.nextAfter == null) {
+          writeCursor(null); // finished — clear resume state
+          if (!silent) setMsg(total > 0 ? `Done — ${total} activities synced.` : 'You’re up to date — nothing new to import.');
+          if (!silent || total > 0) setTimeout(() => window.location.reload(), silent ? 250 : 1200);
+          break;
+        }
+
+        // Guard: the cursor must move forward, else we'd loop forever.
+        if (after != null && j.nextAfter <= after) {
+          writeCursor(null);
+          if (!silent) setMsg(`Done — ${total} activities synced.`);
+          if (total > 0) setTimeout(() => window.location.reload(), 1200);
+          break;
+        }
+
+        after = j.nextAfter;
+        writeCursor(after);
+        url = `?after=${after}`;
         if (!silent) setMsg(`Imported ${total} activities…`);
-        url = `/api/athletes/${athleteId}/strava/sync?after=${j.nextAfter}`;
       }
-    } catch {
-      if (!silent) setMsg('Network error during sync.');
     } finally {
       setRunning(false);
     }
@@ -116,7 +192,7 @@ export function ConnectStrava({
         {neverImported ? (
           <button
             type="button"
-            onClick={() => run(true)}
+            onClick={() => run({ full: true })}
             disabled={running}
             className="rounded bg-sky-700 px-3 py-1 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
           >
@@ -126,7 +202,7 @@ export function ConnectStrava({
           <>
             <button
               type="button"
-              onClick={() => run(false)}
+              onClick={() => run({ full: false })}
               disabled={running}
               className="rounded border border-slate-300 px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
             >
@@ -134,7 +210,7 @@ export function ConnectStrava({
             </button>
             <button
               type="button"
-              onClick={() => run(true)}
+              onClick={() => run({ full: true })}
               disabled={running}
               className="rounded border border-slate-200 px-3 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50"
             >

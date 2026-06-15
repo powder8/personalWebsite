@@ -107,6 +107,8 @@ export interface SyncResult {
   imported: number; // NEW raw events captured this call
   done: boolean; // false → more pages remain; call again with `afterOverride: nextAfter`
   nextAfter: number | null; // unix cursor to continue from
+  rateLimited?: boolean; // Strava 429 — back off and resume from nextAfter
+  retryAfterSec?: number; // suggested wait before resuming (when rateLimited)
 }
 
 /**
@@ -202,6 +204,19 @@ export async function syncStravaActivities(
   for (let page = 1; page <= maxPages; page++) {
     const url = `${apiBaseUrl}/athlete/activities?after=${after}&per_page=${perPage}&page=${page}`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    // Rate limited (Strava: 100 req / 15 min, 1000 / day). Don't throw — return
+    // what we have plus a resume cursor so the client can back off and continue.
+    if (res.status === 429) {
+      const ra = parseInt(res.headers.get('retry-after') ?? '', 10);
+      return {
+        fetched,
+        imported,
+        done: false,
+        nextAfter: maxStart,
+        rateLimited: true,
+        retryAfterSec: Number.isFinite(ra) && ra > 0 ? ra : 120,
+      };
+    }
     if (!res.ok) throw new Error(`Strava activities fetch failed (HTTP ${res.status}).`);
     const list = (await res.json()) as StravaActivity[];
     if (!Array.isArray(list) || list.length === 0) {
