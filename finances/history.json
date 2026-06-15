@@ -16,5 +16,14 @@
     "best_name": "Vanguard Total US Market ETF",
     "gap": 102.94,
     "breakeven_fee": -0.022585636798782893
+  },
+  {
+    "as_of": "2026-06-12",
+    "manager": 2760.04,
+    "best": 2931.38,
+    "best_key": "VT",
+    "best_name": "Vanguard Total World ETF",
+    "gap": 171.34,
+    "breakeven_fee": -0.045674730654410745
   }
 ]
