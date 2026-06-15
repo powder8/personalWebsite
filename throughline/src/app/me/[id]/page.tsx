@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getAthletePortal, type PortalSession } from '@/server/portal';
+import { getAthletePortal } from '@/server/portal';
 import { getTrainingInsights } from '@/server/insights';
 import { Card } from '@/components/ui';
 import { secPerKmToMinPerMile } from '@/engine/plan';
@@ -22,7 +22,9 @@ import { getSeasonTimeline } from '@/server/blocks';
 import { getRacePlan } from '@/server/racePlan';
 import { RacePlanCard } from '@/components/RacePlanCard';
 import { PlanTimeline } from '@/components/PlanTimeline';
-import { WeekStrip, SESSION_COLOR, SESSION_LABEL, SESSION_TERRAIN } from '@/components/WeekStrip';
+import { SESSION_COLOR, SESSION_LABEL, SESSION_TERRAIN } from '@/components/WeekStrip';
+import { TrainingCalendar } from '@/components/TrainingCalendar';
+import { getTrainingCalendar } from '@/server/trainingCalendar';
 import { SegmentList } from '@/components/SegmentList';
 import { NextStepBanner } from '@/components/NextStepBanner';
 import { getAdaptationState, easeBackDirectives } from '@/server/adaptation';
@@ -40,18 +42,11 @@ import { todayISO } from '@/server/console';
 
 export const dynamic = 'force-dynamic';
 
-const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
 function pace(sec: number | null): string {
   return sec == null ? '' : `${secPerKmToMinPerMile(sec)}/mi`;
 }
 function miles(m: number | null): string {
   return m == null || m <= 0 ? '—' : (m / 1609.344).toFixed(1);
-}
-function dow(day: string): string {
-  const [y, mo, d] = day.split('-').map(Number);
-  const idx = ((Math.floor(Date.UTC(y, mo - 1, d) / 86400000) % 7) + 3) % 7;
-  return DOW[idx];
 }
 
 /**
@@ -96,6 +91,8 @@ export default async function PortalPage({
   // The richer debrief for the latest run, surfaced right on the portal
   // (deterministic here to keep portal loads cheap; the run page narrates).
   const latestDebrief = latestRun ? await getRunDebrief(id, latestRun.activityId, { narrate: false }) : null;
+  // Unified planned-vs-actual calendar — the portal centerpiece.
+  const calendar = await getTrainingCalendar(id, portal.today);
 
   const {
     athlete,
@@ -103,7 +100,6 @@ export default async function PortalPage({
     readiness,
     todaySession,
     thisWeek,
-    comingWeeks,
     goalRace,
     unavailable,
     checkedInToday,
@@ -307,68 +303,15 @@ export default async function PortalPage({
         </Card>
       )}
 
-      {/* ── THIS WEEK ────────────────────────────────────────────────────── */}
-      <SectionHeader>This week &amp; ahead</SectionHeader>
-      <Card title={thisWeek ? `This week${thisWeek.phase ? ` · ${thisWeek.phase}` : ''}` : 'This week'}>
-        {thisWeek ? (
-          <>
-            <WeekStrip sessions={thisWeek.sessions} today={today} />
-            <table className="mt-3 w-full text-sm">
-              <tbody className="divide-y divide-slate-100">
-                {thisWeek.sessions.map((s) => (
-                  <tr key={s.id} className={s.day === today ? 'bg-sky-400/10' : ''}>
-                    <td className="w-12 px-2 py-2 font-medium text-slate-500">{dow(s.day)}</td>
-                    <td className="w-14 px-2 py-2 tabular-nums text-slate-700">{miles(s.distanceMeters)} mi</td>
-                    <td className="px-2 py-2">
-                      <SessionLine s={s} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
+      {/* ── YOUR TRAINING: one timeline, planned vs actual ───────────────── */}
+      <SectionHeader>Your training</SectionHeader>
+      <Card title="Planned vs actual">
+        {calendar.weeks.length > 0 ? (
+          <TrainingCalendar weeks={calendar.weeks} today={today} athleteId={athlete.id} />
         ) : (
-          <p className="text-sm text-slate-500">No published plan for this week yet.</p>
+          <p className="text-sm text-slate-500">No published plan yet — set a goal above and your calendar fills in.</p>
         )}
       </Card>
-
-      {comingWeeks.length > 0 && (
-        <Card>
-          <details>
-            <summary className="cursor-pointer text-sm font-semibold text-slate-700">
-              Coming weeks <span className="font-normal text-slate-400">· {comingWeeks.length} planned</span>
-            </summary>
-            <div className="mt-3 space-y-4">
-              {comingWeeks.map((w) => (
-                <div key={w.weekStart}>
-                  <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Week of {w.weekStart}
-                    {w.phase && <span className="capitalize"> · {w.phase}</span>}
-                  </div>
-                  <table className="w-full text-sm">
-                    <tbody className="divide-y divide-slate-100">
-                      {w.sessions.map((s) => (
-                        <tr key={s.id}>
-                          <td className="w-12 px-2 py-1 font-medium text-slate-500">{dow(s.day)}</td>
-                          <td className="w-14 px-2 py-1 tabular-nums text-slate-700">{miles(s.distanceMeters)} mi</td>
-                          <td className="px-2 py-1">
-                            <span className="text-slate-800">{SESSION_LABEL[s.sessionType] ?? s.sessionType}</span>
-                            {s.paceFastSecPerKm != null && (
-                              <span className="ml-2 text-xs tabular-nums text-slate-400">
-                                {pace(s.paceFastSecPerKm)}–{pace(s.paceSlowSecPerKm)}
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ))}
-            </div>
-          </details>
-        </Card>
-      )}
 
       {/* ── PROGRESS: is the work working? ──────────────────────────────── */}
       <div id="progress" className="scroll-mt-4" />
@@ -479,33 +422,4 @@ export default async function PortalPage({
 /** Small uppercase divider label that groups the cards into sections. */
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return <h2 className="px-1 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{children}</h2>;
-}
-
-function SessionLine({ s }: { s: PortalSession }) {
-  return (
-    <div>
-      <span className="inline-flex items-center gap-1.5 text-slate-800">
-        <span className={`h-2 w-2 rounded-full ${SESSION_COLOR[s.sessionType] ?? 'bg-slate-300'}`} />
-        {SESSION_LABEL[s.sessionType] ?? s.sessionType}
-      </span>
-      {s.paceFastSecPerKm != null && (
-        <span className="ml-2 text-xs tabular-nums text-slate-400">
-          {pace(s.paceFastSecPerKm)}–{pace(s.paceSlowSecPerKm)}
-        </span>
-      )}
-      {s.adjustments.length > 0 && (
-        <span className="ml-2 rounded bg-amber-400/10 px-1 text-[10px] font-medium text-amber-300">
-          {s.adjustments.join('; ')}
-        </span>
-      )}
-      {s.segments?.length ? (
-        <details className="mt-0.5">
-          <summary className="cursor-pointer text-xs font-medium text-sky-300">Workout structure</summary>
-          <SegmentList segments={s.segments} />
-        </details>
-      ) : (
-        s.description && <p className="mt-0.5 text-xs text-slate-500">{s.description}</p>
-      )}
-    </div>
-  );
 }
