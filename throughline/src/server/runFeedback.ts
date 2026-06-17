@@ -83,10 +83,11 @@ export async function getRunFeedback(athleteId: string, activityId: string): Pro
 export async function getLatestRunFeedback(
   athleteId: string,
   today: string,
-): Promise<{ feedback: RunFeedback; activityId: string; day: string } | null> {
+  lookbackDays = 14, // show the last run for a couple of weeks, not just 3 days
+): Promise<{ feedback: RunFeedback; activityId: string; day: string; daysAgo: number } | null> {
   const db = await getDb();
   const since = new Date(`${today}T00:00:00Z`);
-  since.setUTCDate(since.getUTCDate() - 3); // only nudge about runs from the last few days
+  since.setUTCDate(since.getUTCDate() - lookbackDays);
   const [run] = await db
     .select({
       id: activities.id,
@@ -105,5 +106,10 @@ export async function getLatestRunFeedback(
   const { pace, note } = effortPace(run.avgPaceSecPerKm, run.splits);
   const feedback = assessRun({ actualMiles: run.distanceMeters / MI, actualPaceSecPerKm: pace, planned });
   if (note) feedback.detail += note;
-  return { feedback, activityId: run.id, day };
+  const daysAgo = Math.round(
+    (Date.UTC(...(today.split('-').map(Number) as [number, number, number])) -
+      Date.UTC(...(day.split('-').map(Number) as [number, number, number]))) /
+      86400000,
+  );
+  return { feedback, activityId: run.id, day, daysAgo };
 }

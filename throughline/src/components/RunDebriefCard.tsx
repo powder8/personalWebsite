@@ -20,11 +20,13 @@ const SIGNAL_LABEL: Record<string, string> = {
   distance: 'Distance',
 };
 
-export function RunDebriefCard({ debrief }: { debrief: RunDebriefResult }) {
+export function RunDebriefCard({ debrief, daysAgo }: { debrief: RunDebriefResult; daysAgo?: number }) {
+  const recency = daysAgo == null ? null : daysAgo <= 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo} days ago`;
   return (
     <div className="rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 shadow-lg">
       <div className="flex items-center gap-2">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Coach&rsquo;s debrief</span>
+        {recency && <span className="text-[10px] text-slate-500">· {recency}</span>}
         {debrief.narrated && <span className="text-[10px] text-slate-500">· in your coach&rsquo;s words</span>}
       </div>
       <h2 className="mt-1 text-xl font-extrabold tracking-tight text-white">{debrief.headline}</h2>

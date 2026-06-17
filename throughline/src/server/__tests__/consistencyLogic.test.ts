@@ -56,3 +56,36 @@ test('upcoming days do not break a streak', () => {
   const s = computeConsistency({ today: '2026-06-14', days, weeklyAdherence: [] });
   assert.equal(s.currentStreak, 2);
 });
+
+test('cross-training keeps the streak alive and is credited as active', () => {
+  // Missed the planned run, but cross-trained that day → streak should NOT break.
+  const days: ConsistencyDay[] = [
+    { day: '2026-06-11', status: 'done', actualMiles: 5 },
+    { day: '2026-06-12', status: 'missed', actualMiles: 0, crossTrain: true }, // biked instead
+    { day: '2026-06-13', status: 'done', actualMiles: 4 },
+  ];
+  const s = computeConsistency({ today: '2026-06-14', days, weeklyAdherence: [] });
+  assert.equal(s.currentStreak, 3); // 11,12 (XT),13 all count
+  assert.equal(s.crossTrain28d, 1);
+  assert.equal(s.activeDays28d, 3); // 2 runs + 1 cross-train day
+  assert.equal(s.runs28d, 2); // cross-training is NOT counted as a run
+});
+
+test('a missed run with no cross-training still breaks the streak', () => {
+  const days: ConsistencyDay[] = [
+    { day: '2026-06-12', status: 'done', actualMiles: 5 },
+    { day: '2026-06-13', status: 'missed', actualMiles: 0 },
+  ];
+  const s = computeConsistency({ today: '2026-06-14', days, weeklyAdherence: [] });
+  assert.equal(s.currentStreak, 0); // most recent day (13) was a true miss
+});
+
+test('cross-training alone is enough to show the strip', () => {
+  const days: ConsistencyDay[] = [
+    { day: '2026-06-12', status: 'rest', actualMiles: 0, crossTrain: true },
+    { day: '2026-06-13', status: 'rest', actualMiles: 0, crossTrain: true },
+  ];
+  const s = computeConsistency({ today: '2026-06-14', days, weeklyAdherence: [] });
+  assert.equal(s.show, true);
+  assert.equal(s.activeDays28d, 2);
+});

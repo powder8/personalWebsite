@@ -13,7 +13,8 @@ import { chatConfigured } from '@/server/chat';
 import { CycleTracking } from '@/components/CycleTracking';
 import { getCycle, computeCycle } from '@/server/cycle';
 import { WeeklyVolumeChart } from '@/components/WeeklyVolumeChart';
-import { getTrainingSummary } from '@/server/weeklyVolume';
+import { getTrainingSummary, getRecentCrossTraining } from '@/server/weeklyVolume';
+import { CrossTrainingCard } from '@/components/CrossTrainingCard';
 import { ShoesPanel } from '@/components/ShoesPanel';
 import { listShoesWithMileage, listRecentRunsForShoes } from '@/server/shoes';
 import { GoalSetup } from '@/components/GoalSetup';
@@ -93,6 +94,8 @@ export default async function PortalPage({
   const latestDebrief = latestRun ? await getRunDebrief(id, latestRun.activityId, { narrate: false }) : null;
   // Unified planned-vs-actual calendar — the portal centerpiece.
   const calendar = await getTrainingCalendar(id, portal.today);
+  // Recent cross-training — credited for aerobic work (not run-pace fitness).
+  const crossTraining = await getRecentCrossTraining(db, id, portal.today);
 
   const {
     athlete,
@@ -268,12 +271,28 @@ export default async function PortalPage({
       {/* Your latest run, evaluated — the full debrief, with a link to details */}
       {latestDebrief ? (
         <Link href={`/me/${athlete.id}/runs/${latestRun!.activityId}`} className="block transition hover:opacity-95">
-          <RunDebriefCard debrief={latestDebrief} />
+          <RunDebriefCard debrief={latestDebrief} daysAgo={latestRun!.daysAgo} />
         </Link>
       ) : (
         latestRun && (
           <RunFeedbackCard feedback={latestRun.feedback} href={`/me/${athlete.id}/runs/${latestRun.activityId}`} />
         )
+      )}
+
+      {/* Cross-training credit — your rides build the engine, even between runs */}
+      <CrossTrainingCard summary={crossTraining} />
+
+      {/* Nothing logged lately → a constructive nudge, not a blank space */}
+      {!latestRun && crossTraining.sessions === 0 && !calendar.hasActuals && (
+        <Card title="No activity logged yet">
+          <p className="text-sm text-slate-600">
+            Your runs and rides show up here automatically once Strava is connected — with a coach’s debrief on every
+            run. Until then, this is where today’s session and your recent training will live.
+          </p>
+          <a href="#setup" className="mt-3 inline-block text-sm font-medium text-violet-300 hover:underline">
+            Connect Strava to auto-import →
+          </a>
+        </Card>
       )}
 
       {/* Consistency / streak — positive reinforcement */}

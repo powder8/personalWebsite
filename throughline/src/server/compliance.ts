@@ -20,7 +20,9 @@ export interface ComplianceDay {
   day: string;
   sessionType: string | null; // null = no planned session
   plannedMiles: number;
-  actualMiles: number;
+  actualMiles: number; // RUN miles only — cross-training never satisfies a run target
+  crossTrainSessions: number; // bike/swim/strength logged that day
+  crossTrainMinutes: number;
   status: DayStatus;
 }
 
@@ -29,7 +31,9 @@ export interface ComplianceWeek {
   weekEnd: string;
   phase: string | null;
   plannedMiles: number;
-  actualMiles: number;
+  actualMiles: number; // run miles only
+  crossTrainSessions: number; // bike/swim/strength logged this week
+  crossTrainMinutes: number;
   sessionsPlanned: number; // non-rest planned days up to today
   sessionsDone: number; // planned days with >=80% of planned distance (or any run if planned dist 0)
   adherencePct: number | null; // sessionsDone / sessionsPlanned, null if none due yet
@@ -70,9 +74,16 @@ export async function getComplianceWeeks(
 
   if (planRows.length === 0) return { weeks: [], hasActuals: false };
 
-  // Actual miles per day across the window (all activities).
+  // Actual activity per day across the window. RUN miles are tracked separately
+  // from cross-training (bike/swim/strength): a ride must never satisfy a run
+  // target, but it should still be credited as activity.
   const actRows = await db
-    .select({ startTime: activities.startTime, distanceMeters: activities.distanceMeters })
+    .select({
+      startTime: activities.startTime,
+      sport: activities.sport,
+      distanceMeters: activities.distanceMeters,
+      durationSeconds: activities.durationSeconds,
+    })
     .from(activities)
     .where(
       and(
@@ -81,12 +92,20 @@ export async function getComplianceWeeks(
         lte(activities.startTime, new Date(`${addDays(today, 1)}T00:00:00Z`)),
       ),
     );
-  const actualByDay = new Map<string, number>();
+  const actualByDay = new Map<string, number>(); // run miles
+  const crossByDay = new Map<string, { sessions: number; minutes: number }>();
   for (const a of actRows) {
     const day = a.startTime.toISOString().slice(0, 10);
-    actualByDay.set(day, (actualByDay.get(day) ?? 0) + (a.distanceMeters ?? 0) / MI);
+    if (a.sport === 'run') {
+      actualByDay.set(day, (actualByDay.get(day) ?? 0) + (a.distanceMeters ?? 0) / MI);
+    } else {
+      const c = crossByDay.get(day) ?? { sessions: 0, minutes: 0 };
+      c.sessions += 1;
+      c.minutes += Math.round((a.durationSeconds ?? 0) / 60);
+      crossByDay.set(day, c);
+    }
   }
-  const hasActuals = actualByDay.size > 0;
+  const hasActuals = actualByDay.size > 0 || crossByDay.size > 0;
 
   const directiveRows = await listActiveDirectives(db, athleteId);
 
@@ -120,15 +139,20 @@ export async function getComplianceWeeks(
     const dayList: ComplianceDay[] = [];
     let plannedMiles = 0;
     let actualMiles = 0;
+    let crossTrainSessions = 0;
+    let crossTrainMinutes = 0;
     let sessionsPlanned = 0;
     let sessionsDone = 0;
 
     for (let d = plan.weekStart; d <= plan.weekEnd; d = addDays(d, 1)) {
       const planned = plannedByDay.get(d);
       const actual = actualByDay.get(d) ?? 0;
+      const cross = crossByDay.get(d) ?? { sessions: 0, minutes: 0 };
       const isPast = d <= today;
       plannedMiles += planned?.miles ?? 0;
       actualMiles += actual;
+      crossTrainSessions += cross.sessions;
+      crossTrainMinutes += cross.minutes;
 
       const isRunPlanned = !!planned && planned.type !== 'rest' && planned.miles > 0;
       let status: DayStatus;
@@ -156,6 +180,8 @@ export async function getComplianceWeeks(
         sessionType: planned?.type ?? null,
         plannedMiles: planned?.miles ?? 0,
         actualMiles: actual,
+        crossTrainSessions: cross.sessions,
+        crossTrainMinutes: cross.minutes,
         status,
       });
     }
@@ -166,6 +192,8 @@ export async function getComplianceWeeks(
       phase: plan.phase,
       plannedMiles,
       actualMiles,
+      crossTrainSessions,
+      crossTrainMinutes,
       sessionsPlanned,
       sessionsDone,
       adherencePct: sessionsPlanned > 0 ? Math.round((sessionsDone / sessionsPlanned) * 100) : null,

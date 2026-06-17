@@ -4,12 +4,62 @@ import 'server-only';
  * per-week mileage + elevation chart, and a table of labeled efforts (Strava
  * "Workout" / "Long Run" / "Race"). All read-only aggregation over `activities`.
  */
-import { and, eq, gte } from 'drizzle-orm';
+import { and, eq, gte, lte } from 'drizzle-orm';
 import type { DB } from '@/db';
 import { activities } from '@/db/schema';
 
 const MI = 1609.344;
 const FT_PER_M = 3.280839895;
+
+export interface CrossTrainingSummary {
+  sessions: number;
+  minutes: number;
+  miles: number;
+  sports: string[]; // distinct, e.g. ['bike','swim']
+  lastDay: string | null;
+}
+
+/**
+ * Recent cross-training (bike/swim/strength/etc.) over the last `days`. Surfaced
+ * so a ride gets credit for the aerobic work — it builds the engine without the
+ * pounding — even though it doesn't feed run-pace fitness.
+ */
+export async function getRecentCrossTraining(
+  db: DB,
+  athleteId: string,
+  today: string,
+  days = 14,
+): Promise<CrossTrainingSummary> {
+  const sinceDay = new Date(`${today}T00:00:00.000Z`);
+  sinceDay.setUTCDate(sinceDay.getUTCDate() - days);
+  const rows = await db
+    .select({
+      sport: activities.sport,
+      startTime: activities.startTime,
+      distanceMeters: activities.distanceMeters,
+      durationSeconds: activities.durationSeconds,
+    })
+    .from(activities)
+    .where(
+      and(
+        eq(activities.athleteId, athleteId),
+        gte(activities.startTime, sinceDay),
+        lte(activities.startTime, new Date(`${today}T23:59:59.999Z`)),
+      ),
+    );
+  const cross = rows.filter((r) => r.sport !== 'run');
+  const sports = [...new Set(cross.map((r) => r.sport))];
+  let minutes = 0;
+  let miles = 0;
+  let lastDay: string | null = null;
+  for (const r of cross) {
+    minutes += Math.round((r.durationSeconds ?? 0) / 60);
+    miles += (r.distanceMeters ?? 0) / MI;
+    const day = r.startTime.toISOString().slice(0, 10);
+    if (!lastDay || day > lastDay) lastDay = day;
+  }
+  return { sessions: cross.length, minutes, miles: Math.round(miles * 10) / 10, sports, lastDay };
+}
 
 export interface WeeklyVolume {
   weekStart: string; // Monday, YYYY-MM-DD

@@ -15,7 +15,7 @@ export async function getConsistency(athleteId: string, today: string): Promise<
   const days: ConsistencyDay[] = report.weeks
     .flatMap((w) => w.days)
     .filter((d) => d.day <= today)
-    .map((d) => ({ day: d.day, status: d.status, actualMiles: d.actualMiles }));
+    .map((d) => ({ day: d.day, status: d.status, actualMiles: d.actualMiles, crossTrain: d.crossTrainSessions > 0 }));
 
   // Only completed weeks the athlete was actually ACTIVE in carry a meaningful
   // adherence value — weeks before they started logging shouldn't count as
