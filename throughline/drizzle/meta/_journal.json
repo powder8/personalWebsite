@@ -120,6 +120,13 @@
       "when": 1781445578075,
       "tag": "0016_swift_wasp",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1781972110109,
+      "tag": "0017_majestic_golden_guardian",
+      "breakpoints": true
     }
   ]
 }

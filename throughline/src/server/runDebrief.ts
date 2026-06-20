@@ -9,8 +9,9 @@ import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
 import { and, desc, eq, gte, lt, lte } from 'drizzle-orm';
 import { getDb } from '@/db';
-import { activities, plannedSessions, plans, sleepRecords, checkIns, activityFeedback } from '@/db/schema';
+import { activities, plannedSessions, plans, sleepRecords, checkIns, activityFeedback, runDebriefs } from '@/db/schema';
 import { gapFromSplits, type GapSplit } from '@/engine/plan';
+import { payloadHash } from '@/lib/hash';
 import { buildDebrief, type RunSignal, type DebriefInput } from '@/server/runDebriefLogic';
 import type { PlannedRef } from '@/server/runFeedbackLogic';
 
@@ -189,9 +190,26 @@ export async function getRunDebrief(
   };
 
   if (!narrate || !process.env.ANTHROPIC_API_KEY || debrief.signals.length === 0) return fallback;
+
+  // Narrate ONCE per distinct set of signals, then reuse. Resubmitting the same
+  // feedback yields the same signals → same signature → cached prose (no LLM, no
+  // drift). New feedback changes the signals → re-narrate exactly once.
+  const signature = payloadHash(JSON.stringify(debrief.signals.map((s) => `${s.polarity}:${s.fact}`)));
+  const [cached] = await db.select().from(runDebriefs).where(eq(runDebriefs.activityId, activityId)).limit(1);
+  if (cached && cached.signature === signature) {
+    return { headline: cached.headline, wentWell: cached.wentWell, focusNext: cached.focusNext, signals: debrief.signals, narrated: true };
+  }
   try {
     const narrated = await narrateSignals(debrief.signals);
-    return narrated ? { ...fallback, ...narrated, narrated: true } : fallback;
+    if (!narrated) return fallback;
+    await db
+      .insert(runDebriefs)
+      .values({ athleteId, activityId, signature, ...narrated })
+      .onConflictDoUpdate({
+        target: runDebriefs.activityId,
+        set: { signature, ...narrated, updatedAt: new Date() },
+      });
+    return { ...fallback, ...narrated, narrated: true };
   } catch {
     return fallback; // never fail the page on the LLM
   }

@@ -890,3 +890,29 @@ export const activityFeedback = pgTable(
   },
   (t) => [uniqueIndex('activity_feedback_activity_uq').on(t.activityId)],
 );
+
+/**
+ * Cached LLM narration of a run's debrief. The "what went well / focus next"
+ * prose is generated ONCE per distinct set of grounded signals and reused, so it
+ * doesn't regenerate (and drift) on every page load. `signature` is a hash of
+ * the signals; when the athlete's feedback changes the signals change, the
+ * signature changes, and we re-narrate exactly once.
+ */
+export const runDebriefs = pgTable(
+  'run_debriefs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    athleteId: uuid('athlete_id')
+      .notNull()
+      .references(() => athletes.id, { onDelete: 'cascade' }),
+    activityId: uuid('activity_id')
+      .notNull()
+      .references(() => activities.id, { onDelete: 'cascade' }),
+    signature: text('signature').notNull(), // hash of the grounded signals
+    headline: text('headline').notNull(),
+    wentWell: text('went_well').notNull(),
+    focusNext: text('focus_next').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('run_debriefs_activity_uq').on(t.activityId)],
+);

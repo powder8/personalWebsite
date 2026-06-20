@@ -32,6 +32,7 @@ export function RunFeedbackPrompt({
   const [surface, setSurface] = useState<Surface | null>((existing?.surface as Surface) ?? null);
   const [note, setNote] = useState<string>(existing?.note ?? '');
   const [pending, setPending] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   async function save() {
@@ -44,7 +45,10 @@ export function RunFeedbackPrompt({
         body: JSON.stringify({ feel, tookBreaks, unwell, surface, note }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error ?? 'Could not save.');
-      window.location.reload();
+      // Confirm visibly, then reload so the debrief above re-narrates ONCE with
+      // the new input (the narration is cached server-side after that).
+      setSaved(true);
+      setTimeout(() => window.location.reload(), 900);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not save.');
       setPending(false);
@@ -58,8 +62,15 @@ export function RunFeedbackPrompt({
 
   return (
     <div className="rounded-2xl bg-[#11151f] p-4 ring-1 ring-inset ring-slate-700/50">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-        {existing ? 'Your note to your coach' : 'How did it feel?'}
+      <div className="flex items-center gap-2">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          {existing ? 'Your note to your coach' : 'How did it feel?'}
+        </div>
+        {existing && (
+          <span className="rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300 ring-1 ring-inset ring-emerald-400/30">
+            ✓ Logged
+          </span>
+        )}
       </div>
       <p className="mt-1 text-xs text-slate-400">Tell your coach what the data can’t see — it shapes the debrief above.</p>
 
@@ -98,11 +109,12 @@ export function RunFeedbackPrompt({
       <div className="mt-3 flex items-center gap-3">
         <button
           onClick={save}
-          disabled={pending}
+          disabled={pending || saved}
           className="rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-[#0c1018] transition hover:bg-lime-200 disabled:opacity-50"
         >
-          {pending ? 'Saving…' : existing ? 'Update' : 'Send to coach'}
+          {saved ? 'Saved ✓' : pending ? 'Saving…' : existing ? 'Update note' : 'Send to coach'}
         </button>
+        {saved && <span className="text-xs text-emerald-300">Logged — refreshing your debrief…</span>}
         {err && <span className="text-xs text-rose-400">{err}</span>}
       </div>
     </div>
