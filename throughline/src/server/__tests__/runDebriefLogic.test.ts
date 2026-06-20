@@ -120,3 +120,26 @@ test('easy day run too hard (even on GAP) → caution in focus', () => {
   });
   assert.ok(d.focusNext.some((f) => /easy/i.test(f)));
 });
+
+test('multi-run day (warm-up + race + cool-down) is acknowledged as one session', () => {
+  const race: PlannedRef = { sessionType: 'race', zone: 'race', miles: 3.1, paceFastSecPerKm: 225, paceSlowSecPerKm: 240 };
+  const d = buildDebrief({
+    planned: race,
+    actualMiles: 3.1, // the primary effort (the race), not the day total
+    actualPaceSecPerKm: 232,
+    gapSecPerKm: null,
+    movingSeconds: 3.1 * 232,
+    elapsedSeconds: 3.1 * 232,
+    surface: 'road',
+    climbFeet: 0,
+    sleepHours: null,
+    sleepNormHours: null,
+    energy: null,
+    soreness: null,
+    dayRunCount: 3,
+    dayTotalMiles: 5.8,
+  });
+  assert.ok(d.signals.some((s) => s.key === 'session'), 'flags the multi-run session');
+  assert.ok(d.signals.some((s) => s.fact.includes('3 runs') && s.fact.includes('5.8')), 'reports count + day total');
+  assert.ok(d.wentWell.some((w) => /warm-up and cool-down|3 runs/i.test(w)));
+});

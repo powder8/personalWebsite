@@ -11,6 +11,7 @@
  * run target).
  */
 import { assessRun, type RunFeedback } from '@/server/runFeedbackLogic';
+import { pickPrimaryRun } from '@/server/runDayLogic';
 
 const MI = 1609.344;
 
@@ -28,6 +29,7 @@ export interface CalActual {
   activityId: string;
   sport: string; // run | bike | swim | strength | cross_train | other
   isRun: boolean;
+  workoutType: number | null; // Strava: 1 = race, 2 = long, 3 = workout
   name: string | null;
   miles: number;
   paceSecPerKm: number | null;
@@ -139,7 +141,9 @@ export function assembleCalendar(input: AssembleInput): CalWeek[] {
       const acts = actualsByDay.get(day) ?? [];
       const runs = acts.filter((a) => a.isRun);
       const crossTrain = acts.filter((a) => !a.isRun);
-      const primaryRun = runs.length ? runs.reduce((best, a) => (a.miles > best.miles ? a : best)) : null;
+      // Race/workout-aware: a warm-up+race+cool-down day evaluates the RACE, not
+      // whichever upload was longest or last.
+      const primaryRun = pickPrimaryRun(runs);
       const runMiles = runs.reduce((sum, a) => sum + a.miles, 0);
       const isFuture = day > today;
       const isToday = day === today;

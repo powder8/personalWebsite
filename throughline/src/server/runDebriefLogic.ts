@@ -29,11 +29,16 @@ export interface DebriefInput {
   reportedUnwell?: boolean;
   reportedBreaks?: boolean;
   reportedSurface?: 'road' | 'trail' | 'track' | 'treadmill' | null;
+  // Same-day consolidation: when a session was logged as several runs
+  // (warm-up + race + cool-down), how many and the day's total distance. The
+  // assessed run is the primary effort; this gives the day its proper context.
+  dayRunCount?: number;
+  dayTotalMiles?: number;
 }
 
 export type SignalPolarity = 'positive' | 'caution' | 'context';
 export interface RunSignal {
-  key: 'showed_up' | 'sleep' | 'feel' | 'stops' | 'terrain' | 'pace' | 'distance';
+  key: 'showed_up' | 'sleep' | 'feel' | 'stops' | 'terrain' | 'pace' | 'distance' | 'session';
   polarity: SignalPolarity;
   fact: string; // a grounded statement (no invention)
 }
@@ -52,6 +57,14 @@ export function buildDebrief(input: DebriefInput): RunDebrief {
   const signals: RunSignal[] = [];
   const wentWell: string[] = [];
   const focusNext: string[] = [];
+
+  // Multi-run day: this was one session split across several uploads.
+  const dayRuns = input.dayRunCount ?? 1;
+  if (dayRuns > 1) {
+    const total = input.dayTotalMiles != null ? `${input.dayTotalMiles} mi total` : 'across the day';
+    signals.push({ key: 'session', polarity: 'context', fact: `${dayRuns} runs that day (${total}) — judged on your main effort.` });
+    wentWell.push(`You logged ${dayRuns} runs in that session (${total}) — bookending the main effort with a warm-up and cool-down is exactly how to set up a good session.`);
+  }
 
   const adverseSleep = input.sleepHours != null && input.sleepHours < (input.sleepNormHours != null ? input.sleepNormHours - 1.5 : 6);
   const lowEnergy = input.energy != null && input.energy <= 4;

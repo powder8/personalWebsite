@@ -18,6 +18,7 @@ const SIGNAL_LABEL: Record<string, string> = {
   terrain: 'Terrain',
   pace: 'Pace',
   distance: 'Distance',
+  session: 'Session',
 };
 
 export function RunDebriefCard({ debrief, daysAgo }: { debrief: RunDebriefResult; daysAgo?: number }) {

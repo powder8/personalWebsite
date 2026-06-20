@@ -97,6 +97,7 @@ export async function getTrainingCalendar(
     .select({
       id: activities.id,
       sport: activities.sport,
+      workoutType: activities.workoutType,
       name: activities.name,
       startTime: activities.startTime,
       distanceMeters: activities.distanceMeters,
@@ -123,6 +124,7 @@ export async function getTrainingCalendar(
       activityId: a.id,
       sport: a.sport,
       isRun: RUN_SPORTS.has(a.sport),
+      workoutType: a.workoutType,
       name: a.name,
       miles: metersToMiles(a.distanceMeters),
       paceSecPerKm: a.avgPaceSecPerKm,

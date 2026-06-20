@@ -24,6 +24,7 @@ const run = (over: Partial<CalActual> = {}): CalActual => ({
   activityId: 'a1',
   sport: 'run',
   isRun: true,
+  workoutType: null,
   name: 'Run',
   miles: 5,
   paceSecPerKm: 315,

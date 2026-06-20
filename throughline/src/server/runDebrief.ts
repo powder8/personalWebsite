@@ -116,6 +116,22 @@ export async function getRunDebrief(
   const planned = await plannedFor(athleteId, day);
   const gap = gapFromSplits(run.splits as GapSplit[] | null);
 
+  // Other runs the same day (warm-up / cool-down around this effort).
+  const sameDayRuns = await db
+    .select({ distanceMeters: activities.distanceMeters })
+    .from(activities)
+    .where(
+      and(
+        eq(activities.athleteId, athleteId),
+        eq(activities.sport, 'run'),
+        gte(activities.startTime, new Date(`${day}T00:00:00Z`)),
+        lte(activities.startTime, new Date(`${day}T23:59:59Z`)),
+      ),
+    );
+  const dayRuns = sameDayRuns.filter((r) => r.distanceMeters != null && r.distanceMeters >= MI * 0.4);
+  const dayRunCount = dayRuns.length;
+  const dayTotalMiles = Math.round((dayRuns.reduce((a, r) => a + (r.distanceMeters ?? 0), 0) / MI) * 10) / 10;
+
   // Wellness for the day + a sleep norm from the prior ~3 weeks.
   const [todaySleep] = await db
     .select({ sec: sleepRecords.totalSleepSeconds })
@@ -159,6 +175,8 @@ export async function getRunDebrief(
     reportedUnwell: report?.unwell ?? false,
     reportedBreaks: report?.tookBreaks ?? false,
     reportedSurface: (report?.surface as 'road' | 'trail' | 'track' | 'treadmill' | null) ?? null,
+    dayRunCount,
+    dayTotalMiles,
   };
 
   const debrief = buildDebrief(input);

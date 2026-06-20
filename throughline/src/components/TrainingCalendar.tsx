@@ -239,8 +239,16 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
         <p className="text-slate-500">Rest day — nothing scheduled.</p>
       ) : null}
 
-      {/* Actual runs */}
-      {d.primaryRun && <ActualLine a={d.primaryRun} athleteId={athleteId} />}
+      {/* Multi-run day: one session logged as several activities */}
+      {d.actuals.filter((a) => a.isRun).length > 1 && (
+        <p className="text-xs font-medium text-slate-500">
+          {d.actuals.filter((a) => a.isRun).length} runs · {mi(d.actuals.filter((a) => a.isRun).reduce((s, a) => s + a.miles, 0))} mi
+          total — coach’s take is on your main effort.
+        </p>
+      )}
+
+      {/* Actual runs — main effort first */}
+      {d.primaryRun && <ActualLine a={d.primaryRun} athleteId={athleteId} primary={d.actuals.filter((a) => a.isRun).length > 1} />}
       {d.actuals.filter((a) => a.isRun && a !== d.primaryRun).map((a) => (
         <ActualLine key={a.activityId} a={a} athleteId={athleteId} />
       ))}
@@ -287,13 +295,20 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
   );
 }
 
-function ActualLine({ a, athleteId }: { a: CalActual; athleteId: string }) {
+function ActualLine({ a, athleteId, primary }: { a: CalActual; athleteId: string; primary?: boolean }) {
   return (
     <Link
       href={`/me/${athleteId}/runs/${a.activityId}`}
       className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg bg-card px-2 py-1.5 text-xs ring-1 ring-inset ring-slate-200 transition hover:ring-slate-300"
     >
-      <span className="font-semibold text-slate-700">🏃 {mi(a.miles)} mi</span>
+      <span className="font-semibold text-slate-700">
+        {a.workoutType === 1 ? '🏁' : '🏃'} {mi(a.miles)} mi
+      </span>
+      {primary && (
+        <span className="rounded bg-violet-400/15 px-1 text-[10px] font-medium text-violet-500">
+          {a.workoutType === 1 ? 'race' : 'main'}
+        </span>
+      )}
       {a.paceSecPerKm != null && <span className="tabular-nums text-slate-500">{pace(a.paceSecPerKm)}</span>}
       {a.durationSeconds ? <span className="tabular-nums text-slate-400">{dur(a.durationSeconds)}</span> : null}
       {a.elevationGainMeters != null && a.elevationGainMeters > 0 && (
