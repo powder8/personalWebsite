@@ -8,7 +8,7 @@ import type { RunDebriefResult } from '@/server/runDebrief';
 const CHIP: Record<string, string> = {
   positive: 'bg-emerald-400/10 text-emerald-300 ring-emerald-400/30',
   caution: 'bg-amber-400/10 text-amber-300 ring-amber-400/30',
-  context: 'bg-slate-400/10 text-slate-300 ring-slate-400/30',
+  context: 'bg-white/10 text-white/80 ring-white/20',
 };
 const SIGNAL_LABEL: Record<string, string> = {
   showed_up: 'Showed up',
@@ -48,13 +48,13 @@ export function RunDebriefCard({ debrief, daysAgo }: { debrief: RunDebriefResult
       )}
 
       <div className="mt-4 space-y-3">
-        <div className="rounded-2xl bg-emerald-400/10 p-4 ring-1 ring-inset ring-emerald-400/30">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-300">What went well</div>
-          <p className="mt-1 text-sm leading-relaxed text-slate-200">{debrief.wentWell}</p>
+        <div className="rounded-2xl bg-emerald-400/15 p-4 ring-1 ring-inset ring-emerald-400/30">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-200">What went well</div>
+          <p className="mt-1 text-sm leading-relaxed text-white/90">{debrief.wentWell}</p>
         </div>
-        <div className="rounded-2xl bg-amber-400/10 p-4 ring-1 ring-inset ring-amber-400/30">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-300">Focus next time</div>
-          <p className="mt-1 text-sm leading-relaxed text-slate-200">{debrief.focusNext}</p>
+        <div className="rounded-2xl bg-amber-400/15 p-4 ring-1 ring-inset ring-amber-400/30">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-200">Focus next time</div>
+          <p className="mt-1 text-sm leading-relaxed text-white/90">{debrief.focusNext}</p>
         </div>
       </div>
     </div>
