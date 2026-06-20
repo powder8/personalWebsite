@@ -201,10 +201,27 @@ export default async function PortalPage({
           )}
         </div>
 
-        {/* Up today — inside the hero so goal and action read as one unit */}
+        {/* Up today — inside the hero so goal and action read as one unit.
+            Once today's run is logged, the prescription is stale → show "done". */}
         <div className="mt-5 rounded-2xl bg-white/10 p-4 ring-1 ring-inset ring-white/10">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-lime-300">Up today</div>
-          {todaySession ? (
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-lime-300">
+            {ranToday ? 'Today' : 'Up today'}
+          </div>
+          {ranToday ? (
+            <div className="mt-1.5 flex items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-lime-300 text-lg font-bold text-[#0c1018]">
+                ✓
+              </span>
+              <div className="min-w-0">
+                <div className="text-lg font-bold leading-tight tracking-tight">Run logged — nice work</div>
+                <p className="text-sm text-white/75">
+                  {latestRun && latestRun.day === today
+                    ? `${latestRun.dayMiles.toFixed(1)} mi${latestRun.runCount > 1 ? ` across ${latestRun.runCount} runs` : ''} logged today.`
+                    : 'Logged for today.'}
+                </p>
+              </div>
+            </div>
+          ) : todaySession ? (
             <div className="mt-1.5 flex items-center gap-3">
               <span
                 className={`h-9 w-9 shrink-0 rounded-xl ${SESSION_COLOR[todaySession.sessionType] ?? 'bg-slate-400'}`}
