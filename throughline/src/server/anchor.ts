@@ -18,7 +18,7 @@ import {
   setAthletePaceConfig,
 } from '@/db/paceConfig';
 import { reapplyZonesToFuturePlan } from '@/server/paceAdjust';
-import { vdotCeiling, isCorroborated, isRaceEffort, type Effort } from '@/server/perf';
+import { vdotCeiling, isCorroborated, isRaceEffort, isHardEffort, type Effort } from '@/server/perf';
 import { decideAnchorUpdate } from '@/server/anchorLogic';
 
 // A demonstrated effort older than this no longer reflects current fitness, so
@@ -110,6 +110,8 @@ export async function suggestAnchorCandidates(
       distanceMeters: activities.distanceMeters,
       durationSeconds: activities.durationSeconds,
       avgPaceSecPerKm: activities.avgPaceSecPerKm,
+      avgHr: activities.avgHr,
+      maxHr: activities.maxHr,
       splits: activities.splits,
     })
     .from(activities)
@@ -124,7 +126,7 @@ export async function suggestAnchorCandidates(
       ),
     );
 
-  const scored: (AnchorCandidate & { ts: number; rawVdot: number; isRace: boolean })[] = [];
+  const scored: (AnchorCandidate & { ts: number; rawVdot: number; isRace: boolean; trusted: boolean })[] = [];
   for (const r of rows) {
     const m = r.distanceMeters ?? 0;
     // Prefer recorded duration; fall back to distance × avg pace for logs that
@@ -137,6 +139,8 @@ export async function suggestAnchorCandidates(
           : 0;
     if (m < MIN_M || t <= 0) continue;
     const isRace = isRaceEffort({ workoutType: r.workoutType, name: r.name, meters: m });
+    // A near-max-HR sustained effort is as trustworthy as a race for anchoring.
+    const trusted = isRace || isHardEffort({ avgHr: r.avgHr, maxHr: r.maxHr });
     // Easy long runs (non-race, > half-marathon) under-estimate fitness, so skip
     // them — but a marathon RACE is a valid, important anchor.
     if (!isRace && m > MAX_M) continue;
@@ -159,24 +163,26 @@ export async function suggestAnchorCandidates(
       ts: r.startTime.getTime(),
       rawVdot: raw,
       isRace,
+      trusted,
       // nudge race-grade efforts ahead on ties
       vdot: Math.round((raw + (isRace ? 0.0001 : 0)) * 10) / 10,
     });
   }
 
   // Reject GPS glitches: drop efforts beyond a robust ceiling and require
-  // corroboration — but RACES are exempt (a real race can't be a glitch, and an
-  // isolated peak race must still anchor fitness).
+  // corroboration — but TRUSTED efforts are exempt (a real race, or a sustained
+  // near-max-HR effort, can't be a glitch and must still anchor fitness even when
+  // it's an isolated peak among easy runs).
   const efforts: Effort[] = scored.map((s) => ({ ts: s.ts, vdot: s.rawVdot }));
   const ceiling = vdotCeiling(efforts.map((e) => e.vdot));
   const guarded = scored.filter(
-    (s) => s.isRace || (s.rawVdot <= ceiling && isCorroborated({ ts: s.ts, vdot: s.rawVdot }, efforts)),
+    (s) => s.trusted || (s.rawVdot <= ceiling && isCorroborated({ ts: s.ts, vdot: s.rawVdot }, efforts)),
   );
 
-  // Prefer actual races (most representative of fitness), then by VDOT, then
-  // recency — so a recent goal race anchors over a noisy hard training run.
+  // Prefer trusted efforts (race or hard-HR, most representative), then by VDOT,
+  // then recency — so a real peak effort anchors over a noisy training run.
   guarded.sort(
-    (a, b) => Number(b.isRace) - Number(a.isRace) || b.vdot - a.vdot || b.day.localeCompare(a.day),
+    (a, b) => Number(b.trusted) - Number(a.trusted) || b.vdot - a.vdot || b.day.localeCompare(a.day),
   );
   // De-dupe near-identical VDOTs so the list shows genuinely different options.
   const out: AnchorCandidate[] = [];

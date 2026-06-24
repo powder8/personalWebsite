@@ -1,6 +1,5 @@
-import 'server-only';
 /**
- * Shared guards for per-run performance (Daniels VDOT) signals, so the fitness
+ * Pure guards for per-run performance (Daniels VDOT) signals, so the fitness
  * anchor and the insights engine reject GPS glitches identically.
  *
  * GPS errors (short distance / dropped time) produce a single activity with an
@@ -30,6 +29,20 @@ export interface Effort {
 export function isRaceEffort(opts: { workoutType: number | null; name: string | null; meters: number }): boolean {
   if (opts.workoutType === 1) return true;
   return opts.meters >= 40000; // marathon-distance — a major effort regardless
+}
+
+/**
+ * A sustained effort at near-maximal heart rate is unmistakably REAL — you can't
+ * fake averaging ~90%+ of your max HR over a whole run, and a GPS glitch carries
+ * no such physiological signature. So (like a race) it's trusted: exempt from the
+ * corroboration/ceiling glitch guards, so a genuine isolated hard effort (e.g. a
+ * parkrun that wasn't flagged as a race) still anchors fitness. Needs both avg
+ * and max HR; the absolute floor guards against bad/low-HR data.
+ */
+export function isHardEffort(opts: { avgHr: number | null; maxHr: number | null }): boolean {
+  const { avgHr, maxHr } = opts;
+  if (avgHr == null || maxHr == null || maxHr <= 0) return false;
+  return avgHr >= 140 && avgHr / maxHr >= 0.9;
 }
 
 function med(xs: number[]): number {
