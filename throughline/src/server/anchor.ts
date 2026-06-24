@@ -19,6 +19,13 @@ import {
 } from '@/db/paceConfig';
 import { reapplyZonesToFuturePlan } from '@/server/paceAdjust';
 import { vdotCeiling, isCorroborated, isRaceEffort, type Effort } from '@/server/perf';
+import { decideAnchorUpdate } from '@/server/anchorLogic';
+
+// A demonstrated effort older than this no longer reflects current fitness, so
+// it won't auto-anchor (an old PR shouldn't drive today's paces).
+const ANCHOR_RELEVANCE_DAYS = 180;
+// VDOT gap a recent race must clear to override a human-set anchor (autonomous).
+const ANCHOR_UPGRADE_DELTA = 2.0;
 
 // Race-like distances only: long enough that whole-activity time ≈ a real
 // effort, short enough to exclude long slow runs. (~1.9mi to marathon.)
@@ -76,11 +83,11 @@ function nearestStandard(meters: number): string {
 export async function suggestAnchorCandidates(
   db: DB,
   athleteId: string,
-  opts: { days?: number; limit?: number } = {},
+  opts: { days?: number; limit?: number; sinceDay?: string } = {},
 ): Promise<AnchorCandidate[]> {
   // Wide enough to catch a recent goal race (a marathon block can be months
   // back), while still recent enough to reflect current fitness.
-  const { days = 270, limit = 3 } = opts;
+  const { days = 270, limit = 3, sinceDay } = opts;
 
   const [latest] = await db
     .select({ startTime: activities.startTime })
@@ -90,7 +97,11 @@ export async function suggestAnchorCandidates(
     .limit(1);
   if (!latest?.startTime) return [];
 
-  const cutoff = new Date(latest.startTime.getTime() - days * 86400000);
+  // `sinceDay` (an absolute floor) caps how far back we look — used when anchoring
+  // to enforce a recency/relevance window measured from *today*, not the latest run.
+  const cutoff = sinceDay
+    ? new Date(`${sinceDay}T00:00:00.000Z`)
+    : new Date(latest.startTime.getTime() - days * 86400000);
   const rows = await db
     .select({
       startTime: activities.startTime,
@@ -217,10 +228,14 @@ export async function setAnchor(
 }
 
 /**
- * Default the anchor to our best belief from activity history — UNLESS a human
- * has set it ('manual'). Safe to call after every import: it keeps an auto
- * anchor fresh as new efforts come in, and never overrides a coach's choice.
- * Returns the candidate used (or null if none / left manual).
+ * Keep the fitness anchor grounded in the athlete's best RECENT demonstrated
+ * race. Safe to call after every import / on portal load:
+ *  - An auto/unset anchor tracks the best recent effort (no churn if unchanged).
+ *  - A human-set anchor is respected — except a self-coached (autonomous)
+ *    athlete whose recent race is clearly faster than their stated number, where
+ *    real performance wins over a stale guess.
+ *  - Efforts past the relevance window (an old PR) never auto-anchor.
+ * Returns the resulting anchor (or the unchanged one).
  */
 export async function ensureAutoAnchor(
   db: DB,
@@ -230,12 +245,33 @@ export async function ensureAutoAnchor(
   const [athlete] = await db.select().from(athletes).where(eq(athletes.id, athleteId)).limit(1);
   if (!athlete) return { vdot: null, source: 'none' };
   const cfg = (athlete.paceConfig as AthletePaceConfig | null) ?? {};
-  if (cfg.anchorSource === 'manual') {
-    const v = await getAthleteVdot(db, athleteId);
-    return { vdot: v != null ? Math.round(v * 10) / 10 : null, source: 'manual' };
+  const anchorSource = cfg.anchorSource ?? null;
+  const currentVdot = await getAthleteVdot(db, athleteId);
+  const autonomous = athlete.coachingMode === 'autonomous';
+
+  // Only consider efforts recent enough to reflect today's fitness.
+  const sinceDay = new Date(`${opts.today}T00:00:00.000Z`);
+  sinceDay.setUTCDate(sinceDay.getUTCDate() - ANCHOR_RELEVANCE_DAYS);
+  const [best] = await suggestAnchorCandidates(db, athleteId, {
+    limit: 1,
+    sinceDay: sinceDay.toISOString().slice(0, 10),
+  });
+
+  const decision = decideAnchorUpdate({
+    currentVdot,
+    anchorSource,
+    autonomous,
+    best: best ? { vdot: best.vdot, day: best.day } : null,
+    today: opts.today,
+    relevanceDays: ANCHOR_RELEVANCE_DAYS,
+    upgradeDelta: ANCHOR_UPGRADE_DELTA,
+  });
+
+  if (!decision.set || !best) {
+    const source: 'auto' | 'manual' | 'none' = anchorSource === 'manual' ? 'manual' : currentVdot != null ? 'auto' : 'none';
+    return { vdot: currentVdot != null ? Math.round(currentVdot * 10) / 10 : null, source };
   }
-  const [best] = await suggestAnchorCandidates(db, athleteId, { limit: 1 });
-  if (!best) return { vdot: null, source: 'none' };
+
   const res = await setAnchor(
     db,
     athleteId,
