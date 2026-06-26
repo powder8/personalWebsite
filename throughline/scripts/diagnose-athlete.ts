@@ -4,7 +4,7 @@
  */
 import { and, desc, eq } from 'drizzle-orm';
 import { getDb } from '@/db';
-import { athletes, races, plans, activities, intakeProfiles } from '@/db/schema';
+import { athletes, races, plans, activities, intakeProfiles, connectedAccounts } from '@/db/schema';
 import { vdotFromRace } from '@/engine/plan';
 
 const MI = 1609.344;
@@ -53,6 +53,7 @@ function anchorVdot(cfg: Record<string, unknown> | null): number | null {
   const curPub = pub.find((p) => p.weekStart <= today && p.weekEnd >= today);
   const curDraft = draft.find((p) => p.weekStart <= today && p.weekEnd >= today);
   const runs = await db.select({ st: activities.startTime }).from(activities).where(and(eq(activities.athleteId, a.id), eq(activities.sport, 'run'))).orderBy(desc(activities.startTime)).limit(1);
+  const [strava] = await db.select().from(connectedAccounts).where(and(eq(connectedAccounts.athleteId, a.id), eq(connectedAccounts.provider, 'strava'))).limit(1);
   // Recent activities (all sports) with full timestamps — to confirm a specific run is imported.
   const recent = await db
     .select({
@@ -78,6 +79,21 @@ function anchorVdot(cfg: Record<string, unknown> | null): number | null {
   console.log(`  PLANS: ${pub.length} published, ${draft.length} draft`);
   console.log(`  THIS WEEK (${week}): published=${curPub ? 'YES' : 'no'} draft=${curDraft ? 'yes' : 'no'}`);
   console.log(`  RUNS: latest=${runs[0]?.st ? runs[0].st.toISOString().slice(0, 10) : 'NONE'}`);
+
+  // --- Strava connection (does private-activity scope + a valid token exist?) ---
+  console.log('\n  STRAVA CONNECTION:');
+  if (!strava) {
+    console.log('    NOT CONNECTED — no connected_accounts row. (Sync button shouldn’t even show.)');
+  } else {
+    const scopes = Array.isArray(strava.scopes) ? (strava.scopes as string[]).join(',') : strava.scopes ?? 'unknown';
+    const hasReadAll = typeof scopes === 'string' && scopes.includes('activity:read_all');
+    const exp = strava.tokenExpiresAt ? new Date(strava.tokenExpiresAt) : null;
+    const expired = exp ? exp.getTime() < Date.now() : null;
+    console.log(`    status=${strava.status}  ownerId=${strava.providerUserId ?? 'NULL'}`);
+    console.log(`    scopes=${scopes}  → private activities ${hasReadAll ? 'VISIBLE (read_all)' : 'NOT visible — reconnect needed if the run is private'}`);
+    console.log(`    token expires=${exp ? exp.toISOString() : 'NULL'} ${expired === true ? '(EXPIRED — refresh on next sync)' : expired === false ? '(valid)' : ''}`);
+    console.log(`    connected=${strava.connectedAt ? new Date(strava.connectedAt).toISOString().slice(0, 10) : '?'}  lastUpdated=${strava.updatedAt ? new Date(strava.updatedAt).toISOString() : '?'}`);
+  }
 
   // --- Recent activities (does the run in question exist? what VDOT does it imply?) ---
   console.log(`\n  RECENT ACTIVITIES (most recent ${recent.length}, times in UTC):`);
