@@ -177,7 +177,7 @@ function DayCell({ d, selected, onClick }: { d: CalDay; selected: boolean; onCli
       disabled={empty && !d.isToday}
       className={`flex min-h-[68px] flex-col items-center gap-1 rounded-xl px-1 py-1.5 text-center transition ${
         selected
-          ? 'bg-slate-900 text-white shadow-md'
+          ? 'bg-slate-900 text-[#0c1018] shadow-md ring-2 ring-inset ring-lime-400'
           : d.isToday
             ? 'bg-lime-300 text-[#0c1018]'
             : empty
@@ -185,7 +185,7 @@ function DayCell({ d, selected, onClick }: { d: CalDay; selected: boolean; onCli
               : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
       }`}
     >
-      <span className={`text-[9px] font-bold uppercase ${selected ? 'text-white/50' : d.isToday ? 'text-[#0c1018]/50' : 'text-slate-400'}`}>
+      <span className={`text-[9px] font-bold uppercase ${selected ? 'text-[#0c1018]/60' : d.isToday ? 'text-[#0c1018]/50' : 'text-slate-400'}`}>
         {DOW[d.dow]} {dayNum(d.day)}
       </span>
       {/* Planned target */}
@@ -195,13 +195,13 @@ function DayCell({ d, selected, onClick }: { d: CalDay; selected: boolean; onCli
           <span className="text-[10px] font-semibold leading-none tabular-nums">{mi(d.planned!.miles)}</span>
         </>
       ) : plannedType === 'rest' ? (
-        <span className={`text-[9px] ${selected ? 'text-white/40' : 'text-slate-500'}`}>rest</span>
+        <span className={`text-[9px] ${selected ? 'text-[#0c1018]/40' : 'text-slate-500'}`}>rest</span>
       ) : (
         <span className="text-[9px] text-transparent">·</span>
       )}
       {/* Actual outcome */}
       {glyph ? (
-        <span className={`text-[11px] font-bold leading-none ${selected ? 'text-white' : glyph.cls}`}>{glyph.mark}</span>
+        <span className={`text-[11px] font-bold leading-none ${glyph.cls || 'text-[#0c1018]'}`}>{glyph.mark}</span>
       ) : (
         <span className="text-[11px] leading-none text-transparent">·</span>
       )}
