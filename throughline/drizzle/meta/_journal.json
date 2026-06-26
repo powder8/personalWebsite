@@ -127,6 +127,13 @@
       "when": 1781972110109,
       "tag": "0017_majestic_golden_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1782461674470,
+      "tag": "0018_cool_mesmero",
+      "breakpoints": true
     }
   ]
 }

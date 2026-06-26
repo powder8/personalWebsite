@@ -11,7 +11,7 @@ import 'server-only';
 import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import type { DB } from '@/db';
 import { athletes, activities } from '@/db/schema';
-import { vdotFromRace, STANDARD_DISTANCES, gapFromSplits, type AthletePaceConfig, type GapSplit } from '@/engine/plan';
+import { vdotFromRace, STANDARD_DISTANCES, gapFromSplits, bestEffortAcross, type AthletePaceConfig, type GapSplit, type EffortSegment } from '@/engine/plan';
 import {
   getAthleteZones,
   getAthleteVdot,
@@ -113,6 +113,7 @@ export async function suggestAnchorCandidates(
       avgHr: activities.avgHr,
       maxHr: activities.maxHr,
       splits: activities.splits,
+      laps: activities.laps,
     })
     .from(activities)
     .where(
@@ -139,33 +140,63 @@ export async function suggestAnchorCandidates(
           : 0;
     if (m < MIN_M || t <= 0) continue;
     const isRace = isRaceEffort({ workoutType: r.workoutType, name: r.name, meters: m });
-    // A near-max-HR sustained effort is as trustworthy as a race for anchoring.
-    const trusted = isRace || isHardEffort({ avgHr: r.avgHr, maxHr: r.maxHr });
-    // Easy long runs (non-race, > half-marathon) under-estimate fitness, so skip
-    // them — but a marathon RACE is a valid, important anchor.
-    if (!isRace && m > MAX_M) continue;
-    // Fitness is an EFFORT measure: judge a hilly effort on grade-adjusted time
-    // so a tough climb doesn't under-rate VDOT (and a downhill doesn't inflate it).
     const gap = gapFromSplits(r.splits as GapSplit[] | null);
-    const effortT = gap?.significant ? Math.round(gap.gapSecPerKm * (m / 1000)) : t;
-    const raw = vdotFromRace({ distanceMeters: m, timeSeconds: effortT });
-    if (!Number.isFinite(raw) || raw < 20 || raw > 90) continue;
+
+    // (1) Whole-activity read (grade-adjusted when hilly). Skipped for long
+    // non-race runs, whose whole-activity average under-rates fitness — their
+    // best-effort block (below) still counts.
+    let useMeters = m;
+    let useT = t;
+    let useVdot: number | null = null;
+    let useAvgHr: number | null = r.avgHr;
+    let gradeAdjusted = false;
+    let climbMeters = 0;
+    if (isRace || m <= MAX_M) {
+      const effortT = gap?.significant ? Math.round(gap.gapSecPerKm * (m / 1000)) : t;
+      const wv = vdotFromRace({ distanceMeters: m, timeSeconds: effortT });
+      if (Number.isFinite(wv) && wv >= 20 && wv <= 90) {
+        useVdot = wv;
+        gradeAdjusted = !!gap?.significant;
+        climbMeters = gap?.climbMeters ?? 0;
+      }
+    }
+
+    // (2) Best sustained effort WITHIN the file (splits/laps) — teases a race or
+    // tempo out of a warm-up+effort+cool-down upload, or a rep out of a workout.
+    const best = bestEffortAcross(
+      r.splits as EffortSegment[] | null,
+      r.laps as EffortSegment[] | null,
+      MIN_M,
+      MAX_M,
+    );
+    if (best && (useVdot == null || best.vdot > useVdot)) {
+      useMeters = best.distanceMeters;
+      useT = best.durationSeconds;
+      useVdot = best.vdot;
+      useAvgHr = best.avgHr;
+      gradeAdjusted = false; // segment judged on raw pace
+      climbMeters = 0;
+    }
+    if (useVdot == null) continue;
+
+    // A near-max-HR sustained effort is as trustworthy as a race for anchoring.
+    const trusted = isRace || isHardEffort({ avgHr: useAvgHr, maxHr: r.maxHr });
     scored.push({
       day: r.startTime.toISOString().slice(0, 10),
       name: r.name,
-      distanceMeters: m,
-      durationSeconds: t,
-      distanceLabel: nearestStandard(m),
-      timeLabel: fmtTime(t),
-      paceLabel: paceMinPerMile(m, t),
-      gradeAdjusted: !!gap?.significant,
-      climbMeters: gap?.climbMeters ?? 0,
+      distanceMeters: useMeters,
+      durationSeconds: useT,
+      distanceLabel: nearestStandard(useMeters),
+      timeLabel: fmtTime(useT),
+      paceLabel: paceMinPerMile(useMeters, useT),
+      gradeAdjusted,
+      climbMeters,
       ts: r.startTime.getTime(),
-      rawVdot: raw,
+      rawVdot: useVdot,
       isRace,
       trusted,
       // nudge race-grade efforts ahead on ties
-      vdot: Math.round((raw + (isRace ? 0.0001 : 0)) * 10) / 10,
+      vdot: Math.round((useVdot + (isRace ? 0.0001 : 0)) * 10) / 10,
     });
   }
 

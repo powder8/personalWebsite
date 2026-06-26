@@ -29,6 +29,8 @@ export interface StravaActivity {
   map?: { summary_polyline?: string | null };
   /** Mile splits — present on DetailedActivity (webhook fetch), not list items. */
   splits_standard?: StravaSplit[];
+  /** Watch/interval laps — present on DetailedActivity; the true rep boundaries. */
+  laps?: StravaLap[];
 }
 
 export interface StravaSplit {
@@ -38,6 +40,13 @@ export interface StravaSplit {
   average_speed?: number; // m/s
   average_heartrate?: number;
   elevation_difference?: number; // meters
+}
+
+export interface StravaLap {
+  distance?: number; // meters
+  moving_time?: number; // seconds
+  elapsed_time?: number;
+  average_heartrate?: number;
 }
 
 interface TokenResponse {
@@ -178,6 +187,7 @@ export function normalizeActivity(a: StravaActivity): NonNullable<NormalizedBatc
       a.average_cadence != null ? Math.round(a.average_cadence * (isRun ? 2 : 1)) : null,
     trainingLoad: null, // derived later by the load model
     splits: normalizeSplits(a.splits_standard),
+    laps: normalizeLaps(a.laps),
     mapPolyline: a.map?.summary_polyline || null,
     sourceRef: `strava:${a.id}`,
   };
@@ -200,6 +210,21 @@ export function normalizeSplits(
         elevDiffMeters: s.elevation_difference ?? null,
       };
     });
+}
+
+/** Watch/interval laps → our stored shape (used to extract rep/effort blocks). */
+export function normalizeLaps(
+  laps: StravaLap[] | undefined,
+): { distanceMeters: number; durationSeconds: number; avgHr: number | null }[] | null {
+  if (!laps?.length) return null;
+  const out = laps
+    .filter((l) => (l.distance ?? 0) > 0 && (l.moving_time ?? l.elapsed_time ?? 0) > 0)
+    .map((l) => ({
+      distanceMeters: l.distance!,
+      durationSeconds: l.moving_time ?? l.elapsed_time ?? 0,
+      avgHr: l.average_heartrate != null ? Math.round(l.average_heartrate) : null,
+    }));
+  return out.length ? out : null;
 }
 
 /** Running surface from the provider sport_type (trail vs road), null if N/A. */
