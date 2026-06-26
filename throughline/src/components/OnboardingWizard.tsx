@@ -62,7 +62,7 @@ export function OnboardingWizard({
       {step === 'welcome' && (
         <div className="rounded-3xl bg-gradient-to-br from-indigo-600/30 via-[#10141f] to-[#0c0f17] p-7 text-center shadow-lg ring-1 ring-inset ring-indigo-400/30">
           <h1 className="text-2xl font-extrabold tracking-tight text-white">Welcome, {firstName} 👋</h1>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-300">
+          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-700">
             Throughline is your automatic running coach. Tell us a little about where you are and what you’re chasing,
             and we’ll build — and keep adapting — a real day-by-day plan to get you there.
           </p>
@@ -78,7 +78,7 @@ export function OnboardingWizard({
       {step === 'connect' && (
         <div className="rounded-3xl bg-[#11151f] p-7 shadow-lg ring-1 ring-inset ring-slate-700/50">
           <h2 className="text-xl font-bold tracking-tight text-white">Connect your runs</h2>
-          <p className="mt-2 text-sm leading-relaxed text-slate-300">
+          <p className="mt-2 text-sm leading-relaxed text-slate-700">
             Linking Strava is the best start — we’ll import your history and read your current fitness automatically, so
             your paces are right from day one. You can always do this later.
           </p>
@@ -114,7 +114,7 @@ export function OnboardingWizard({
       {step === 'plan' && (
         <div className="rounded-3xl bg-[#11151f] p-7 shadow-lg ring-1 ring-inset ring-slate-700/50">
           <h2 className="text-xl font-bold tracking-tight text-white">Your fitness & goal</h2>
-          <p className="mt-1 mb-4 text-sm text-slate-300">
+          <p className="mt-1 mb-4 text-sm text-slate-700">
             {hasAnchor
               ? 'Got your fitness from your runs. Now pick a goal and we’ll build the plan.'
               : 'A rough read of where you are and what you’re training for — we’ll handle the rest.'}

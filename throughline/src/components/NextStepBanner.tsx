@@ -43,7 +43,7 @@ export function NextStepBanner({
         <span aria-hidden>{step.emoji}</span>
         <span>{step.headline}</span>
       </h2>
-      <p className="mt-1.5 text-sm leading-relaxed text-slate-300">{step.detail}</p>
+      <p className="mt-1.5 text-sm leading-relaxed text-slate-700">{step.detail}</p>
 
       <div className="mt-3">
         {step.cta.type === 'ease_back' && easeDirectives.length > 0 && (

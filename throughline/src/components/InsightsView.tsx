@@ -120,7 +120,7 @@ export function InsightsView({ insights }: { insights: TrainingInsights }) {
         <ul className="space-y-2 text-sm text-slate-700">
           {insights.observations.map((o, i) => (
             <li key={i} className="flex gap-2">
-              <span className="text-slate-300">•</span>
+              <span className="text-slate-500">•</span>
               <span>{o}</span>
             </li>
           ))}

@@ -26,6 +26,7 @@ import { PlanTimeline } from '@/components/PlanTimeline';
 import { SESSION_COLOR, SESSION_LABEL, SESSION_TERRAIN } from '@/components/WeekStrip';
 import { TrainingCalendar } from '@/components/TrainingCalendar';
 import { getTrainingCalendar } from '@/server/trainingCalendar';
+import { SyncButton } from '@/components/SyncButton';
 import { SegmentList } from '@/components/SegmentList';
 import { NextStepBanner } from '@/components/NextStepBanner';
 import { getAdaptationState, easeBackDirectives } from '@/server/adaptation';
@@ -341,7 +342,7 @@ export default async function PortalPage({
 
       {/* ── YOUR TRAINING: one timeline, planned vs actual ───────────────── */}
       <SectionHeader>Your training</SectionHeader>
-      <Card title="Planned vs actual">
+      <Card title="Planned vs actual" action={strava.connected ? <SyncButton athleteId={athlete.id} /> : undefined}>
         {calendar.weeks.length > 0 ? (
           <TrainingCalendar weeks={calendar.weeks} today={today} athleteId={athlete.id} />
         ) : (

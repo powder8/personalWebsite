@@ -35,10 +35,10 @@ export function CrossTrainingCard({ summary }: { summary: CrossTrainingSummary }
           Cross-training · last 2 weeks
         </span>
       </div>
-      <div className="mt-1 text-sm font-semibold text-slate-100">
+      <div className="mt-1 text-sm font-semibold text-white">
         {summary.sessions} {label} session{summary.sessions === 1 ? '' : 's'}
-        {dur && <span className="font-normal text-slate-300"> · {dur}</span>}
-        {summary.miles > 0 && <span className="font-normal text-slate-300"> · {summary.miles} mi</span>}
+        {dur && <span className="font-normal text-slate-400"> · {dur}</span>}
+        {summary.miles > 0 && <span className="font-normal text-slate-400"> · {summary.miles} mi</span>}
       </div>
       <p className="mt-1 text-xs leading-relaxed text-slate-400">
         Nice aerobic work — this builds your engine with none of the pounding. It counts toward your consistency and

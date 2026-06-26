@@ -11,7 +11,7 @@ import type { Grounding } from '@/server/fitnessGrounding';
 const TONE: Record<Grounding['status'], { ring: string; bg: string; dot: string; label: string }> = {
   optimistic: { ring: 'ring-amber-400/30', bg: 'bg-amber-400/10', dot: 'bg-amber-400', label: 'text-amber-300' },
   conservative: { ring: 'ring-sky-400/30', bg: 'bg-sky-400/10', dot: 'bg-sky-400', label: 'text-sky-300' },
-  no_data: { ring: 'ring-slate-400/30', bg: 'bg-slate-400/10', dot: 'bg-slate-400', label: 'text-slate-300' },
+  no_data: { ring: 'ring-slate-400/30', bg: 'bg-slate-400/10', dot: 'bg-slate-400', label: 'text-slate-400' },
   confirmed: { ring: 'ring-emerald-400/30', bg: 'bg-emerald-400/10', dot: 'bg-emerald-400', label: 'text-emerald-300' },
 };
 

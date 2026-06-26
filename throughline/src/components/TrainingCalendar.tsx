@@ -135,7 +135,7 @@ function Week({
         </div>
         <div className="flex items-center gap-2 text-[11px] tabular-nums text-slate-500">
           <span>
-            {mi(week.actualMiles)}<span className="text-slate-300">/</span>{mi(week.plannedMiles)} mi
+            {mi(week.actualMiles)}<span className="text-slate-500">/</span>{mi(week.plannedMiles)} mi
           </span>
           {week.adherencePct != null && (
             <span
@@ -195,7 +195,7 @@ function DayCell({ d, selected, onClick }: { d: CalDay; selected: boolean; onCli
           <span className="text-[10px] font-semibold leading-none tabular-nums">{mi(d.planned!.miles)}</span>
         </>
       ) : plannedType === 'rest' ? (
-        <span className={`text-[9px] ${selected ? 'text-white/40' : 'text-slate-300'}`}>rest</span>
+        <span className={`text-[9px] ${selected ? 'text-white/40' : 'text-slate-500'}`}>rest</span>
       ) : (
         <span className="text-[9px] text-transparent">·</span>
       )}
