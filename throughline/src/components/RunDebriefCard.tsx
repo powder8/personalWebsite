@@ -115,17 +115,25 @@ export function RunDebriefCard({
         </div>
       </div>
 
-      {/* Cross-training — inline at the bottom, not a separate card */}
+      {/* Cross-training — styled block matching the rest of the debrief */}
       {crossTraining && crossTraining.sessions > 0 && (
-        <div className="mt-4 border-t border-white/10 pt-3">
+        <div className="mt-3 rounded-2xl bg-sky-400/15 p-4 ring-1 ring-inset ring-sky-400/30">
           <div className="flex items-center gap-2">
-            <span className="text-base">{xtIcons}</span>
-            <span className="text-xs font-semibold text-slate-300">
-              {crossTraining.sessions} cross-training session{crossTraining.sessions === 1 ? '' : 's'} · last 2 weeks
-            </span>
+            <span className="text-lg leading-none">{xtIcons}</span>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-200">
+              Cross-training · last 2 weeks
+            </div>
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">
-            Aerobic work with no impact — counts toward your consistency and weekly load.
+          <p className="mt-1.5 text-sm font-semibold text-white">
+            {crossTraining.sessions} session{crossTraining.sessions === 1 ? '' : 's'}
+            {crossTraining.sports.length > 0 && (
+              <span className="font-normal text-white/70">
+                {' '}· {crossTraining.sports.join(', ')}
+              </span>
+            )}
+          </p>
+          <p className="mt-1 text-xs text-white/60">
+            Aerobic work with no running impact — counts toward your streak and weekly load.
           </p>
         </div>
       )}
