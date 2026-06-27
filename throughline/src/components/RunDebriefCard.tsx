@@ -19,6 +19,7 @@ const SIGNAL_LABEL: Record<string, string> = {
   pace: 'Pace',
   distance: 'Distance',
   session: 'Session',
+  intervals: 'Intervals',
 };
 
 export function RunDebriefCard({ debrief, daysAgo }: { debrief: RunDebriefResult; daysAgo?: number }) {
@@ -35,15 +36,25 @@ export function RunDebriefCard({ debrief, daysAgo }: { debrief: RunDebriefResult
       {/* signal chips — the grounded facts the coach noticed */}
       {debrief.signals.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {debrief.signals.map((s, i) => (
-            <span
-              key={i}
-              title={s.fact}
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${CHIP[s.polarity]}`}
-            >
-              {SIGNAL_LABEL[s.key] ?? s.key}
-            </span>
-          ))}
+          {debrief.signals.map((s, i) =>
+            s.key === 'intervals' ? (
+              // Interval sessions: show the full stat line, not just the label
+              <span
+                key={i}
+                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ring-1 ring-inset ${CHIP[s.polarity]}`}
+              >
+                {s.fact}
+              </span>
+            ) : (
+              <span
+                key={i}
+                title={s.fact}
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${CHIP[s.polarity]}`}
+              >
+                {SIGNAL_LABEL[s.key] ?? s.key}
+              </span>
+            )
+          )}
         </div>
       )}
 

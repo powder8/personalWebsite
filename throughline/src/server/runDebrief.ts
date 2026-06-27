@@ -13,6 +13,7 @@ import { activities, plannedSessions, plans, sleepRecords, checkIns, activityFee
 import { gapFromSplits, type GapSplit } from '@/engine/plan';
 import { payloadHash } from '@/lib/hash';
 import { buildDebrief, type RunSignal, type DebriefInput } from '@/server/runDebriefLogic';
+import type { LapSeg } from '@/engine/plan/intervalDetection';
 import type { PlannedRef } from '@/server/runFeedbackLogic';
 
 const MI = 1609.344;
@@ -178,6 +179,7 @@ export async function getRunDebrief(
     reportedSurface: (report?.surface as 'road' | 'trail' | 'track' | 'treadmill' | null) ?? null,
     dayRunCount,
     dayTotalMiles,
+    laps: run.laps as LapSeg[] | null,
   };
 
   const debrief = buildDebrief(input);

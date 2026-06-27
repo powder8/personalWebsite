@@ -9,6 +9,7 @@
  */
 import { assessRun, type PlannedRef } from '@/server/runFeedbackLogic';
 import { secPerKmToMinPerMile } from '@/engine/plan';
+import { detectIntervals, type IntervalResult, type LapSeg } from '@/engine/plan/intervalDetection';
 
 export interface DebriefInput {
   planned: PlannedRef | null;
@@ -34,11 +35,14 @@ export interface DebriefInput {
   // assessed run is the primary effort; this gives the day its proper context.
   dayRunCount?: number;
   dayTotalMiles?: number;
+  // Watch laps — present when the athlete pressed the lap button. Used to
+  // detect interval sessions so the debrief speaks to reps, not avg pace.
+  laps?: LapSeg[] | null;
 }
 
 export type SignalPolarity = 'positive' | 'caution' | 'context';
 export interface RunSignal {
-  key: 'showed_up' | 'sleep' | 'feel' | 'stops' | 'terrain' | 'pace' | 'distance' | 'session';
+  key: 'showed_up' | 'sleep' | 'feel' | 'stops' | 'terrain' | 'pace' | 'distance' | 'session' | 'intervals';
   polarity: SignalPolarity;
   fact: string; // a grounded statement (no invention)
 }
@@ -53,7 +57,17 @@ export interface RunDebrief {
 const pm = (s: number) => `${secPerKmToMinPerMile(s)}/mi`;
 const QUALITY = new Set(['threshold', 'tempo', 'intervals', 'interval', 'marathon', 'race']);
 
+/** Round to nearest N meters for display (e.g. 197m → 200m). */
+function roundDist(m: number, to = 25): number {
+  return Math.round(m / to) * to;
+}
+
 export function buildDebrief(input: DebriefInput): RunDebrief {
+  // Detect interval session from lap data first. If confirmed, use a separate
+  // evaluation path — the whole-file avg pace is meaningless for rep workouts.
+  const iv = detectIntervals(input.laps);
+  if (iv) return buildIntervalDebrief(input, iv);
+
   const signals: RunSignal[] = [];
   const wentWell: string[] = [];
   const focusNext: string[] = [];
@@ -171,4 +185,58 @@ export function buildDebrief(input: DebriefInput): RunDebrief {
       : 'Done — one thing to tighten up';
 
   return { headline, signals, wentWell, focusNext };
+}
+
+/** Separate evaluation path for interval/rep sessions. */
+function buildIntervalDebrief(input: DebriefInput, iv: IntervalResult): RunDebrief {
+  const signals: RunSignal[] = [];
+  const wentWell: string[] = [];
+  const focusNext: string[] = [];
+
+  const repDist = roundDist(iv.repAvgDistMeters);
+  const effortPace = pm(iv.repAvgPaceSecPerKm);
+
+  signals.push({
+    key: 'intervals',
+    polarity: 'positive',
+    fact: `Track intervals: ${iv.repCount} rep${iv.repCount > 1 ? 's' : ''} × ~${repDist}m · avg effort ${effortPace}${iv.recoveryAvgPaceSecPerKm ? ` · recovery ~${pm(iv.recoveryAvgPaceSecPerKm)}` : ''}`,
+  });
+  wentWell.push(
+    `You ran ${iv.repCount} rep${iv.repCount > 1 ? 's' : ''} at ${effortPace} average — that's genuine speed work, and speed work is where top-end fitness is built.`,
+  );
+  focusNext.push(
+    "Intervals are high-cost: make the day after genuinely easy. If soreness or fatigue lingers into the second day, that's normal — don't rush back to quality work.",
+  );
+
+  // Wellness context (same checks as continuous runs)
+  const adverseSleep = input.sleepHours != null && input.sleepHours < (input.sleepNormHours != null ? input.sleepNormHours - 1.5 : 6);
+  const lowEnergy = input.energy != null && input.energy <= 4;
+  const sore = input.soreness != null && input.soreness >= 6;
+  const feltRough = input.reportedUnwell === true || input.reportedFeel === 'rough';
+  const adverse = adverseSleep || lowEnergy || sore || feltRough;
+
+  if (input.reportedUnwell) {
+    signals.push({ key: 'feel', polarity: 'context', fact: "You said you weren't feeling well." });
+  } else if (input.reportedFeel === 'rough') {
+    signals.push({ key: 'feel', polarity: 'context', fact: 'You said it felt rough.' });
+  } else if (input.reportedFeel === 'strong') {
+    signals.push({ key: 'feel', polarity: 'positive', fact: 'You said it felt strong.' });
+  }
+  if (adverseSleep) {
+    signals.push({ key: 'sleep', polarity: 'context', fact: `Slept ${input.sleepHours!.toFixed(1)}h${input.sleepNormHours ? ` (below your ~${input.sleepNormHours.toFixed(1)}h norm)` : ' (short)'}.` });
+  }
+  if (lowEnergy) signals.push({ key: 'feel', polarity: 'context', fact: `Energy was low going in (${input.energy}/10).` });
+  if (sore) signals.push({ key: 'feel', polarity: 'context', fact: `Soreness was elevated (${input.soreness}/10).` });
+
+  if (adverse) {
+    wentWell.push('Running intervals on a less-than-fresh day takes grit — the adaptation still counts.');
+    focusNext.push('With limited sleep or energy, recovery from intervals takes longer. Dial down volume in the next couple of days and sleep is the priority.');
+  }
+
+  return {
+    headline: `${iv.repCount} × ~${repDist}m intervals`,
+    signals,
+    wentWell,
+    focusNext,
+  };
 }
