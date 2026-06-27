@@ -153,12 +153,6 @@ export default async function PortalPage({
               <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/90 ring-1 ring-inset ring-white/15">
                 {athlete.coachingMode === 'assisted' ? 'Coach-guided' : 'Auto-coached'}
               </span>
-              <Link
-                href={`/me/${athlete.id}/settings`}
-                className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/60 ring-1 ring-inset ring-white/10 hover:bg-white/15 hover:text-white/90"
-              >
-                ⚙ Settings
-              </Link>
             </div>
           </div>
           {goalRace.daysAway != null && goalRace.daysAway >= 0 && (

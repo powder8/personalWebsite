@@ -196,19 +196,63 @@ function buildIntervalDebrief(input: DebriefInput, iv: IntervalResult): RunDebri
   const repDist = roundDist(iv.repAvgDistMeters);
   const effortPace = pm(iv.repAvgPaceSecPerKm);
 
+  // Recovery label for the signal chip
+  const recoveryLabel = iv.recoveryAvgPaceSecPerKm
+    ? ` · ${iv.recoveryType === 'walk' ? 'walk' : iv.recoveryType === 'jog' ? 'jog' : 'float'} recovery ~${pm(iv.recoveryAvgPaceSecPerKm)}`
+    : '';
+  const workRestLabel =
+    iv.workRestRatioTime != null ? ` (1:${(1 / iv.workRestRatioTime).toFixed(1)} work:rest)` : '';
+
   signals.push({
     key: 'intervals',
     polarity: 'positive',
-    fact: `Track intervals: ${iv.repCount} rep${iv.repCount > 1 ? 's' : ''} × ~${repDist}m · avg effort ${effortPace}${iv.recoveryAvgPaceSecPerKm ? ` · recovery ~${pm(iv.recoveryAvgPaceSecPerKm)}` : ''}`,
+    fact: `${iv.repCount} × ~${repDist}m at ${effortPace}${recoveryLabel}${workRestLabel}`,
   });
+
+  // What went well: what the recovery type says about what was trained
+  const trainingDescription =
+    iv.recoveryType === 'walk'
+      ? 'Walking recovery means near-complete rest — each rep is a fresh, explosive effort. This targets neuromuscular speed and top-end power.'
+      : iv.recoveryType === 'float'
+        ? 'Float recovery keeps the aerobic system engaged — the short rest forces your body to buffer lactate and clear it faster. This targets threshold capacity.'
+        : 'Jogging recovery keeps aerobic demand high while delivering near-full-effort reps — the hallmark of VO2max development work.';
+
   wentWell.push(
-    `You ran ${iv.repCount} rep${iv.repCount > 1 ? 's' : ''} at ${effortPace} average — that's genuine speed work, and speed work is where top-end fitness is built.`,
-  );
-  focusNext.push(
-    "Intervals are high-cost: make the day after genuinely easy. If soreness or fatigue lingers into the second day, that's normal — don't rush back to quality work.",
+    `${iv.repCount} reps at ${effortPace} average — that is genuine high-intensity work. ${trainingDescription}`,
   );
 
-  // Wellness context (same checks as continuous runs)
+  // Pace consistency
+  if (iv.paceFadePct != null && iv.paceFadePct <= 2) {
+    wentWell.push(
+      `Rep pace held from first to last — ${iv.paceFadePct < 0 ? 'you ran a negative split, getting stronger as the set went on' : 'excellent consistency across the set'}.`,
+    );
+  }
+
+  // Focus: pace fade if significant
+  if (iv.paceFadePct != null && iv.paceFadePct > 5) {
+    focusNext.push(
+      `Pace faded ${iv.paceFadePct}% from the first half to the second half of the set. The opening reps were likely a touch fast, or fatigue accumulated. Starting just slightly more conservatively next time will let you hold quality all the way through.`,
+    );
+  } else if (iv.recoveryType === 'jog') {
+    focusNext.push(
+      `Recovery quality matters as much as the reps — keep your jogs truly conversational. If you need to walk the last 20 seconds before the next rep to feel ready, do it. Full recovery means full effort on every rep.`,
+    );
+  } else if (iv.recoveryType === 'walk') {
+    focusNext.push(
+      `The test of whether rest was sufficient: did rep pace hold? If the last reps were noticeably slower, take a few extra seconds next time. Walking recovery is not a shortcut — it is the prescription.`,
+    );
+  } else if (iv.recoveryType === 'float') {
+    focusNext.push(
+      `Float recovery is demanding — your system never fully restores before the next rep. That is intentional, but it means the days after need to be genuinely easy to absorb the adaptation.`,
+    );
+  }
+
+  // General post-interval recovery rule (always)
+  focusNext.push(
+    "Intervals are high-cost: the day after should be genuinely easy. If soreness or fatigue lingers into the second day, that is normal — do not rush back to quality work.",
+  );
+
+  // Wellness context
   const adverseSleep = input.sleepHours != null && input.sleepHours < (input.sleepNormHours != null ? input.sleepNormHours - 1.5 : 6);
   const lowEnergy = input.energy != null && input.energy <= 4;
   const sore = input.soreness != null && input.soreness >= 6;
@@ -229,8 +273,8 @@ function buildIntervalDebrief(input: DebriefInput, iv: IntervalResult): RunDebri
   if (sore) signals.push({ key: 'feel', polarity: 'context', fact: `Soreness was elevated (${input.soreness}/10).` });
 
   if (adverse) {
-    wentWell.push('Running intervals on a less-than-fresh day takes grit — the adaptation still counts.');
-    focusNext.push('With limited sleep or energy, recovery from intervals takes longer. Dial down volume in the next couple of days and sleep is the priority.');
+    wentWell.push('Running quality work on a less-than-fresh day takes grit — the adaptation still counts.');
+    focusNext.push('With limited sleep or energy, recovery from intervals takes longer. Dial down volume in the next couple of days and make sleep the priority.');
   }
 
   return {

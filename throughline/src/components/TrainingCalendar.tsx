@@ -257,11 +257,13 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
       {d.verdict && (
         <div
           className={`rounded-lg p-2 text-xs ${
-            d.verdict.positive ? 'bg-emerald-400/10 text-emerald-800' : 'bg-amber-400/10 text-amber-800'
+            d.verdict.positive
+              ? 'bg-emerald-400/15 text-emerald-300 ring-1 ring-inset ring-emerald-400/30'
+              : 'bg-amber-400/15 text-amber-300 ring-1 ring-inset ring-amber-400/30'
           }`}
         >
           <div className="font-semibold">{d.verdict.headline}</div>
-          <p className="mt-0.5 leading-snug">{d.verdict.detail}</p>
+          <p className="mt-0.5 leading-snug opacity-80">{d.verdict.detail}</p>
         </div>
       )}
 
@@ -281,7 +283,7 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
 
       {/* Today, still to do */}
       {d.isToday && d.status === 'upcoming' && d.planned && d.planned.miles > 0 && (
-        <p className="text-xs font-medium text-sky-700">Still on today’s plan — go get it. 🏃</p>
+        <p className="text-xs font-medium text-sky-400">Still on today’s plan — go get it. 🏃</p>
       )}
 
       {/* Missed-but-cross-trained reassurance */}
