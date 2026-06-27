@@ -1,5 +1,7 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { redirect, notFound } from 'next/navigation';
+import { auth, signOut } from '@/auth';
+import { authConfigured } from '@/auth.config';
 import { getAthletePortal } from '@/server/portal';
 import { getTrainingInsights } from '@/server/insights';
 import { Card } from '@/components/ui';
@@ -61,6 +63,8 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
   const hasAnchor = hasAnchorRaw != null;
   const cycleStatus = computeCycle(cycleSettings, today);
 
+  const session = authConfigured() ? await auth() : null;
+
   const { athlete, goalRace, unavailable, checkedInToday, recentCheckIns, strava } = portal;
   const todayCheckIn = recentCheckIns.find((c) => c.day === today) ?? null;
   const goalDone = !!goalRace.name && goalRace.daysAway != null && goalRace.daysAway < 0;
@@ -81,6 +85,35 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
         </Link>
         <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">· Settings</span>
       </div>
+
+      {/* ── ACCOUNT ──────────────────────────────────────────────────────── */}
+      <SectionHeader>Account</SectionHeader>
+      <Card>
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <p className="font-semibold text-slate-800">{athlete.fullName}</p>
+            <p className="text-sm text-slate-500">{session?.user?.email ?? athlete.email}</p>
+            <p className="text-xs text-slate-400">
+              {athlete.coachingMode === 'autonomous' ? 'Auto-coached — AI builds and adjusts your plan' : 'Coach-guided — your coach reviews and adjusts the plan'}
+            </p>
+          </div>
+          {session && authConfigured() && (
+            <form
+              action={async () => {
+                'use server';
+                await signOut({ redirectTo: '/signin' });
+              }}
+            >
+              <button
+                type="submit"
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-500 hover:border-slate-300 hover:text-slate-700"
+              >
+                Sign out
+              </button>
+            </form>
+          )}
+        </div>
+      </Card>
 
       {/* ── STRAVA ───────────────────────────────────────────────────────── */}
       <SectionHeader>Sync</SectionHeader>

@@ -88,9 +88,14 @@ export default async function RootLayout({
                   </Link>
                 </>
               ) : (
-                <Link href="/me" className="text-slate-600 hover:text-slate-900">
-                  My training
-                </Link>
+                <>
+                  <Link href="/me" className="text-slate-600 hover:text-slate-900">
+                    My training
+                  </Link>
+                  <Link href="/me/settings" className="text-slate-600 hover:text-slate-900">
+                    Settings
+                  </Link>
+                </>
               )}
               {authConfigured() &&
                 (session?.user ? (

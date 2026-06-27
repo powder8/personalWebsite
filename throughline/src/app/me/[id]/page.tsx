@@ -6,7 +6,6 @@ import { secPerKmToMinPerMile } from '@/engine/plan';
 import { CheckInForm } from '@/components/CheckInForm';
 import { TrainingChat } from '@/components/TrainingChat';
 import { chatConfigured } from '@/server/chat';
-import { CrossTrainingCard } from '@/components/CrossTrainingCard';
 import { SyncButton } from '@/components/SyncButton';
 import { GoalSetup } from '@/components/GoalSetup';
 import { getAthleteVdot } from '@/db/paceConfig';
@@ -253,10 +252,15 @@ export default async function PortalPage({
         </Card>
       )}
 
-      {/* Latest run debrief */}
+      {/* Latest run debrief — cross-training folded in at the bottom */}
       {latestDebrief ? (
         <Link href={`/me/${athlete.id}/runs/${latestRun!.activityId}`} className="block transition hover:opacity-95">
-          <RunDebriefCard debrief={latestDebrief} daysAgo={latestRun!.daysAgo} />
+          <RunDebriefCard
+            debrief={latestDebrief}
+            daysAgo={latestRun!.daysAgo}
+            dayMiles={latestRun!.dayMiles}
+            crossTraining={crossTraining.sessions > 0 ? crossTraining : null}
+          />
         </Link>
       ) : (
         latestRun && (
@@ -264,10 +268,7 @@ export default async function PortalPage({
         )
       )}
 
-      {/* Cross-training credit */}
-      <CrossTrainingCard summary={crossTraining} />
-
-      {/* Nothing logged → constructive nudge */}
+      {/* Nothing logged at all → constructive nudge */}
       {!latestRun && crossTraining.sessions === 0 && !calendar.hasActuals && (
         <Card title="No activity logged yet">
           <p className="text-sm text-slate-600">
