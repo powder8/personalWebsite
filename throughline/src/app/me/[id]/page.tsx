@@ -1,32 +1,17 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getAthletePortal } from '@/server/portal';
-import { getTrainingInsights } from '@/server/insights';
 import { Card } from '@/components/ui';
 import { secPerKmToMinPerMile } from '@/engine/plan';
 import { CheckInForm } from '@/components/CheckInForm';
-import { AvailabilityForm } from '@/components/AvailabilityForm';
-import { CalendarSubscribe } from '@/components/CalendarSubscribe';
-import { ConnectStrava } from '@/components/ConnectStrava';
 import { TrainingChat } from '@/components/TrainingChat';
 import { chatConfigured } from '@/server/chat';
-import { CycleTracking } from '@/components/CycleTracking';
-import { getCycle, computeCycle } from '@/server/cycle';
-import { WeeklyVolumeChart } from '@/components/WeeklyVolumeChart';
-import { getTrainingSummary, getRecentCrossTraining } from '@/server/weeklyVolume';
 import { CrossTrainingCard } from '@/components/CrossTrainingCard';
-import { ShoesPanel } from '@/components/ShoesPanel';
-import { listShoesWithMileage, listRecentRunsForShoes } from '@/server/shoes';
+import { SyncButton } from '@/components/SyncButton';
 import { GoalSetup } from '@/components/GoalSetup';
 import { getAthleteVdot } from '@/db/paceConfig';
-import { getSeasonTimeline } from '@/server/blocks';
-import { getRacePlan } from '@/server/racePlan';
-import { RacePlanCard } from '@/components/RacePlanCard';
-import { PlanTimeline } from '@/components/PlanTimeline';
-import { SESSION_COLOR, SESSION_LABEL, SESSION_TERRAIN } from '@/components/WeekStrip';
 import { TrainingCalendar } from '@/components/TrainingCalendar';
 import { getTrainingCalendar } from '@/server/trainingCalendar';
-import { SyncButton } from '@/components/SyncButton';
 import { SegmentList } from '@/components/SegmentList';
 import { NextStepBanner } from '@/components/NextStepBanner';
 import { getAdaptationState, easeBackDirectives } from '@/server/adaptation';
@@ -38,9 +23,11 @@ import { getLatestRunFeedback } from '@/server/runFeedback';
 import { RunDebriefCard } from '@/components/RunDebriefCard';
 import { getRunDebrief } from '@/server/runDebrief';
 import { BottomNav } from '@/components/BottomNav';
+import { getRecentCrossTraining } from '@/server/weeklyVolume';
 import { getDb } from '@/db';
 import { ensureSeasonCoverage } from '@/server/seasonCoverage';
 import { todayISO } from '@/server/console';
+import { SESSION_COLOR, SESSION_LABEL, SESSION_TERRAIN } from '@/components/WeekStrip';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,52 +38,38 @@ function miles(m: number | null): string {
   return m == null || m <= 0 ? '—' : (m / 1609.344).toFixed(1);
 }
 
-/**
- * Athlete-facing portal. Reads top-to-bottom as a story: goal (hero) → today →
- * the season's blocks → this week → progress → your inputs → setup.
- */
 export default async function PortalPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ import?: string; strava?: string }>;
+  searchParams: Promise<{ import?: string }>;
 }) {
   const { id } = await params;
   const { import: importFlag } = await searchParams;
-  const autoImportStrava = importFlag === '1'; // just connected → auto-run import
+  const autoImportStrava = importFlag === '1';
 
-  // Self-heal coverage before reading: an athlete with a live plan should never
-  // see an empty current week (publish the rolling horizon; regenerate if a
-  // goaled athlete has no plan at all). Never let this break the page.
   const db = await getDb();
   try {
     await ensureSeasonCoverage(db, id, todayISO());
   } catch {
-    /* coverage is best-effort; fall through to whatever exists */
+    /* coverage is best-effort */
   }
 
   const portal = await getAthletePortal(id);
   if (!portal) notFound();
-  const insights = await getTrainingInsights(id);
-  const cycleSettings = await getCycle(db, id);
-  const cycleStatus = computeCycle(cycleSettings, portal.today);
-  const trainingSummary = await getTrainingSummary(db, id, portal.today, 12);
-  const shoes = await listShoesWithMileage(db, id);
-  const recentRuns = await listRecentRunsForShoes(db, id, 12);
-  const hasAnchor = (await getAthleteVdot(db, id)) != null;
-  const timeline = await getSeasonTimeline(db, id, portal.today);
-  const racePlan = await getRacePlan(db, id, portal.today);
-  const adaptation = await getAdaptationState(id, portal.today);
-  const consistency = await getConsistency(id, portal.today);
-  const latestRun = await getLatestRunFeedback(id, portal.today);
-  // The richer debrief for the latest run, surfaced right on the portal
-  // (deterministic here to keep portal loads cheap; the run page narrates).
+
+  const [hasAnchorRaw, adaptation, consistency, latestRun, calendar, crossTraining] = await Promise.all([
+    getAthleteVdot(db, id),
+    getAdaptationState(id, portal.today),
+    getConsistency(id, portal.today),
+    getLatestRunFeedback(id, portal.today),
+    getTrainingCalendar(id, portal.today),
+    getRecentCrossTraining(db, id, portal.today),
+  ]);
+
+  const hasAnchor = hasAnchorRaw != null;
   const latestDebrief = latestRun ? await getRunDebrief(id, latestRun.activityId, { narrate: false }) : null;
-  // Unified planned-vs-actual calendar — the portal centerpiece.
-  const calendar = await getTrainingCalendar(id, portal.today);
-  // Recent cross-training — credited for aerobic work (not run-pace fitness).
-  const crossTraining = await getRecentCrossTraining(db, id, portal.today);
 
   const {
     athlete,
@@ -105,7 +78,6 @@ export default async function PortalPage({
     todaySession,
     thisWeek,
     goalRace,
-    unavailable,
     checkedInToday,
     recentCheckIns,
     strava,
@@ -113,13 +85,10 @@ export default async function PortalPage({
 
   const firstName = athlete.fullName.split(' ')[0];
   const todayCheckIn = recentCheckIns.find((c) => c.day === today) ?? null;
-  const currentPhase = timeline?.blocks.find((b) => b.current)?.phase ?? thisWeek?.phase ?? null;
-  // Goal lifecycle: no goal → get one set; goal in the past → celebrate + restart.
   const goalDone = !!goalRace.name && goalRace.daysAway != null && goalRace.daysAway < 0;
   const needsGoal = !goalRace.name || goalDone;
-
-  // The single "do this next" guide — one focal action for whatever state.
   const ranToday = latestRun?.day === today || adaptation?.layoffDays === 0;
+
   const nextStep = decideNextStep({
     firstName,
     hasAnchor,
@@ -145,7 +114,7 @@ export default async function PortalPage({
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-20 sm:pb-4">
-      {/* ── NEXT STEP: the one thing to do right now (any lifecycle state) ── */}
+      {/* ── NEXT STEP ────────────────────────────────────────────────────── */}
       <NextStepBanner
         step={nextStep}
         athleteId={athlete.id}
@@ -153,7 +122,7 @@ export default async function PortalPage({
         latestActivityId={latestRun?.activityId ?? null}
       />
 
-      {/* ── HERO: who you are + what you're chasing ─────────────────────── */}
+      {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 text-white shadow-lg">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -161,7 +130,7 @@ export default async function PortalPage({
             {goalDone ? (
               <>
                 <h1 className="mt-2 truncate text-2xl font-bold tracking-tight">You raced {goalRace.name}! 🎉</h1>
-                <p className="mt-0.5 text-sm text-lime-300">That chapter’s done — time to pick the next one.</p>
+                <p className="mt-0.5 text-sm text-lime-300">That chapter's done — time to pick the next one.</p>
               </>
             ) : goalRace.name ? (
               <>
@@ -172,16 +141,11 @@ export default async function PortalPage({
               <>
                 <h1 className="mt-2 text-2xl font-bold tracking-tight">What are you chasing?</h1>
                 <p className="mt-0.5 text-sm text-slate-400">
-                  Training works when it points somewhere. Set a goal below and we’ll build your plan.
+                  Training works when it points somewhere. Set a goal below and we'll build your plan.
                 </p>
               </>
             )}
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              {currentPhase && (
-                <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold capitalize text-white/90 ring-1 ring-inset ring-white/15">
-                  {currentPhase} block
-                </span>
-              )}
               {readiness.band && (
                 <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold capitalize text-white/90 ring-1 ring-inset ring-white/15">
                   Readiness: {readiness.band}
@@ -190,6 +154,12 @@ export default async function PortalPage({
               <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/90 ring-1 ring-inset ring-white/15">
                 {athlete.coachingMode === 'assisted' ? 'Coach-guided' : 'Auto-coached'}
               </span>
+              <Link
+                href={`/me/${athlete.id}/settings`}
+                className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/60 ring-1 ring-inset ring-white/10 hover:bg-white/15 hover:text-white/90"
+              >
+                ⚙ Settings
+              </Link>
             </div>
           </div>
           {goalRace.daysAway != null && goalRace.daysAway >= 0 && (
@@ -202,8 +172,7 @@ export default async function PortalPage({
           )}
         </div>
 
-        {/* Up today — inside the hero so goal and action read as one unit.
-            Once today's run is logged, the prescription is stale → show "done". */}
+        {/* Up today */}
         <div className="mt-5 rounded-2xl bg-white/10 p-4 ring-1 ring-inset ring-white/10">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-lime-300">
             {ranToday ? 'Today' : 'Up today'}
@@ -224,9 +193,7 @@ export default async function PortalPage({
             </div>
           ) : todaySession ? (
             <div className="mt-1.5 flex items-center gap-3">
-              <span
-                className={`h-9 w-9 shrink-0 rounded-xl ${SESSION_COLOR[todaySession.sessionType] ?? 'bg-slate-400'}`}
-              />
+              <span className={`h-9 w-9 shrink-0 rounded-xl ${SESSION_COLOR[todaySession.sessionType] ?? 'bg-slate-400'}`} />
               <div className="min-w-0">
                 <div className="text-lg font-bold leading-tight tracking-tight">
                   {SESSION_LABEL[todaySession.sessionType] ?? todaySession.sessionType}
@@ -263,30 +230,30 @@ export default async function PortalPage({
               </div>
             </div>
           )}
-          {readiness.sentence && <p className="mt-3 border-t border-white/10 pt-2 text-xs text-slate-400">{readiness.sentence}</p>}
+          {readiness.sentence && (
+            <p className="mt-3 border-t border-white/10 pt-2 text-xs text-slate-400">{readiness.sentence}</p>
+          )}
         </div>
       </div>
 
-      {/* Goal setup — prominent (and open) whenever there's no LIVE goal:
-          never trained with us yet, or the goal race just happened. */}
+      {/* Goal setup — shown when there's no live goal */}
       <div id="goal-setup" className="scroll-mt-4" />
       {needsGoal && (
         <Card
-          title={goalDone ? 'What’s next?' : 'What are you training for?'}
+          title={goalDone ? "What's next?" : 'What are you training for?'}
           className="border-lime-400/30 ring-1 ring-inset ring-lime-400/30"
         >
           {goalDone && (
             <p className="mb-3 text-sm text-slate-600">
-              Congrats on {goalRace.name}! The fitness you built is a launchpad — momentum fades fast if it doesn’t
-              point at something. Another race, a faster time, or just holding your fitness — pick the next goal and
-              we’ll build the plan.
+              Congrats on {goalRace.name}! The fitness you built is a launchpad — momentum fades fast if it
+              doesn't point at something. Pick the next goal and we'll build the plan.
             </p>
           )}
           <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal={!!goalRace.name} startOpen />
         </Card>
       )}
 
-      {/* Your latest run, evaluated — the full debrief, with a link to details */}
+      {/* Latest run debrief */}
       {latestDebrief ? (
         <Link href={`/me/${athlete.id}/runs/${latestRun!.activityId}`} className="block transition hover:opacity-95">
           <RunDebriefCard debrief={latestDebrief} daysAgo={latestRun!.daysAgo} />
@@ -297,168 +264,44 @@ export default async function PortalPage({
         )
       )}
 
-      {/* Cross-training credit — your rides build the engine, even between runs */}
+      {/* Cross-training credit */}
       <CrossTrainingCard summary={crossTraining} />
 
-      {/* Nothing logged lately → a constructive nudge, not a blank space */}
+      {/* Nothing logged → constructive nudge */}
       {!latestRun && crossTraining.sessions === 0 && !calendar.hasActuals && (
         <Card title="No activity logged yet">
           <p className="text-sm text-slate-600">
-            Your runs and rides show up here automatically once Strava is connected — with a coach’s debrief on every
-            run. Until then, this is where today’s session and your recent training will live.
+            Your runs and rides show up here automatically once Strava is connected — with a coach's debrief on
+            every run.
           </p>
-          <a href="#setup" className="mt-3 inline-block text-sm font-medium text-violet-300 hover:underline">
-            Connect Strava to auto-import →
-          </a>
-        </Card>
-      )}
-
-      {/* Consistency / streak — positive reinforcement */}
-      {consistency?.show && <ConsistencyStrip stats={consistency} />}
-
-      {/* Chat — ask anything or change the plan */}
-      <Card title="Your coach, on demand">
-        <TrainingChat athleteId={athlete.id} configured={chatConfigured()} />
-      </Card>
-
-      {/* ── YOUR SEASON: the blocks that push your fitness ──────────────── */}
-      <div id="season" className="scroll-mt-4" />
-      {timeline && timeline.blocks.length > 0 && (
-        <Card title="Your season — block by block">
-          <PlanTimeline timeline={timeline} />
-          <p className="mt-3 text-[11px] text-slate-400">
-            Each block stresses a different system — aerobic base, race-specific work, then a taper so you arrive
-            fresh. Races are placed to sharpen, not interrupt.
-          </p>
-        </Card>
-      )}
-
-      {/* Race plan: fitness-grounded target window + warm-up race windows */}
-      {racePlan && (
-        <Card title="Race plan">
-          <RacePlanCard plan={racePlan} athleteId={athlete.id} />
-        </Card>
-      )}
-
-      {/* ── YOUR TRAINING: one timeline, planned vs actual ───────────────── */}
-      <SectionHeader>Your training</SectionHeader>
-      <Card title="Planned vs actual" action={strava.connected ? <SyncButton athleteId={athlete.id} /> : undefined}>
-        {calendar.weeks.length > 0 ? (
-          <TrainingCalendar weeks={calendar.weeks} today={today} athleteId={athlete.id} />
-        ) : (
-          <p className="text-sm text-slate-500">No published plan yet — set a goal above and your calendar fills in.</p>
-        )}
-      </Card>
-
-      {/* ── PROGRESS: is the work working? ──────────────────────────────── */}
-      <div id="progress" className="scroll-mt-4" />
-      <SectionHeader>Your progress</SectionHeader>
-      {insights?.buildProfile && (
-        <Card title="What drives your fitness">
-          <p className="text-sm text-slate-700">
-            <span className="font-medium">Across your {insights.buildProfile.count} most productive blocks:</span>{' '}
-            typically ~{insights.buildProfile.medianWeeklyMiles} mi/wk on ~
-            {insights.buildProfile.medianRunDaysPerWeek} run-days/wk
-            {insights.buildProfile.medianQualityPerWeek != null
-              ? `, ~${insights.buildProfile.medianQualityPerWeek} quality sessions/wk`
-              : ''}
-            .
-          </p>
-          {insights.suggestions[0] && (
-            <p className="mt-2 text-sm text-slate-600">
-              <span className="font-medium text-slate-700">Consider:</span> {insights.suggestions[0].text}
-            </p>
-          )}
-          <Link
-            href={`/me/${athlete.id}/insights`}
-            className="mt-2 inline-block text-sm font-medium text-sky-300 hover:underline"
-          >
-            See what drove your best fitness →
+          <Link href={`/me/${athlete.id}/settings`} className="mt-3 inline-block text-sm font-medium text-sky-300 hover:underline">
+            Connect Strava in settings →
           </Link>
         </Card>
       )}
 
-      <Card title="Last 12 weeks">
-        <WeeklyVolumeChart summary={trainingSummary} runLinkBase={`/me/${athlete.id}/runs`} />
-      </Card>
+      {/* Consistency / streak */}
+      {consistency?.show && <ConsistencyStrip stats={consistency} />}
 
-      {/* ── CHECK IN & ADJUST ────────────────────────────────────────────── */}
-      <SectionHeader>Check in &amp; adjust</SectionHeader>
-      <Card title={checkedInToday ? 'Today’s check-in ✓' : 'How are you feeling?'}>
-        {checkedInToday && todayCheckIn && (
-          <p className="mb-3 text-xs text-slate-500">
-            Soreness {todayCheckIn.soreness ?? '—'} · Energy {todayCheckIn.energy ?? '—'} · Yesterday RPE{' '}
-            {todayCheckIn.yesterdayRpe ?? '—'}. You can update it below.
+      {/* ── TRAINING CALENDAR ────────────────────────────────────────────── */}
+      <div id="training" className="scroll-mt-4" />
+      <Card title="Planned vs actual" action={strava.connected ? <SyncButton athleteId={athlete.id} /> : undefined}>
+        {calendar.weeks.length > 0 ? (
+          <TrainingCalendar weeks={calendar.weeks} today={today} athleteId={athlete.id} />
+        ) : (
+          <p className="text-sm text-slate-500">
+            No published plan yet — set a goal above and your calendar fills in.
           </p>
         )}
-        <CheckInForm
-          athleteId={athlete.id}
-          day={today}
-          initial={todayCheckIn ? { soreness: todayCheckIn.soreness, energy: todayCheckIn.energy, yesterdayRpe: todayCheckIn.yesterdayRpe } : null}
-        />
       </Card>
 
-      <Card title="Need to adjust your training?">
-        <p className="mb-3 text-xs text-slate-500">
-          Travelling, slammed, or sick? Tell your coach what you need and the plan reshapes around it.
-        </p>
-        <AvailabilityForm athleteId={athlete.id} />
-        {unavailable.length > 0 && (
-          <ul className="mt-3 space-y-1 border-t border-slate-100 pt-3 text-sm">
-            {unavailable.map((d) => (
-              <li key={d.id} className="text-slate-700">
-                {d.from}
-                {d.to && d.to !== d.from ? ` → ${d.to}` : ''}
-                {d.label ? ` · ${d.label}` : ''}
-              </li>
-            ))}
-          </ul>
-        )}
+      {/* ── CHAT ─────────────────────────────────────────────────────────── */}
+      <div id="chat" className="scroll-mt-4" />
+      <Card title="Your coach, on demand">
+        <TrainingChat athleteId={athlete.id} configured={chatConfigured()} />
       </Card>
 
-      {goalRace.name && !needsGoal && (
-        <Card title="Change your goal or race">
-          <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal />
-        </Card>
-      )}
-
-      {/* Cycle tracking — only for athletes who've said it's relevant (female)
-          or already turned it on. Hidden by default otherwise (no noise). */}
-      {(athlete.sex === 'female' || cycleSettings.enabled) && (
-        <Card title="Cycle tracking">
-          <CycleTracking athleteId={athlete.id} initial={cycleSettings} status={cycleStatus} dismissable />
-        </Card>
-      )}
-
-      {/* ── SETUP & GEAR ─────────────────────────────────────────────────── */}
-      <div id="setup" className="scroll-mt-4" />
-      <SectionHeader>Setup &amp; gear</SectionHeader>
-      <Card title="Connect your watch (via Strava)">
-        <ConnectStrava
-          athleteId={athlete.id}
-          connected={strava.connected}
-          configured={strava.configured}
-          lastActivityDay={strava.lastActivityDay}
-          firstActivityDay={strava.firstActivityDay}
-          activityCount={strava.activityCount}
-          autoImport={autoImportStrava}
-        />
-      </Card>
-
-      <Card title="Shoe mileage">
-        <ShoesPanel athleteId={athlete.id} shoes={shoes} recentRuns={recentRuns} />
-      </Card>
-
-      <Card title="Put your plan in your calendar">
-        <CalendarSubscribe athleteId={athlete.id} />
-      </Card>
-
-      <BottomNav />
+      <BottomNav athleteId={athlete.id} />
     </div>
   );
-}
-
-/** Small uppercase divider label that groups the cards into sections. */
-function SectionHeader({ children }: { children: React.ReactNode }) {
-  return <h2 className="px-1 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{children}</h2>;
 }
