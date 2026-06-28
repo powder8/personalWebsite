@@ -18,6 +18,8 @@ export interface ConsistencyStats {
   longestStreak: number; // best active run within the window
   weeksTracked: number; // completed weeks with a due adherence value
   weeksHit: number; // of those, weeks at >=80% adherence
+  /** Of the last 4 calendar weeks, how many had ≥ 4 active days (run OR XT). */
+  activeWeeks28d: number;
   runs28d: number; // runs logged in the last 28 days
   miles28d: number; // miles logged in the last 28 days
   crossTrain28d: number; // cross-training days in the last 28 days
@@ -69,14 +71,26 @@ export function computeConsistency(input: {
   const crossTrain28d = last28.filter((d) => d.crossTrain === true).length;
   const activeDays28d = last28.filter((d) => d.actualMiles > 0 || d.crossTrain === true).length;
 
+  // Active weeks: divide last 28 days into 4 sequential 7-day windows (oldest → newest).
+  // A week is "active" when ≥ 4 of its 7 days had a run OR cross-training session.
+  // This intentionally includes XT — a consistent aerobic week counts whether it’s
+  // all running or a mix of runs and cross-training.
+  const sorted28 = [...last28].sort((a, b) => a.day.localeCompare(b.day));
+  let activeWeeks28d = 0;
+  for (let w = 0; w < 4; w++) {
+    const week = sorted28.slice(w * 7, (w + 1) * 7);
+    const activeDays = week.filter((d) => d.actualMiles > 0 || d.crossTrain === true).length;
+    if (activeDays >= 4) activeWeeks28d++;
+  }
+
   const headline =
     current >= 3
       ? `🔥 ${current}-day streak`
-      : weeksHit >= 2
-        ? `${weeksHit} solid weeks banked`
+      : activeWeeks28d >= 3
+        ? `${activeWeeks28d}/4 weeks fully active`
         : activeDays28d >= 1
           ? 'Building momentum'
-          : 'Let’s get rolling';
+          : "Let’s get rolling";
 
   return {
     show: activeDays28d >= 2 || current >= 3,
@@ -84,6 +98,7 @@ export function computeConsistency(input: {
     longestStreak: longest,
     weeksTracked,
     weeksHit,
+    activeWeeks28d,
     runs28d,
     miles28d,
     crossTrain28d,

@@ -26,19 +26,28 @@ export function ConsistencyStrip({ stats }: { stats: ConsistencyStats }) {
         )}
       </div>
       <div className="mt-3 grid grid-cols-4 gap-3">
-        <Stat value={`${stats.currentStreak}`} label="day streak" sublabel="runs + XT" accent={stats.currentStreak >= 3} />
         <Stat
-          value={stats.weeksTracked > 0 ? `${stats.weeksHit}/${stats.weeksTracked}` : '—'}
-          label="wks on plan"
-          sublabel="≥80% run miles"
+          value={`${stats.currentStreak}`}
+          label="day streak"
+          sublabel="runs + XT"
+          accent={stats.currentStreak >= 3}
+        />
+        <Stat
+          value={`${stats.activeWeeks28d}/4`}
+          label="active weeks"
+          sublabel="4+ days any activity"
+          accent={stats.activeWeeks28d >= 3}
         />
         <Stat value={`${stats.runs28d}`} label="runs · 4 wks" />
-        <Stat value={stats.adherence28dPct != null ? `${stats.adherence28dPct}%` : '—'} label="on plan" />
+        <Stat
+          value={stats.adherence28dPct != null ? `${stats.adherence28dPct}%` : '—'}
+          label="run plan"
+          sublabel="miles vs target"
+        />
       </div>
       {stats.crossTrain28d > 0 && (
         <p className="mt-3 border-t border-white/10 pt-2 text-[11px] text-slate-400">
-          + {stats.crossTrain28d} cross-training day{stats.crossTrain28d === 1 ? '' : 's'} in the last 4 weeks — counts
-          toward your streak too.
+          {stats.crossTrain28d} cross-training day{stats.crossTrain28d === 1 ? '' : 's'} this month — counts in your streak and active weeks.
         </p>
       )}
     </div>
