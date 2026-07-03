@@ -7,6 +7,8 @@ import { getTrainingInsights } from '@/server/insights';
 import { Card } from '@/components/ui';
 import { secPerKmToMinPerMile } from '@/engine/plan';
 import { ConnectStrava } from '@/components/ConnectStrava';
+import { ConnectWhoop } from '@/components/ConnectWhoop';
+import { getWhoopStatus } from '@/server/whoop';
 import { CalendarSubscribe } from '@/components/CalendarSubscribe';
 import { CycleTracking } from '@/components/CycleTracking';
 import { getCycle, computeCycle } from '@/server/cycle';
@@ -49,6 +51,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
     hasAnchorRaw,
     timeline,
     racePlan,
+    whoopStatus,
   ] = await Promise.all([
     getTrainingInsights(id),
     getCycle(db, id),
@@ -58,6 +61,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
     getAthleteVdot(db, id),
     getSeasonTimeline(db, id, today),
     getRacePlan(db, id, today),
+    getWhoopStatus(db, id),
   ]);
 
   const hasAnchor = hasAnchorRaw != null;
@@ -115,7 +119,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
         </div>
       </Card>
 
-      {/* ── STRAVA ───────────────────────────────────────────────────────── */}
+      {/* ── SYNC ─────────────────────────────────────────────────────────── */}
       <SectionHeader>Sync</SectionHeader>
       <Card title="Connect your watch (via Strava)">
         <ConnectStrava
@@ -125,6 +129,17 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
           lastActivityDay={strava.lastActivityDay}
           firstActivityDay={strava.firstActivityDay}
           activityCount={strava.activityCount}
+        />
+      </Card>
+
+      <Card title="Whoop — HRV, sleep &amp; recovery">
+        <ConnectWhoop
+          athleteId={athlete.id}
+          connected={whoopStatus.connected}
+          configured={whoopStatus.configured}
+          latestDay={whoopStatus.latestDay}
+          recoveryScore={whoopStatus.recoveryScore}
+          hrv={whoopStatus.hrv}
         />
       </Card>
 
