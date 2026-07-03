@@ -63,7 +63,7 @@ export function ConnectWhoop({
     return (
       <div>
         <a
-          href={`/api/auth/whoop/connect?athleteId=${athleteId}`}
+          href={`/api/whoop/connect?athleteId=${athleteId}`}
           className="inline-flex items-center gap-2 rounded bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
         >
           Connect Whoop
@@ -86,7 +86,7 @@ export function ConnectWhoop({
       <div className="text-[11px] text-slate-400">
         Need to re-authorize?{' '}
         <a
-          href={`/api/auth/whoop/connect?athleteId=${athleteId}`}
+          href={`/api/whoop/connect?athleteId=${athleteId}`}
           className="text-sky-400 underline hover:text-sky-300"
         >
           Reconnect Whoop

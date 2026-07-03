@@ -2,6 +2,9 @@
  * Begin the Whoop OAuth connect flow: redirect the athlete to Whoop's
  * authorization page. `state` carries the athleteId so the callback can attach
  * the tokens to the right athlete.
+ *
+ * Colocated with the callback under /api/whoop/* so the paths mirror the app's
+ * registered redirect URL (https://throughline.badoo.net/api/whoop/callback).
  */
 import { NextResponse } from 'next/server';
 import { whoopConfigured } from '@/providers/whoop/env';

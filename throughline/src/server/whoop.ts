@@ -233,11 +233,11 @@ export async function syncWhoopData(
     fetchSleepRecords(token, startISO, endISO),
   ]);
 
-  // Index sleep records by cycle_id so we can join them to recovery records.
-  const sleepByCycleId = new Map<number, WhoopSleep>();
+  // Index sleep records by their UUID so we can join them to recovery records
+  // (recovery.sleep_id === sleep.id in v2).
+  const sleepById = new Map<string, WhoopSleep>();
   for (const s of sleepList) {
-    // Whoop sleep id === recovery.sleep_id
-    sleepByCycleId.set(s.id, s);
+    sleepById.set(s.id, s);
   }
 
   let syncedRecoveries = 0;
@@ -255,7 +255,7 @@ export async function syncWhoopData(
       upsertDailySummary(db, athleteId, day, rec),
     ]);
 
-    const sleep = sleepByCycleId.get(rec.sleep_id);
+    const sleep = sleepById.get(rec.sleep_id);
     if (sleep?.score_state === 'SCORED') {
       const sleepDay = isoToDay(sleep.end);
       await upsertSleep(db, athleteId, sleepDay, sleep);

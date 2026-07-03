@@ -1,19 +1,18 @@
 /**
- * Whoop webhook handler.
+ * Whoop webhook handler (API/webhook version V2).
  * URL registered in the Whoop developer portal:
  *   https://throughline.badoo.net/api/whoop/webhooks
  *
- * Whoop sends a POST for each event and optionally a GET to verify the
- * endpoint is reachable (Whoop uses a direct POST test, not a hub.challenge
- * handshake like Strava — the GET just needs to return 200).
+ * Event types (v2):
+ *   recovery.updated / recovery.deleted
+ *   sleep.updated    / sleep.deleted
+ * The `id` field is a UUID (v2). We don't need it — on any recovery/sleep event
+ * we re-pull the last few days for that user, which is idempotent.
  *
- * Event types we care about:
- *   recovery.updated — new recovery score available (HRV, RHR, score)
- *   sleep.updated    — sleep record finalised
- *
- * Signature verification: Whoop signs the body with HMAC-SHA256 using the
- * webhook client secret and sends it in the X-WHOOP-Signature-256 header as
- * "sha256=<hex>". Verification is skipped when WHOOP_WEBHOOK_SECRET is unset.
+ * Signature verification (v2): WHOOP sends two headers —
+ *   X-WHOOP-Signature            = base64(HMAC-SHA256(timestamp + rawBody, clientSecret))
+ *   X-WHOOP-Signature-Timestamp  = milliseconds since epoch
+ * The HMAC key is the app's CLIENT SECRET (not a separate webhook secret).
  */
 import { NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
@@ -23,23 +22,36 @@ import { athleteIdForWhoopUser, syncWhoopData } from '@/server/whoop';
 
 export const runtime = 'nodejs';
 
+// Reject events whose timestamp is older than this (replay protection).
+const MAX_SIGNATURE_AGE_MS = 5 * 60 * 1000;
+
 interface WhoopWebhookEvent {
-  type: string; // e.g. 'recovery.updated', 'sleep.updated'
+  type: string; // 'recovery.updated' | 'sleep.updated' | ...
   trace_id: string;
   user_id: number;
-  payload: { id: number };
+  id: string; // UUID of the object that triggered the event (v2)
 }
 
-function verifySignature(rawBody: string, header: string | null, secret: string): boolean {
-  if (!header || !secret) return true; // no secret = no verification
-  const [scheme, hexSig] = header.split('=', 2);
-  if (scheme !== 'sha256' || !hexSig) return false;
-  const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
-  try {
-    return timingSafeEqual(Buffer.from(hexSig, 'hex'), Buffer.from(expected, 'hex'));
-  } catch {
-    return false;
-  }
+function verifySignature(
+  rawBody: string,
+  timestamp: string | null,
+  signature: string | null,
+  clientSecret: string,
+): boolean {
+  if (!clientSecret) return true; // no secret configured → skip verification
+  if (!timestamp || !signature) return false;
+
+  // Replay protection: timestamp must be recent and numeric.
+  const ts = Number(timestamp);
+  if (!Number.isFinite(ts) || Math.abs(Date.now() - ts) > MAX_SIGNATURE_AGE_MS) return false;
+
+  const expected = createHmac('sha256', clientSecret)
+    .update(timestamp + rawBody)
+    .digest('base64');
+  const a = Buffer.from(signature);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }
 
 export async function GET() {
@@ -48,10 +60,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const rawBody = await req.text();
-  const { webhookSecret } = whoopEnv();
-  const sig = req.headers.get('x-whoop-signature-256');
+  const { clientSecret } = whoopEnv();
+  const signature = req.headers.get('x-whoop-signature');
+  const timestamp = req.headers.get('x-whoop-signature-timestamp');
 
-  if (!verifySignature(rawBody, sig, webhookSecret)) {
+  if (!verifySignature(rawBody, timestamp, signature, clientSecret)) {
     return NextResponse.json({ error: 'Invalid signature.' }, { status: 401 });
   }
 
@@ -63,8 +76,9 @@ export async function POST(req: Request) {
   }
 
   const { type, user_id } = event;
+  // We only act on data that lands in our tables; delete events and other
+  // types are acknowledged without a re-pull.
   if (type !== 'recovery.updated' && type !== 'sleep.updated') {
-    // Acknowledge unsupported events immediately.
     return NextResponse.json({ ok: true, skipped: type });
   }
 
@@ -75,14 +89,14 @@ export async function POST(req: Request) {
       // Not a registered athlete — acknowledge so Whoop doesn't retry.
       return NextResponse.json({ ok: true, skipped: 'unknown_user' });
     }
-    // Pull the last 3 days so we capture the freshly-computed record.
+    // Re-pull the last 3 days to capture the freshly-computed record.
     await syncWhoopData(db, athleteId, 3);
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Sync failed.';
     console.error('[whoop-webhook]', msg);
-    // Return 200 to acknowledge receipt even on error — Whoop will retry on
-    // non-2xx, and a permanent server error would cause repeated retries.
+    // Acknowledge receipt even on error so WHOOP doesn't hammer retries against
+    // a transient failure; the next event (or manual sync) will reconcile.
     return NextResponse.json({ ok: false, error: msg });
   }
 }

@@ -1,6 +1,9 @@
 /**
  * Whoop OAuth callback: exchange the code for tokens, store them, kick off an
  * initial sync, and redirect back to the athlete's settings page.
+ *
+ * This path MUST match the redirect URL registered on the WHOOP app:
+ *   https://throughline.badoo.net/api/whoop/callback
  */
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';

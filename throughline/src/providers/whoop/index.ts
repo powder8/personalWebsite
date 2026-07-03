@@ -42,13 +42,18 @@ async function parseTokenResponse(res: Response): Promise<Omit<WhoopTokens, 'pro
   };
 }
 
+// The scopes registered on the WHOOP app. `offline` is required to receive a
+// refresh token; `read:profile` is required for the /user/profile/basic call we
+// make during the OAuth exchange to capture the WHOOP user_id.
+const WHOOP_SCOPES = 'read:recovery read:cycles read:sleep read:workout read:profile read:body_measurement offline';
+
 export function getAuthorizationUrl(athleteId: string): string {
   const { clientId, redirectUri, authBaseUrl } = whoopEnv();
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: clientId,
     redirect_uri: redirectUri,
-    scope: 'read:recovery read:sleep read:body_measurement offline',
+    scope: WHOOP_SCOPES,
     state: athleteId,
   });
   return `${authBaseUrl}/auth?${params}`;
@@ -103,8 +108,8 @@ export interface WhoopProfile {
 }
 
 export interface WhoopRecovery {
-  cycle_id: number;
-  sleep_id: number;
+  cycle_id: number; // cycles stay integer ids in v2
+  sleep_id: string; // v2: sleep ids are UUIDs
   user_id: number;
   created_at: string; // ISO-8601 UTC — the wake-up morning date
   updated_at: string;
@@ -120,7 +125,7 @@ export interface WhoopRecovery {
 }
 
 export interface WhoopSleep {
-  id: number;
+  id: string; // v2: sleep ids are UUIDs
   user_id: number;
   created_at: string;
   updated_at: string;
@@ -216,6 +221,7 @@ export async function fetchSleepRecords(
   startISO: string,
   endISO: string,
 ): Promise<WhoopSleep[]> {
-  const all = await fetchAll<WhoopSleep>(token, '/sleep', { start: startISO, end: endISO });
+  // v2: sleep lives under /activity/sleep (v1 was /sleep).
+  const all = await fetchAll<WhoopSleep>(token, '/activity/sleep', { start: startISO, end: endISO });
   return all.filter((s) => !s.nap);
 }
