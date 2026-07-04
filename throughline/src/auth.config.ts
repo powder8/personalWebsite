@@ -52,11 +52,17 @@ const PUBLIC_PREFIXES = ['/signin', '/privacy', '/api/auth', '/api/whoop', '/api
  * Extract the athlete id an athlete-scoped path is addressing, so a non-coach
  * can only reach their OWN data. Matches /me/<id>, /availability/<id>, and
  * /api/athletes/<id>/...
+ *
+ * Athlete ids are UUIDs, so the /me and /availability segments are matched as
+ * UUIDs specifically — otherwise a non-id helper route like /me/settings (which
+ * resolves the athlete server-side and redirects) would be read as id="settings",
+ * fail the ownership check, and bounce to /signin in an infinite loop.
  */
+const UUID_RE = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
 function athleteIdFromPath(pathname: string): string | null {
   const m =
-    pathname.match(/^\/me\/([^/]+)/) ||
-    pathname.match(/^\/availability\/([^/]+)/) ||
+    pathname.match(new RegExp(`^/me/(${UUID_RE})`)) ||
+    pathname.match(new RegExp(`^/availability/(${UUID_RE})`)) ||
     pathname.match(/^\/api\/athletes\/([^/]+)/);
   return m ? m[1] : null;
 }
