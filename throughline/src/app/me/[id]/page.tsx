@@ -11,7 +11,6 @@ import { GoalSetup } from '@/components/GoalSetup';
 import { getAthleteVdot } from '@/db/paceConfig';
 import { TrainingCalendar } from '@/components/TrainingCalendar';
 import { getTrainingCalendar } from '@/server/trainingCalendar';
-import { SegmentList } from '@/components/SegmentList';
 import { NextStepBanner } from '@/components/NextStepBanner';
 import { getAdaptationState, easeBackDirectives } from '@/server/adaptation';
 import { decideNextStep } from '@/server/nextStepLogic';
@@ -32,15 +31,12 @@ import { getRecentCrossTraining } from '@/server/weeklyVolume';
 import { getDb } from '@/db';
 import { ensureSeasonCoverage } from '@/server/seasonCoverage';
 import { todayISO } from '@/server/console';
-import { SESSION_COLOR, SESSION_LABEL, SESSION_TERRAIN } from '@/components/WeekStrip';
+import { SESSION_TERRAIN } from '@/components/WeekStrip';
 
 export const dynamic = 'force-dynamic';
 
 function pace(sec: number | null): string {
   return sec == null ? '' : `${secPerKmToMinPerMile(sec)}/mi`;
-}
-function miles(m: number | null): string {
-  return m == null || m <= 0 ? '—' : (m / 1609.344).toFixed(1);
 }
 
 export default async function PortalPage({
@@ -90,19 +86,12 @@ export default async function PortalPage({
   const {
     athlete,
     today,
-    readiness: storedReadiness,
     todaySession,
-    thisWeek,
     goalRace,
     checkedInToday,
     recentCheckIns,
     strava,
   } = portal;
-
-  // Prefer the freshly-computed wearable readiness; fall back to the stored row.
-  const readiness = recovery.readiness
-    ? { band: recovery.readiness.band, sentence: recovery.readiness.sentence }
-    : storedReadiness;
 
   const firstName = athlete.fullName.split(' ')[0];
   const todayCheckIn = recentCheckIns.find((c) => c.day === today) ?? null;
@@ -152,17 +141,40 @@ export default async function PortalPage({
     soreness: todayCheckIn?.soreness ?? null,
   });
 
+  // The specific workout to render inline in the next-step card on a training
+  // day (segments carry the reps/paces so "threshold" reads as a real session).
+  const isRestToday = !todaySession || todaySession.sessionType === 'rest' || (todaySession.distanceMeters ?? 0) <= 0;
+  const sessionDetail =
+    todaySession && !ranToday && !isRestToday
+      ? {
+          paceLabel:
+            todaySession.paceFastSecPerKm != null
+              ? `${pace(todaySession.paceFastSecPerKm)}–${pace(todaySession.paceSlowSecPerKm)}`
+              : null,
+          segments: todaySession.segments ?? [],
+          description: todaySession.description ?? null,
+          terrain: SESSION_TERRAIN[todaySession.sessionType] ?? null,
+          adjustments: todaySession.adjustments,
+        }
+      : null;
+  const loggedToday =
+    ranToday && latestRun?.day === today ? { miles: latestRun.dayMiles, runCount: latestRun.runCount } : null;
+
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-20 sm:pb-4">
+      <p className="px-1 pt-1 text-sm text-slate-400">Hi {firstName} 👋 · {today}</p>
+
       {/* ── GOAL TRACKER — where do I stand? (the hook) ──────────────────── */}
       {goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} />}
 
-      {/* ── NEXT STEP ────────────────────────────────────────────────────── */}
+      {/* ── TODAY / NEXT STEP — the one thing to do now, with the specific workout ── */}
       <NextStepBanner
         step={nextStep}
         athleteId={athlete.id}
         easeDirectives={easeDirectives}
         latestActivityId={latestRun?.activityId ?? null}
+        session={sessionDetail}
+        loggedToday={loggedToday}
       />
 
       {/* Autonomous readiness gate: ask before easing, then recommend. */}
@@ -188,123 +200,6 @@ export default async function PortalPage({
           <p className="mt-1.5 text-sm leading-relaxed text-slate-300">{readinessGate.body}</p>
         </div>
       )}
-
-      {/* ── TODAY ────────────────────────────────────────────────────────── */}
-      {/* When the goal tracker is present it owns the goal identity + countdown,
-          so this block slims to the greeting + today's session. Otherwise it
-          carries the full goal header (no-goal / just-raced states). */}
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 text-white shadow-lg">
-        {goalTracker ? (
-          <p className="text-sm text-slate-400">Hi {firstName} 👋 · {today}</p>
-        ) : (
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-sm text-slate-400">Hi {firstName} 👋 · {today}</p>
-              {goalDone ? (
-                <>
-                  <h1 className="mt-2 truncate text-2xl font-bold tracking-tight">You raced {goalRace.name}! 🎉</h1>
-                  <p className="mt-0.5 text-sm text-lime-300">That chapter's done — time to pick the next one.</p>
-                </>
-              ) : goalRace.name ? (
-                <>
-                  <h1 className="mt-2 truncate text-2xl font-bold tracking-tight">{goalRace.name}</h1>
-                  <p className="mt-0.5 text-sm text-slate-400">{goalRace.date}</p>
-                </>
-              ) : (
-                <>
-                  <h1 className="mt-2 text-2xl font-bold tracking-tight">What are you chasing?</h1>
-                  <p className="mt-0.5 text-sm text-slate-400">
-                    Training works when it points somewhere. Set a goal below and we'll build your plan.
-                  </p>
-                </>
-              )}
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {readiness.band && (
-                  <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold capitalize text-white/90 ring-1 ring-inset ring-white/15">
-                    Readiness: {readiness.band}
-                  </span>
-                )}
-                <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/90 ring-1 ring-inset ring-white/15">
-                  {athlete.coachingMode === 'assisted' ? 'Coach-guided' : 'Auto-coached'}
-                </span>
-              </div>
-            </div>
-            {goalRace.daysAway != null && goalRace.daysAway >= 0 && (
-              <div className="shrink-0 text-right">
-                <div className="text-5xl font-extrabold leading-none tracking-tight text-lime-300 tabular-nums">
-                  {goalRace.daysAway}
-                </div>
-                <div className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">days to go</div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Up today */}
-        <div className="mt-5 rounded-2xl bg-white/10 p-4 ring-1 ring-inset ring-white/10">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-lime-300">
-            {ranToday ? 'Today' : 'Up today'}
-          </div>
-          {ranToday ? (
-            <div className="mt-1.5 flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-lime-300 text-lg font-bold text-[#0c1018]">
-                ✓
-              </span>
-              <div className="min-w-0">
-                <div className="text-lg font-bold leading-tight tracking-tight">Run logged — nice work</div>
-                <p className="text-sm text-white/75">
-                  {latestRun && latestRun.day === today
-                    ? `${latestRun.dayMiles.toFixed(1)} mi${latestRun.runCount > 1 ? ` across ${latestRun.runCount} runs` : ''} logged today.`
-                    : 'Logged for today.'}
-                </p>
-              </div>
-            </div>
-          ) : todaySession ? (
-            <div className="mt-1.5 flex items-center gap-3">
-              <span className={`h-9 w-9 shrink-0 rounded-xl ${SESSION_COLOR[todaySession.sessionType] ?? 'bg-slate-400'}`} />
-              <div className="min-w-0">
-                <div className="text-lg font-bold leading-tight tracking-tight">
-                  {SESSION_LABEL[todaySession.sessionType] ?? todaySession.sessionType}
-                  {todaySession.distanceMeters != null && todaySession.distanceMeters > 0 && (
-                    <span className="ml-2 font-semibold text-white/80">{miles(todaySession.distanceMeters)} mi</span>
-                  )}
-                </div>
-                {todaySession.paceFastSecPerKm != null && (
-                  <div className="text-sm tabular-nums text-white/75">
-                    {pace(todaySession.paceFastSecPerKm)}–{pace(todaySession.paceSlowSecPerKm)}
-                  </div>
-                )}
-                {todaySession.adjustments.length > 0 && (
-                  <div className="mt-1 inline-block rounded bg-amber-300/20 px-1.5 py-0.5 text-[11px] font-medium text-amber-200">
-                    {todaySession.adjustments.join('; ')}
-                  </div>
-                )}
-                {todaySession.segments?.length ? (
-                  <SegmentList segments={todaySession.segments} onDark />
-                ) : (
-                  todaySession.description && <p className="mt-1 text-xs text-slate-400">{todaySession.description}</p>
-                )}
-                {SESSION_TERRAIN[todaySession.sessionType] && (
-                  <p className="mt-1 text-xs text-slate-400">📍 {SESSION_TERRAIN[todaySession.sessionType]}</p>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="mt-1.5 flex items-center gap-3">
-              <span className="h-9 w-9 shrink-0 rounded-xl bg-white/15" />
-              <div>
-                <div className="text-lg font-bold leading-tight tracking-tight">Rest day</div>
-                <p className="text-sm text-slate-400">Recovery is training too.</p>
-              </div>
-            </div>
-          )}
-          {/* When the Recovery & body card is present it owns this read, so we
-              don't repeat the identical sentence here. */}
-          {readiness.sentence && !recovery.hasData && (
-            <p className="mt-3 border-t border-white/10 pt-2 text-xs text-slate-400">{readiness.sentence}</p>
-          )}
-        </div>
-      </div>
 
       {/* Recovery & body — wearable-driven readiness (Whoop) */}
       {recovery.hasData && <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} />}

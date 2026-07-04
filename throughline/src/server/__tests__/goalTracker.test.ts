@@ -96,8 +96,9 @@ test('unrealistic goal → at_risk, honest but with a path (even if executing)',
 test('goal race but no time/fitness data → execution-only verdict', () => {
   const g = buildGoalTracker({ ...base, feasibility: null, target: null, targetTimeSeconds: null, consistency: consistency(null, 3) })!;
   assert.equal(g.verdict, 'on_track');
-  assert.equal(g.projectionLine, null);
+  assert.match(g.projectionLine!, /No target time/);
   assert.ok(g.cta, 'nudges to set a target time');
+  assert.match(g.advocateLine, /target time/i);
 });
 
 test('goal race, no feasibility, slipping → drifting', () => {

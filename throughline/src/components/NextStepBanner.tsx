@@ -1,14 +1,16 @@
 /**
- * The single "do this next" guide for the automatic-coach athlete. Always
- * present at the top of the portal; it answers one question — what now? — for
- * every lifecycle state (set fitness → pick goal → ease back → today's run →
- * rest → done → race over). The ease-back action lives here too, so tapping it
- * announces itself right where the athlete is looking. Server markup + one
- * client child (EaseBackButton) for the action.
+ * The single "do this next" card for the athlete — now also the ONLY "today"
+ * surface (the separate hero was merged in here to kill duplication). It answers
+ * one question — what now? — for every lifecycle state (set fitness → pick goal
+ * → ease back → today's run → rest → done → race over), and on a training day it
+ * renders the SPECIFIC workout (segments + paces), not just the session label.
+ * Server markup + one client child (EaseBackButton) for the action.
  */
 import Link from 'next/link';
 import type { NextStep } from '@/server/nextStepLogic';
+import type { PortalSegment } from '@/server/portal';
 import { EaseBackButton } from '@/components/EaseBackButton';
+import { SegmentList } from '@/components/SegmentList';
 
 interface EaseDirective {
   type: 'reduce_volume' | 'pace_adjust';
@@ -17,6 +19,15 @@ interface EaseDirective {
   factor?: number;
   deltaSecPerMile?: number;
   label: string;
+}
+
+/** The specific workout for a training day (shown inline on 'today' steps). */
+export interface TodaySessionDetail {
+  paceLabel: string | null; // "5:11/mi–5:24/mi"
+  segments: PortalSegment[];
+  description: string | null;
+  terrain: string | null;
+  adjustments: string[];
 }
 
 const TONE: Record<NextStep['tone'], string> = {
@@ -30,11 +41,17 @@ export function NextStepBanner({
   athleteId,
   easeDirectives,
   latestActivityId,
+  session,
+  loggedToday,
 }: {
   step: NextStep;
   athleteId: string;
   easeDirectives: EaseDirective[];
   latestActivityId: string | null;
+  /** The workout to show inline on a training day ('today' / 'eased_today'). */
+  session?: TodaySessionDetail | null;
+  /** Miles logged today, shown on the 'done_today' step. */
+  loggedToday?: { miles: number; runCount: number } | null;
 }) {
   return (
     <div className={`rounded-3xl bg-gradient-to-br p-5 shadow-lg ring-1 ring-inset ${TONE[step.tone]}`}>
@@ -43,7 +60,34 @@ export function NextStepBanner({
         <span aria-hidden>{step.emoji}</span>
         <span>{step.headline}</span>
       </h2>
-      <p className="mt-1.5 text-sm leading-relaxed text-slate-700">{step.detail}</p>
+      <p className="mt-1.5 text-sm leading-relaxed text-slate-300">{step.detail}</p>
+
+      {loggedToday && (
+        <p className="mt-1.5 text-sm font-semibold text-lime-200">
+          {loggedToday.miles.toFixed(1)} mi logged today
+          {loggedToday.runCount > 1 ? ` across ${loggedToday.runCount} runs` : ''}.
+        </p>
+      )}
+
+      {/* The specific workout, inline — reps, paces, recoveries. */}
+      {session && (session.segments.length > 0 || session.description) && (
+        <div className="mt-3 rounded-2xl bg-white/5 p-3.5 ring-1 ring-inset ring-white/10">
+          {session.paceLabel && (
+            <div className="text-sm font-semibold tabular-nums text-white/85">{session.paceLabel}</div>
+          )}
+          {session.adjustments.length > 0 && (
+            <div className="mt-1 inline-block rounded bg-amber-300/20 px-1.5 py-0.5 text-[11px] font-medium text-amber-200">
+              {session.adjustments.join('; ')}
+            </div>
+          )}
+          {session.segments.length > 0 ? (
+            <SegmentList segments={session.segments} onDark />
+          ) : (
+            session.description && <p className="mt-1 text-sm leading-relaxed text-white/70">{session.description}</p>
+          )}
+          {session.terrain && <p className="mt-2 text-xs text-slate-400">📍 {session.terrain}</p>}
+        </div>
+      )}
 
       {step.readinessNote && (
         <div

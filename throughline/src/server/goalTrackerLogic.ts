@@ -111,22 +111,27 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
   // on execution alone, framed as "are you building toward the race".
   if (!feasibility) {
     const drifting = exec === 'slipping';
+    const needsTime = targetTimeSeconds == null;
     return {
       verdict: drifting ? 'drifting' : 'on_track',
       tone: drifting ? 'caution' : 'positive',
       raceLine,
       daysAway: days,
       headline: drifting ? 'You are drifting off plan' : `Building toward ${goalName}`,
-      projectionLine: null,
+      projectionLine: needsTime ? 'No target time set yet' : null,
       fillPct: drifting ? 52 : 78,
       goalMarkerPct: GOAL_MARKER,
       leftLabel: 'training consistency',
       rightLabel: 'race day',
       execNote,
-      advocateLine: drifting
-        ? 'The race is still yours — get two solid weeks back-to-back and the base rebuilds fast.'
-        : 'Keep stacking consistent weeks — that is what shows up on race day.',
-      cta: targetTimeSeconds == null ? { label: 'Set a target time', href: '#goal-setup' } : null,
+      // Without a target time we can only judge consistency — nudge for the time
+      // so the real on-pace verdict (projected finish vs goal) unlocks.
+      advocateLine: needsTime
+        ? "Add a target time and I'll show you exactly whether you're on pace to hit it — not just building blind."
+        : drifting
+          ? 'The race is still yours — get two solid weeks back-to-back and the base rebuilds fast.'
+          : 'Keep stacking consistent weeks — that is what shows up on race day.',
+      cta: needsTime ? { label: 'Set a target time', href: '#goal-setup' } : null,
     };
   }
 
