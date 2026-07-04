@@ -21,6 +21,8 @@ import { RunFeedbackCard } from '@/components/RunFeedbackCard';
 import { getLatestRunFeedback } from '@/server/runFeedback';
 import { RunDebriefCard } from '@/components/RunDebriefCard';
 import { getRunDebrief } from '@/server/runDebrief';
+import { RecoveryCard } from '@/components/RecoveryCard';
+import { getRecoveryInsights, persistReadiness } from '@/server/recovery';
 import { BottomNav } from '@/components/BottomNav';
 import { getRecentCrossTraining } from '@/server/weeklyVolume';
 import { getDb } from '@/db';
@@ -58,14 +60,25 @@ export default async function PortalPage({
   const portal = await getAthletePortal(id);
   if (!portal) notFound();
 
-  const [hasAnchorRaw, adaptation, consistency, latestRun, calendar, crossTraining] = await Promise.all([
+  const [hasAnchorRaw, adaptation, consistency, latestRun, calendar, crossTraining, recovery] = await Promise.all([
     getAthleteVdot(db, id),
     getAdaptationState(id, portal.today),
     getConsistency(id, portal.today),
     getLatestRunFeedback(id, portal.today),
     getTrainingCalendar(id, portal.today),
     getRecentCrossTraining(db, id, portal.today),
+    getRecoveryInsights(db, id, portal.today),
   ]);
+
+  // Live readiness computed from wearable data takes precedence over any stored
+  // row; persist it best-effort so the autopilot, console, and chat see it too.
+  if (recovery.readiness) {
+    try {
+      await persistReadiness(db, id, recovery.readiness);
+    } catch {
+      /* best-effort */
+    }
+  }
 
   const hasAnchor = hasAnchorRaw != null;
   const latestDebrief = latestRun ? await getRunDebrief(id, latestRun.activityId, { narrate: false }) : null;
@@ -73,7 +86,7 @@ export default async function PortalPage({
   const {
     athlete,
     today,
-    readiness,
+    readiness: storedReadiness,
     todaySession,
     thisWeek,
     goalRace,
@@ -81,6 +94,11 @@ export default async function PortalPage({
     recentCheckIns,
     strava,
   } = portal;
+
+  // Prefer the freshly-computed wearable readiness; fall back to the stored row.
+  const readiness = recovery.readiness
+    ? { band: recovery.readiness.band, sentence: recovery.readiness.sentence }
+    : storedReadiness;
 
   const firstName = athlete.fullName.split(' ')[0];
   const todayCheckIn = recentCheckIns.find((c) => c.day === today) ?? null;
@@ -223,11 +241,16 @@ export default async function PortalPage({
               </div>
             </div>
           )}
-          {readiness.sentence && (
+          {/* When the Recovery & body card is present it owns this read, so we
+              don't repeat the identical sentence here. */}
+          {readiness.sentence && !recovery.hasData && (
             <p className="mt-3 border-t border-white/10 pt-2 text-xs text-slate-400">{readiness.sentence}</p>
           )}
         </div>
       </div>
+
+      {/* Recovery & body — wearable-driven readiness (Whoop) */}
+      {recovery.hasData && <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} />}
 
       {/* Goal setup — shown when there's no live goal */}
       <div id="goal-setup" className="scroll-mt-4" />
