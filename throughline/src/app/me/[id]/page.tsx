@@ -126,6 +126,7 @@ export default async function PortalPage({
           eased: todaySession.adjustments.length > 0,
         }
       : null,
+    readinessBand: recovery.readiness?.band ?? null,
   });
   const easeDirectives = adaptation ? easeBackDirectives(adaptation, today) : [];
 

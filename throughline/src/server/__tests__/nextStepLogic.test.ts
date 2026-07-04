@@ -63,3 +63,51 @@ test('done_today beats eased_today (the run is logged)', () => {
   const s = decideNextStep({ ...base, ranToday: true, easeBackApplied: true });
   assert.equal(s.kind, 'done_today');
 });
+
+// --- readiness advisory on session days ---
+
+const qualityDay: NextStepInput = {
+  ...base,
+  today: { sessionType: 'intervals', miles: 6, paceLabel: '6:00/mi', eased: false },
+};
+
+test('low readiness on a quality day → caution note (does not change the plan)', () => {
+  const s = decideNextStep({ ...qualityDay, readinessBand: 'easy' });
+  assert.equal(s.kind, 'today');
+  assert.match(s.headline, /Intervals 6 mi/); // plan is untouched
+  assert.equal(s.readinessNote?.tone, 'caution');
+  assert.match(s.readinessNote!.text, /recovery is running low/i);
+});
+
+test('low readiness on an easy day → keep-it-easy caution', () => {
+  const s = decideNextStep({ ...base, readinessBand: 'easy' });
+  assert.equal(s.readinessNote?.tone, 'caution');
+  assert.match(s.readinessNote!.text, /genuinely easy/i);
+});
+
+test('green readiness on a quality day → go note', () => {
+  const s = decideNextStep({ ...qualityDay, readinessBand: 'go' });
+  assert.equal(s.readinessNote?.tone, 'go');
+  assert.match(s.readinessNote!.text, /green/i);
+});
+
+test('green readiness on an easy day → no note (nothing to attack)', () => {
+  assert.equal(decideNextStep({ ...base, readinessBand: 'go' }).readinessNote, undefined);
+});
+
+test('normal / unknown readiness → no note', () => {
+  assert.equal(decideNextStep({ ...qualityDay, readinessBand: 'normal' }).readinessNote, undefined);
+  assert.equal(decideNextStep(qualityDay).readinessNote, undefined);
+});
+
+test('readiness note rides along on an eased-back session day', () => {
+  const s = decideNextStep({ ...qualityDay, easeBackApplied: true, readinessBand: 'easy' });
+  assert.equal(s.kind, 'eased_today');
+  assert.equal(s.readinessNote?.tone, 'caution');
+});
+
+test('rest day never carries a readiness note', () => {
+  const s = decideNextStep({ ...base, today: { sessionType: 'rest', miles: 0, eased: false }, readinessBand: 'easy' });
+  assert.equal(s.kind, 'rest_today');
+  assert.equal(s.readinessNote, undefined);
+});

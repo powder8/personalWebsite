@@ -45,6 +45,19 @@ export function NextStepBanner({
       </h2>
       <p className="mt-1.5 text-sm leading-relaxed text-slate-700">{step.detail}</p>
 
+      {step.readinessNote && (
+        <div
+          className={`mt-3 flex items-start gap-2 rounded-xl px-3 py-2 text-xs leading-relaxed ring-1 ring-inset ${
+            step.readinessNote.tone === 'caution'
+              ? 'bg-amber-400/10 text-amber-200 ring-amber-400/25'
+              : 'bg-emerald-400/10 text-emerald-200 ring-emerald-400/25'
+          }`}
+        >
+          <span aria-hidden>{step.readinessNote.tone === 'caution' ? '⚠️' : '⚡'}</span>
+          <span>{step.readinessNote.text}</span>
+        </div>
+      )}
+
       <div className="mt-3">
         {step.cta.type === 'ease_back' && easeDirectives.length > 0 && (
           <EaseBackButton athleteId={athleteId} directives={easeDirectives} />

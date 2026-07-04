@@ -31,7 +31,15 @@ export interface NextStep {
   detail: string;
   cta: NextStepCta;
   tone: 'action' | 'positive' | 'neutral';
+  /**
+   * Optional wearable-readiness advisory attached to a session day. Advisory
+   * only — it never rewrites the plan (that's the coach's / autopilot's job),
+   * it just tells the athlete how their body is trending into today's work.
+   */
+  readinessNote?: { text: string; tone: 'caution' | 'go' };
 }
+
+export type ReadinessBand = 'easy' | 'normal' | 'go';
 
 export interface TodaySessionLite {
   sessionType: string;
@@ -50,11 +58,38 @@ export interface NextStepInput {
   easeBackApplied: boolean; // ease-back directive is active
   ranToday: boolean;
   today: TodaySessionLite | null; // today's planned session (null/rest = nothing to run)
+  /** Today's wearable readiness band, if known (drives an advisory on the session). */
+  readinessBand?: ReadinessBand | null;
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const mi = (m: number) => (m % 1 === 0 ? `${m}` : m.toFixed(1));
 const isRest = (t: TodaySessionLite | null) => !t || t.sessionType === 'rest' || t.miles <= 0;
+
+// Intensity/volume sessions where low recovery matters most.
+const QUALITY_SESSIONS = new Set(['intervals', 'tempo', 'threshold', 'marathon', 'race', 'long']);
+const isQuality = (sessionType: string) => QUALITY_SESSIONS.has(sessionType);
+
+/** Advisory note for a session day given today's readiness band. */
+function readinessNoteFor(
+  session: TodaySessionLite,
+  band: ReadinessBand | null | undefined,
+): NextStep['readinessNote'] {
+  if (!band) return undefined;
+  const quality = isQuality(session.sessionType);
+  if (band === 'easy') {
+    return {
+      tone: 'caution',
+      text: quality
+        ? 'Heads up: your recovery is running low today. Consider dialing the intensity back or moving the hard work to a fresher day — and check in with your coach if it persists.'
+        : 'Your recovery is running low today — keep this one genuinely easy and let the body catch up.',
+    };
+  }
+  if (band === 'go' && quality) {
+    return { tone: 'go', text: 'Recovery is green today — a good day to attack this one.' };
+  }
+  return undefined;
+}
 
 export function decideNextStep(input: NextStepInput): NextStep {
   const name = input.firstName || 'there';
@@ -133,6 +168,7 @@ export function decideNextStep(input: NextStepInput): NextStep {
   // 6) There's a session today.
   const t = input.today!;
   const paceTail = t.paceLabel ? ` @ ${t.paceLabel}` : '';
+  const readinessNote = readinessNoteFor(t, input.readinessBand);
   if (input.easeBackApplied) {
     return {
       kind: 'eased_today',
@@ -141,6 +177,7 @@ export function decideNextStep(input: NextStepInput): NextStep {
       detail: `Your next few days are trimmed so the return feels good. Today: ${cap(t.sessionType)} ${mi(t.miles)} mi${paceTail} — already eased for you. Start there, momentum first.`,
       cta: { type: 'none' },
       tone: 'positive',
+      readinessNote,
     };
   }
   return {
@@ -150,5 +187,6 @@ export function decideNextStep(input: NextStepInput): NextStep {
     detail: `${paceTail ? `Target${paceTail}. ` : ''}${t.eased ? 'Eased for where you are right now. ' : ''}That’s the one thing today — go get it.`,
     cta: { type: 'none' },
     tone: 'action',
+    readinessNote,
   };
 }
