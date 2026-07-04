@@ -53,6 +53,10 @@ export interface RecoverySnapshot {
   hrvSeries: { day: string; value: number }[]; // last 14 days, oldest→newest
   restingHrSeries: { day: string; value: number }[];
   n: number; // days of HRV history in the long window
+  // Secondary markers — shown behind an expander (early-illness / strain signals).
+  respiratoryRate: number | null; // breaths/min, last night
+  skinTempCelsius: number | null; // overnight skin temp deviation baseline
+  spo2: number | null; // blood oxygen %
 }
 
 export interface RecoveryInsights {
@@ -79,6 +83,9 @@ const EMPTY_SNAPSHOT: RecoverySnapshot = {
   hrvSeries: [],
   restingHrSeries: [],
   n: 0,
+  respiratoryRate: null,
+  skinTempCelsius: null,
+  spo2: null,
 };
 
 /** HRV / sleep: higher is better. Resting HR passes `invert` to flip it. */
@@ -117,6 +124,7 @@ export async function getRecoveryInsights(
         deep: sleepRecords.deepSeconds,
         rem: sleepRecords.remSeconds,
         score: sleepRecords.sleepScore,
+        metrics: sleepRecords.metrics,
       })
       .from(sleepRecords)
       .where(and(eq(sleepRecords.athleteId, athleteId), gte(sleepRecords.day, cutoff))),
@@ -166,6 +174,12 @@ export async function getRecoveryInsights(
   const recoveryBand =
     recoveryScore == null ? null : recoveryScore >= 67 ? 'green' : recoveryScore >= 34 ? 'yellow' : 'red';
 
+  // Secondary markers: respiratory rate from last night's sleep; SpO2 + skin
+  // temp from the latest daily summary. Early-illness / strain signals.
+  const sleepMetrics = (latestSleep?.metrics as Record<string, number | null> | null) ?? null;
+  const latestSummaryMetrics = (summariesByDay[0]?.metrics as Record<string, number | null> | null) ?? null;
+  const round1 = (n: number | null | undefined): number | null => (n == null ? null : Math.round(n * 10) / 10);
+
   // Most recent day across signals = the snapshot "as of".
   const allDays = [...hrv, ...rhr, ...sleepHrs].map((r) => r.day);
   const asOf = allDays.length ? allDays.sort().at(-1)! : null;
@@ -188,6 +202,9 @@ export async function getRecoveryInsights(
     hrvSeries: lastN(hrv, 14),
     restingHrSeries: lastN(rhr, 14),
     n: hrvBase.n,
+    respiratoryRate: round1(sleepMetrics?.respiratory_rate),
+    skinTempCelsius: round1(latestSummaryMetrics?.skin_temp_celsius),
+    spo2: round1(latestSummaryMetrics?.spo2_percentage),
   };
 
   // --- Live readiness via the pure engine ---

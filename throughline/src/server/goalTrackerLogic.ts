@@ -21,7 +21,8 @@ export type GoalTone = 'positive' | 'caution' | 'risk';
 export interface GoalTracker {
   verdict: GoalVerdict;
   tone: GoalTone;
-  raceLine: string; // "Chicago Marathon · 42 days"
+  raceLine: string; // race name, e.g. "Chicago Marathon"
+  daysAway: number | null; // days to race day (for the countdown)
   headline: string; // "Sub-3:05 is in reach"
   projectionLine: string | null; // "projected today 3:07 → race day 3:04"
   fillPct: number; // 0-100 — how close the projected outcome is to the goal
@@ -101,7 +102,8 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
   if (!goalName) return null;
 
   const exec = executionLevel(consistency);
-  const raceLine = daysAway != null && daysAway >= 0 ? `${goalName} · ${daysAway} days` : goalName;
+  const raceLine = goalName;
+  const days = daysAway != null && daysAway >= 0 ? daysAway : null;
   const execNote = execNoteFor(exec, consistency);
   const goalLabel = targetTimeSeconds != null ? clockShort(targetTimeSeconds) : null;
 
@@ -113,6 +115,7 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
       verdict: drifting ? 'drifting' : 'on_track',
       tone: drifting ? 'caution' : 'positive',
       raceLine,
+      daysAway: days,
       headline: drifting ? 'You are drifting off plan' : `Building toward ${goalName}`,
       projectionLine: null,
       fillPct: drifting ? 52 : 78,
@@ -192,6 +195,7 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
     verdict,
     tone,
     raceLine,
+    daysAway: days,
     headline,
     projectionLine,
     fillPct: FILL[verdict],

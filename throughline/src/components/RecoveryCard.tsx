@@ -196,7 +196,44 @@ export function RecoveryCard({
           <Sparkline series={snapshot.hrvSeries} />
         </div>
       )}
+
+      <MoreMarkers snapshot={snapshot} />
     </div>
+  );
+}
+
+/** Secondary markers, tucked behind a native expander. Early-illness / strain signals. */
+function MoreMarkers({ snapshot }: { snapshot: RecoverySnapshot }) {
+  const rows = [
+    snapshot.respiratoryRate != null && { label: 'Respiratory rate', value: `${snapshot.respiratoryRate}`, unit: 'br/min' },
+    snapshot.spo2 != null && { label: 'Blood oxygen', value: `${snapshot.spo2}`, unit: '%' },
+    snapshot.skinTempCelsius != null && { label: 'Skin temp', value: `${snapshot.skinTempCelsius > 0 ? '+' : ''}${snapshot.skinTempCelsius}`, unit: '°C' },
+  ].filter(Boolean) as { label: string; value: string; unit: string }[];
+  if (rows.length === 0) return null;
+
+  return (
+    <details className="group mt-4 border-t border-white/10 pt-3">
+      <summary className="flex cursor-pointer list-none items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-300">
+        <span>More markers</span>
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </summary>
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        {rows.map((r) => (
+          <div key={r.label} className="rounded-xl bg-white/5 p-2.5 ring-1 ring-inset ring-white/10">
+            <div className="text-[9px] font-medium uppercase tracking-wide text-slate-500">{r.label}</div>
+            <div className="mt-0.5 flex items-baseline gap-1">
+              <span className="text-base font-bold tabular-nums text-slate-200">{r.value}</span>
+              <span className="text-[10px] text-slate-500">{r.unit}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-[10px] leading-relaxed text-slate-500">
+        A jump in resting breathing or skin temp — or a dip in blood oxygen — often shows up a day before you feel a cold coming on.
+      </p>
+    </details>
   );
 }
 

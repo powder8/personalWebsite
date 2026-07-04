@@ -42,14 +42,25 @@ export function GoalTrackerHero({ tracker, athleteId }: { tracker: GoalTracker; 
   const t = TONE[tracker.tone];
   return (
     <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 shadow-lg">
-      <div className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.chip}`}>
-        <span className={`h-1.5 w-1.5 rounded-full ${t.fill}`} />
-        {VERDICT_LABEL[tracker.verdict]}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.chip}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${t.fill}`} />
+            {VERDICT_LABEL[tracker.verdict]}
+          </div>
+          <p className="mt-2 text-sm text-slate-400">{tracker.raceLine}</p>
+          <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-white">{tracker.headline}</h1>
+          {tracker.projectionLine && <p className="mt-1 text-sm text-slate-400">{tracker.projectionLine}</p>}
+        </div>
+        {tracker.daysAway != null && (
+          <div className="shrink-0 text-right">
+            <div className="text-5xl font-extrabold leading-none tracking-tight text-lime-300 tabular-nums">
+              {tracker.daysAway}
+            </div>
+            <div className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">days to go</div>
+          </div>
+        )}
       </div>
-
-      <p className="mt-2 text-sm text-slate-400">{tracker.raceLine}</p>
-      <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-white">{tracker.headline}</h1>
-      {tracker.projectionLine && <p className="mt-1 text-sm text-slate-400">{tracker.projectionLine}</p>}
 
       {/* Progress-to-goal bar: fill = projected outcome, marker = the goal line. */}
       <div className={`relative mt-4 h-2 rounded-full ${t.bar}`}>

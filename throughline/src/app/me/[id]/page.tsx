@@ -189,49 +189,56 @@ export default async function PortalPage({
         </div>
       )}
 
-      {/* ── HERO ─────────────────────────────────────────────────────────── */}
+      {/* ── TODAY ────────────────────────────────────────────────────────── */}
+      {/* When the goal tracker is present it owns the goal identity + countdown,
+          so this block slims to the greeting + today's session. Otherwise it
+          carries the full goal header (no-goal / just-raced states). */}
       <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 text-white shadow-lg">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-sm text-slate-400">Hi {firstName} 👋 · {today}</p>
-            {goalDone ? (
-              <>
-                <h1 className="mt-2 truncate text-2xl font-bold tracking-tight">You raced {goalRace.name}! 🎉</h1>
-                <p className="mt-0.5 text-sm text-lime-300">That chapter's done — time to pick the next one.</p>
-              </>
-            ) : goalRace.name ? (
-              <>
-                <h1 className="mt-2 truncate text-2xl font-bold tracking-tight">{goalRace.name}</h1>
-                <p className="mt-0.5 text-sm text-slate-400">{goalRace.date}</p>
-              </>
-            ) : (
-              <>
-                <h1 className="mt-2 text-2xl font-bold tracking-tight">What are you chasing?</h1>
-                <p className="mt-0.5 text-sm text-slate-400">
-                  Training works when it points somewhere. Set a goal below and we'll build your plan.
-                </p>
-              </>
-            )}
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {readiness.band && (
-                <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold capitalize text-white/90 ring-1 ring-inset ring-white/15">
-                  Readiness: {readiness.band}
-                </span>
+        {goalTracker ? (
+          <p className="text-sm text-slate-400">Hi {firstName} 👋 · {today}</p>
+        ) : (
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm text-slate-400">Hi {firstName} 👋 · {today}</p>
+              {goalDone ? (
+                <>
+                  <h1 className="mt-2 truncate text-2xl font-bold tracking-tight">You raced {goalRace.name}! 🎉</h1>
+                  <p className="mt-0.5 text-sm text-lime-300">That chapter's done — time to pick the next one.</p>
+                </>
+              ) : goalRace.name ? (
+                <>
+                  <h1 className="mt-2 truncate text-2xl font-bold tracking-tight">{goalRace.name}</h1>
+                  <p className="mt-0.5 text-sm text-slate-400">{goalRace.date}</p>
+                </>
+              ) : (
+                <>
+                  <h1 className="mt-2 text-2xl font-bold tracking-tight">What are you chasing?</h1>
+                  <p className="mt-0.5 text-sm text-slate-400">
+                    Training works when it points somewhere. Set a goal below and we'll build your plan.
+                  </p>
+                </>
               )}
-              <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/90 ring-1 ring-inset ring-white/15">
-                {athlete.coachingMode === 'assisted' ? 'Coach-guided' : 'Auto-coached'}
-              </span>
-            </div>
-          </div>
-          {goalRace.daysAway != null && goalRace.daysAway >= 0 && (
-            <div className="shrink-0 text-right">
-              <div className="text-5xl font-extrabold leading-none tracking-tight text-lime-300 tabular-nums">
-                {goalRace.daysAway}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {readiness.band && (
+                  <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold capitalize text-white/90 ring-1 ring-inset ring-white/15">
+                    Readiness: {readiness.band}
+                  </span>
+                )}
+                <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/90 ring-1 ring-inset ring-white/15">
+                  {athlete.coachingMode === 'assisted' ? 'Coach-guided' : 'Auto-coached'}
+                </span>
               </div>
-              <div className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">days to go</div>
             </div>
-          )}
-        </div>
+            {goalRace.daysAway != null && goalRace.daysAway >= 0 && (
+              <div className="shrink-0 text-right">
+                <div className="text-5xl font-extrabold leading-none tracking-tight text-lime-300 tabular-nums">
+                  {goalRace.daysAway}
+                </div>
+                <div className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">days to go</div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Up today */}
         <div className="mt-5 rounded-2xl bg-white/10 p-4 ring-1 ring-inset ring-white/10">
