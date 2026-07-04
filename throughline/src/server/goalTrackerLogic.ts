@@ -1,0 +1,205 @@
+/**
+ * PURE goal-tracker verdict (no DB) — the "where do I stand?" hook.
+ *
+ * Fuses the two halves of "on track" into ONE honest verdict:
+ *   1. DESTINATION — can my fitness reach the goal by race day? (the engine's
+ *      assessGoalFeasibility: ahead / on_track / stretch / unrealistic)
+ *   2. TRAJECTORY  — am I actually doing the training that gets me there?
+ *      (consistency: adherence to planned volume + active weeks)
+ *
+ * A runner can be physiologically capable yet drifting because they aren't
+ * doing the work — neither signal catches that alone, so we combine them. The
+ * verdict is always paired with the single lever that changes it: honest, but
+ * never a dead end.
+ */
+import type { GoalFeasibility } from '@/engine/plan';
+import type { ConsistencyStats } from '@/server/consistencyLogic';
+
+export type GoalVerdict = 'ahead' | 'on_track' | 'stretch' | 'drifting' | 'at_risk';
+export type GoalTone = 'positive' | 'caution' | 'risk';
+
+export interface GoalTracker {
+  verdict: GoalVerdict;
+  tone: GoalTone;
+  raceLine: string; // "Chicago Marathon · 42 days"
+  headline: string; // "Sub-3:05 is in reach"
+  projectionLine: string | null; // "projected today 3:07 → race day 3:04"
+  fillPct: number; // 0-100 — how close the projected outcome is to the goal
+  goalMarkerPct: number; // where the goal line sits on the bar
+  leftLabel: string;
+  rightLabel: string;
+  execNote: string | null; // execution read: "4 straight weeks of full training"
+  advocateLine: string; // the single lever that moves the verdict
+  cta: { label: string; href: string } | null;
+}
+
+type Execution = 'strong' | 'okay' | 'slipping' | 'unknown';
+
+function executionLevel(c: ConsistencyStats | null): Execution {
+  if (!c) return 'unknown';
+  const adh = c.adherence28dPct;
+  const aw = c.activeWeeks28d;
+  if (adh != null) {
+    if (adh >= 85 && aw >= 3) return 'strong';
+    if (adh < 65 || aw <= 1) return 'slipping';
+    return 'okay';
+  }
+  if (aw >= 3) return 'strong';
+  if (aw <= 1) return 'slipping';
+  return 'okay';
+}
+
+function pad(n: number): string {
+  return String(n).padStart(2, '0');
+}
+/** h:mm for marathon/half (drop seconds), mm:ss for shorter. */
+function clockShort(sec: number): string {
+  const s = Math.round(sec);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = Math.round(s % 60);
+  return h > 0 ? `${h}:${pad(m)}` : `${m}:${pad(ss)}`;
+}
+
+const GOAL_MARKER = 80;
+const FILL: Record<GoalVerdict, number> = {
+  ahead: 100,
+  on_track: 88,
+  stretch: 66,
+  drifting: 52,
+  at_risk: 36,
+};
+
+function execNoteFor(exec: Execution, c: ConsistencyStats | null): string | null {
+  if (!c) return null;
+  switch (exec) {
+    case 'strong':
+      return `${c.activeWeeks28d}/4 weeks fully trained`;
+    case 'okay':
+      return 'Training is steady — keep stacking weeks';
+    case 'slipping':
+      return c.adherence28dPct != null
+        ? `Volume running ${Math.max(1, 100 - c.adherence28dPct)}% under plan`
+        : `Only ${c.runs28d} run${c.runs28d === 1 ? '' : 's'} logged in 4 weeks`;
+    default:
+      return null;
+  }
+}
+
+export interface BuildGoalTrackerInput {
+  goalName: string;
+  daysAway: number | null;
+  targetTimeSeconds: number | null;
+  target: { solidSeconds: number; stretchSeconds: number } | null;
+  feasibility: GoalFeasibility | null;
+  consistency: ConsistencyStats | null;
+}
+
+/** Pure verdict builder. Returns null when there is no goal to track. */
+export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | null {
+  const { goalName, daysAway, targetTimeSeconds, target, feasibility, consistency } = input;
+  if (!goalName) return null;
+
+  const exec = executionLevel(consistency);
+  const raceLine = daysAway != null && daysAway >= 0 ? `${goalName} · ${daysAway} days` : goalName;
+  const execNote = execNoteFor(exec, consistency);
+  const goalLabel = targetTimeSeconds != null ? clockShort(targetTimeSeconds) : null;
+
+  // No time-based feasibility (no target time, or no fitness anchor yet): judge
+  // on execution alone, framed as "are you building toward the race".
+  if (!feasibility) {
+    const drifting = exec === 'slipping';
+    return {
+      verdict: drifting ? 'drifting' : 'on_track',
+      tone: drifting ? 'caution' : 'positive',
+      raceLine,
+      headline: drifting ? 'You are drifting off plan' : `Building toward ${goalName}`,
+      projectionLine: null,
+      fillPct: drifting ? 52 : 78,
+      goalMarkerPct: GOAL_MARKER,
+      leftLabel: 'training consistency',
+      rightLabel: 'race day',
+      execNote,
+      advocateLine: drifting
+        ? 'The race is still yours — get two solid weeks back-to-back and the base rebuilds fast.'
+        : 'Keep stacking consistent weeks — that is what shows up on race day.',
+      cta: targetTimeSeconds == null ? { label: 'Set a target time', href: '#goal-setup' } : null,
+    };
+  }
+
+  const projected = clockShort(feasibility.projectedTimeSeconds);
+  const solid = target ? clockShort(target.solidSeconds) : null;
+  const projectionLine =
+    solid != null ? `projected today ${solid} → race day ${projected}` : `projected race day ~${projected}`;
+
+  // Destination verdict, then let execution downgrade a capable athlete who
+  // isn't doing the work.
+  let verdict: GoalVerdict;
+  if (feasibility.verdict === 'ahead') verdict = 'ahead';
+  else if (feasibility.verdict === 'unrealistic') verdict = 'at_risk';
+  else if (feasibility.verdict === 'on_track') verdict = exec === 'slipping' ? 'drifting' : 'on_track';
+  else verdict = exec === 'slipping' ? 'drifting' : 'stretch'; // 'stretch'
+
+  const tone: GoalTone =
+    verdict === 'at_risk' ? 'risk' : verdict === 'drifting' || verdict === 'stretch' ? 'caution' : 'positive';
+
+  const headline =
+    verdict === 'ahead'
+      ? 'You are ahead of your goal'
+      : verdict === 'on_track'
+        ? goalLabel
+          ? `${goalLabel} is in reach`
+          : 'Your goal is in reach'
+        : verdict === 'stretch'
+          ? goalLabel
+            ? `${goalLabel} is a real stretch`
+            : 'A real stretch — reachable if it clicks'
+          : verdict === 'drifting'
+            ? goalLabel
+              ? `${goalLabel} is slipping`
+              : 'Your goal is slipping'
+            : goalLabel
+              ? `${goalLabel} isn't this race`
+              : 'Time to aim honestly';
+
+  const leftLabel =
+    verdict === 'at_risk'
+      ? `realistic ${projected}`
+      : verdict === 'drifting'
+        ? consistency?.adherence28dPct != null
+          ? `${consistency.adherence28dPct}% of planned miles`
+          : `${consistency?.activeWeeks28d ?? 0}/4 active weeks`
+        : verdict === 'stretch'
+          ? 'reachable if it clicks'
+          : verdict === 'ahead'
+            ? solid
+              ? `now ${solid}`
+              : 'at goal fitness'
+            : 'fitness climbing';
+
+  const advocateLine =
+    verdict === 'ahead'
+      ? 'Hold this fitness — or let\'s aim a notch faster and make the race count.'
+      : verdict === 'on_track'
+        ? 'Keep protecting your long run and key session — it\'s yours to lose.'
+        : verdict === 'stretch'
+          ? 'It\'s the ceiling, not the floor. Stack consistent weeks and see how close you get.'
+          : verdict === 'drifting'
+            ? 'The goal is still alive. Nail this week\'s key session and long run and you\'re back on the line.'
+            : `Chase it, treat ~${projected} as a real win — and let\'s set ${goalLabel ?? 'the big one'} for a race with room to reach it.`;
+
+  return {
+    verdict,
+    tone,
+    raceLine,
+    headline,
+    projectionLine,
+    fillPct: FILL[verdict],
+    goalMarkerPct: GOAL_MARKER,
+    leftLabel,
+    rightLabel: 'goal',
+    execNote,
+    advocateLine,
+    cta: verdict === 'at_risk' ? { label: 'Rework the goal', href: '#goal-setup' } : null,
+  };
+}

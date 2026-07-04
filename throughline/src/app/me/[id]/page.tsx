@@ -25,6 +25,8 @@ import { RecoveryCard } from '@/components/RecoveryCard';
 import { getRecoveryInsights, persistReadiness } from '@/server/recovery';
 import { ReadinessCheck } from '@/components/ReadinessCheck';
 import { decideReadinessGate } from '@/server/readinessGate';
+import { GoalTrackerHero } from '@/components/GoalTrackerHero';
+import { getGoalTracker } from '@/server/goalTracker';
 import { BottomNav } from '@/components/BottomNav';
 import { getRecentCrossTraining } from '@/server/weeklyVolume';
 import { getDb } from '@/db';
@@ -108,6 +110,10 @@ export default async function PortalPage({
   const needsGoal = !goalRace.name || goalDone;
   const ranToday = latestRun?.day === today || adaptation?.layoffDays === 0;
 
+  // Goal tracker hook — the "where do I stand?" verdict. Only when there's a
+  // live goal to track (a finished/absent goal is handled by the goal-setup CTA).
+  const goalTracker = needsGoal ? null : await getGoalTracker(db, id, today, consistency);
+
   const nextStep = decideNextStep({
     firstName,
     hasAnchor,
@@ -148,6 +154,9 @@ export default async function PortalPage({
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-20 sm:pb-4">
+      {/* ── GOAL TRACKER — where do I stand? (the hook) ──────────────────── */}
+      {goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} />}
+
       {/* ── NEXT STEP ────────────────────────────────────────────────────── */}
       <NextStepBanner
         step={nextStep}
