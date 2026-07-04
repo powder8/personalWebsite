@@ -39,8 +39,14 @@ function isCoachEmail(email: string | null | undefined): boolean {
 
 /** Coach-only path prefixes (the console). Everything else is athlete-facing. */
 const COACH_PREFIXES = ['/athletes', '/escalations', '/feedback', '/import'];
-/** Paths anyone (even signed-out) may hit. */
-const PUBLIC_PREFIXES = ['/signin', '/api/auth', '/api/webhooks', '/api/inngest', '/api/cron'];
+/**
+ * Paths anyone (even signed-out) may hit. Whoop OAuth (connect/callback) and its
+ * webhook all live under /api/whoop and must be reachable without a session —
+ * WHOOP's servers POST to the webhook with no cookies, and app reviewers open
+ * /privacy. (The authenticated Whoop sync lives at /api/athletes/<id>/whoop/sync,
+ * which stays gated by the athlete-ownership check below.)
+ */
+const PUBLIC_PREFIXES = ['/signin', '/privacy', '/api/auth', '/api/whoop', '/api/webhooks', '/api/inngest', '/api/cron'];
 
 /**
  * Extract the athlete id an athlete-scoped path is addressing, so a non-coach
