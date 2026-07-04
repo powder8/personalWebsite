@@ -23,6 +23,8 @@ import { RunDebriefCard } from '@/components/RunDebriefCard';
 import { getRunDebrief } from '@/server/runDebrief';
 import { RecoveryCard } from '@/components/RecoveryCard';
 import { getRecoveryInsights, persistReadiness } from '@/server/recovery';
+import { ReadinessCheck } from '@/components/ReadinessCheck';
+import { decideReadinessGate } from '@/server/readinessGate';
 import { BottomNav } from '@/components/BottomNav';
 import { getRecentCrossTraining } from '@/server/weeklyVolume';
 import { getDb } from '@/db';
@@ -127,8 +129,22 @@ export default async function PortalPage({
         }
       : null,
     readinessBand: recovery.readiness?.band ?? null,
+    coachingMode: athlete.coachingMode,
   });
   const easeDirectives = adaptation ? easeBackDirectives(adaptation, today) : [];
+
+  // Autonomous mode: don't ease on wearable data alone — ask how they feel, then
+  // recommend easing (they agree) or keeping the session (they feel good).
+  const readinessGate = decideReadinessGate({
+    coachingMode: athlete.coachingMode,
+    band: recovery.readiness?.band ?? null,
+    sessionType: todaySession?.sessionType ?? null,
+    ranToday,
+    isRestDay: !todaySession || todaySession.sessionType === 'rest' || (todaySession.distanceMeters ?? 0) <= 0,
+    checkedInToday,
+    energy: todayCheckIn?.energy ?? null,
+    soreness: todayCheckIn?.soreness ?? null,
+  });
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-20 sm:pb-4">
@@ -139,6 +155,30 @@ export default async function PortalPage({
         easeDirectives={easeDirectives}
         latestActivityId={latestRun?.activityId ?? null}
       />
+
+      {/* Autonomous readiness gate: ask before easing, then recommend. */}
+      {readinessGate.kind === 'ask' && (
+        <ReadinessCheck athleteId={athlete.id} day={today} title={readinessGate.title} body={readinessGate.body} />
+      )}
+      {(readinessGate.kind === 'ease' || readinessGate.kind === 'hold') && (
+        <div
+          className={`rounded-3xl p-5 shadow-lg ring-1 ring-inset ${
+            readinessGate.kind === 'ease'
+              ? 'bg-amber-400/10 ring-amber-400/25'
+              : 'bg-emerald-400/10 ring-emerald-400/25'
+          }`}
+        >
+          <h2
+            className={`flex items-center gap-2 text-base font-bold tracking-tight ${
+              readinessGate.kind === 'ease' ? 'text-amber-200' : 'text-emerald-200'
+            }`}
+          >
+            <span aria-hidden>{readinessGate.kind === 'ease' ? '🔻' : '👍'}</span>
+            <span>{readinessGate.title}</span>
+          </h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-slate-300">{readinessGate.body}</p>
+        </div>
+      )}
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 text-white shadow-lg">

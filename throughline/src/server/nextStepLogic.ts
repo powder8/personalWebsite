@@ -60,6 +60,13 @@ export interface NextStepInput {
   today: TodaySessionLite | null; // today's planned session (null/rest = nothing to run)
   /** Today's wearable readiness band, if known (drives an advisory on the session). */
   readinessBand?: ReadinessBand | null;
+  /**
+   * How this athlete is coached. In assisted mode a low-readiness day shows a
+   * coach-facing advisory. In autonomous mode there is no coach, so the
+   * low-readiness case is handled interactively by the readiness gate (which
+   * asks the athlete how they feel first) — the banner stays silent on it.
+   */
+  coachingMode?: 'assisted' | 'autonomous';
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -68,25 +75,28 @@ const isRest = (t: TodaySessionLite | null) => !t || t.sessionType === 'rest' ||
 
 // Intensity/volume sessions where low recovery matters most.
 const QUALITY_SESSIONS = new Set(['intervals', 'tempo', 'threshold', 'marathon', 'race', 'long']);
-const isQuality = (sessionType: string) => QUALITY_SESSIONS.has(sessionType);
+export const isQualitySession = (sessionType: string) => QUALITY_SESSIONS.has(sessionType);
 
 /** Advisory note for a session day given today's readiness band. */
 function readinessNoteFor(
   session: TodaySessionLite,
   band: ReadinessBand | null | undefined,
+  coachingMode: 'assisted' | 'autonomous',
 ): NextStep['readinessNote'] {
   if (!band) return undefined;
-  const quality = isQuality(session.sessionType);
-  if (band === 'easy') {
+  const quality = isQualitySession(session.sessionType);
+  if (band === 'go' && quality) {
+    return { tone: 'go', text: 'Recovery is green today — a good day to attack this one.' };
+  }
+  // Autonomous mode routes the low-readiness case through the interactive gate,
+  // so the banner doesn't pre-empt it with a static caution here.
+  if (band === 'easy' && coachingMode !== 'autonomous') {
     return {
       tone: 'caution',
       text: quality
         ? 'Heads up: your recovery is running low today. Consider dialing the intensity back or moving the hard work to a fresher day — and check in with your coach if it persists.'
         : 'Your recovery is running low today — keep this one genuinely easy and let the body catch up.',
     };
-  }
-  if (band === 'go' && quality) {
-    return { tone: 'go', text: 'Recovery is green today — a good day to attack this one.' };
   }
   return undefined;
 }
@@ -168,7 +178,7 @@ export function decideNextStep(input: NextStepInput): NextStep {
   // 6) There's a session today.
   const t = input.today!;
   const paceTail = t.paceLabel ? ` @ ${t.paceLabel}` : '';
-  const readinessNote = readinessNoteFor(t, input.readinessBand);
+  const readinessNote = readinessNoteFor(t, input.readinessBand, input.coachingMode ?? 'assisted');
   if (input.easeBackApplied) {
     return {
       kind: 'eased_today',
