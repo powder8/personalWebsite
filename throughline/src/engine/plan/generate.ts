@@ -25,6 +25,7 @@ import {
   midpoint,
   secPerKmToMinPerMile,
 } from './zones';
+import { buildQualitySegments, buildQualityDescription } from './workouts';
 
 const LONG_RUN_CAP_MILES = 22;
 
@@ -199,6 +200,10 @@ export function generateWeek(
     if (dt.runType === 'quality' && dt.quality && miles >= MIN_QUALITY_MILES) {
       const qZone = qualityZoneFor(dt.quality.zone);
       const wuCd = warmupCooldownMiles(miles);
+      const workMiles = roundMiles(Math.max(0, miles - 2 * wuCd));
+      // Deterministic variety: rotate the template by week + day so an athlete
+      // isn't handed the identical session every quality day.
+      const seed = week.weeksToRace + dt.dow;
       return {
         ...base,
         runType: 'quality',
@@ -206,8 +211,8 @@ export function generateWeek(
         distanceMeters: milesToMeters(miles),
         warmup: `${wuCd} mi easy + drills/strides`,
         cooldown: `${wuCd} mi easy`,
-        segments: qualitySegments(miles, qZone, zones),
-        description: qualityDescription(miles, qZone, zones),
+        segments: buildQualitySegments(miles, qZone, zones, workMiles, wuCd, seed),
+        description: buildQualityDescription(miles, qZone, zones, workMiles, wuCd, seed),
       };
     }
 
@@ -231,77 +236,6 @@ export function generateWeek(
     days,
     rationale: rationale || defaultRationale(template.phase, week.weeksToRace, longMiles),
   };
-}
-
-/**
- * Structured, prescriptive segments per quality type — not a single lump:
- *  - interval (VO2): ~1-mi reps with 2–3' jog recoveries
- *  - rep (speed): 400m reps with full-recovery jogs
- *  - threshold: continuous tempo when short; 1-mi cruise intervals (60" rest)
- *    when the work block is 4 mi+ (Daniels cruise structure)
- *  - everything else (marathon pace, steady): continuous block
- */
-function qualitySegments(dayMiles: number, zone: ZoneKey, zones: PaceZones): WorkoutSegment[] {
-  const wuCd = warmupCooldownMiles(dayMiles);
-  const workMiles = roundMiles(Math.max(0, dayMiles - 2 * wuCd));
-  const paceNote = paceRangeLabel(zones.zones[zone]);
-
-  let work: WorkoutSegment;
-  if (zone === 'interval') {
-    const repMiles = workMiles >= 4 ? 1 : 0.75;
-    const reps = Math.max(3, Math.round(workMiles / repMiles));
-    work = {
-      role: 'work',
-      zone,
-      reps,
-      repMeters: milesToMeters(repMiles),
-      restSeconds: 150,
-      note: `${reps} × ${repMiles} mi @ ${paceNote} · 2–3 min easy jog between`,
-    };
-  } else if (zone === 'rep') {
-    const reps = Math.min(12, Math.max(6, Math.round(workMiles / 0.25)));
-    work = {
-      role: 'work',
-      zone,
-      reps,
-      repMeters: 400,
-      restSeconds: 200,
-      note: `${reps} × 400m @ ${paceNote} · full recovery (jog until fresh)`,
-    };
-  } else if (zone === 'threshold' && workMiles >= 4) {
-    const reps = Math.round(workMiles);
-    work = {
-      role: 'work',
-      zone,
-      reps,
-      repMeters: milesToMeters(1),
-      restSeconds: 60,
-      note: `${reps} × 1 mi @ ${paceNote} · 60s rest (cruise intervals)`,
-    };
-  } else {
-    work = {
-      role: 'work',
-      zone,
-      distanceMeters: milesToMeters(workMiles),
-      note: `${workMiles} mi continuous @ ${paceNote}`,
-    };
-  }
-
-  return [
-    {
-      role: 'warmup',
-      zone: 'easy',
-      distanceMeters: milesToMeters(wuCd),
-      note: `${wuCd} mi easy @ ${paceRangeLabel(zones.zones.easy)}, then drills & 4–6 × 20" strides`,
-    },
-    work,
-    {
-      role: 'cooldown',
-      zone: 'easy',
-      distanceMeters: milesToMeters(wuCd),
-      note: `${wuCd} mi very easy — let the heart rate come down`,
-    },
-  ];
 }
 
 /** Long-run segments: easy lead-in, marathon-pace blocks (build/peak ≥12 mi), easy finish. */
@@ -337,16 +271,6 @@ function longRunSegments(
       note: `${finish} mi easy to finish — controlled, leave a bit on the table`,
     },
   ];
-}
-
-// Prose mirror of the segments, in the coach's preferred format (Heather):
-// "Threshold workout — 2 mi warm-up, drills & 4–6 × strides; 4 mi @ T pace; 2 mi cool-down".
-function qualityDescription(dayMiles: number, zone: ZoneKey, zones: PaceZones): string {
-  const wuCd = warmupCooldownMiles(dayMiles);
-  const workMiles = roundMiles(Math.max(0, dayMiles - 2 * wuCd));
-  return `${cap(ZONE_LABEL[zone])} workout — ${wuCd} mi warm-up, drills & 4–6 × strides; ~${workMiles} mi @ ${paceRangeLabel(
-    zones.zones[zone],
-  )}; ${wuCd} mi cool-down (${dayMiles} mi total)`;
 }
 
 function longRunDescription(

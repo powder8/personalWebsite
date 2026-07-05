@@ -37,17 +37,31 @@ test('interval days prescribe reps with jog recoveries, not a single lump', () =
   assert.match(work.note ?? '', /×/);
 });
 
-test('long threshold work becomes 1-mi cruise intervals with 60s rests', () => {
-  const day = allDays.find(
-    (d) =>
-      d.runType === 'quality' &&
-      d.zone === 'threshold' &&
-      d.segments?.some((s) => s.role === 'work' && (s.reps ?? 0) >= 4),
+test('threshold days are specific structured sessions — pace + explicit recovery', () => {
+  const thrDays = allDays.filter((d) => d.runType === 'quality' && d.zone === 'threshold' && d.segments?.length);
+  assert.ok(thrDays.length > 0, 'found threshold quality days');
+  // Every threshold work segment states the athlete's pace.
+  for (const d of thrDays) {
+    const work = d.segments!.find((s) => s.role === 'work')!;
+    assert.match(work.note ?? '', /@/, `pace in note: ${work.note}`);
+  }
+  // Rep-based cruise templates name a recovery type + duration (jog / standing).
+  const repBased = thrDays
+    .map((d) => d.segments!.find((s) => s.role === 'work')!)
+    .find((w) => (w.reps ?? 0) >= 2);
+  if (repBased) {
+    assert.ok((repBased.restSeconds ?? 0) > 0, 'rep recovery has a duration');
+    assert.match(repBased.note ?? '', /jog|rest|standing/i, `recovery type: ${repBased.note}`);
+  }
+});
+
+test('the same session type varies across the plan (template rotation)', () => {
+  const notes = new Set(
+    allDays
+      .filter((d) => d.runType === 'quality' && d.zone === 'threshold' && d.segments?.length)
+      .map((d) => d.segments!.find((s) => s.role === 'work')!.note),
   );
-  assert.ok(day, 'found a cruise-interval threshold day at this volume');
-  const work = day!.segments!.find((s) => s.role === 'work')!;
-  assert.equal(work.restSeconds, 60);
-  assert.match(work.note ?? '', /cruise/i);
+  assert.ok(notes.size >= 2, `expected varied threshold sessions, got ${notes.size}`);
 });
 
 test('big build/peak long runs get marathon-pace blocks with easy lead-in and finish', () => {
