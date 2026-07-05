@@ -25,6 +25,7 @@ import { getRecoveryInsights, persistReadiness } from '@/server/recovery';
 import { ReadinessCheck } from '@/components/ReadinessCheck';
 import { decideReadinessGate } from '@/server/readinessGate';
 import { GoalTrackerHero } from '@/components/GoalTrackerHero';
+import { ConnectStrava } from '@/components/ConnectStrava';
 import { getGoalTracker } from '@/server/goalTracker';
 import { BottomNav } from '@/components/BottomNav';
 import { getRecentCrossTraining } from '@/server/weeklyVolume';
@@ -160,14 +161,70 @@ export default async function PortalPage({
   const loggedToday =
     ranToday && latestRun?.day === today ? { miles: latestRun.dayMiles, runCount: latestRun.runCount } : null;
 
+  // ── SETUP STAGE — no live goal. One job: pick the goal (plus connect the
+  // watch). Everything else stays out of the way until training starts.
+  if (needsGoal) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4 pb-20 sm:pb-4">
+        <p className="px-1 pt-1 text-sm text-slate-400">Hi {firstName} 👋 · {today}</p>
+
+        <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 text-white shadow-lg">
+          {goalDone ? (
+            <>
+              <h1 className="text-2xl font-bold tracking-tight">You raced {goalRace.name}! 🎉</h1>
+              <p className="mt-1 text-sm text-slate-300">
+                Big effort. The fitness you built fades fast if it sits — pick the next goal and we'll build the
+                plan that keeps it.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-2xl font-bold tracking-tight">What are you chasing?</h1>
+              <p className="mt-1 text-sm text-slate-300">
+                Pick a race or a goal and I'll build your week-by-week plan — every run specific, adjusted to how
+                your body is responding.
+              </p>
+            </>
+          )}
+        </div>
+
+        <div id="goal-setup" className="scroll-mt-4" />
+        <Card title={goalDone ? "What's next?" : 'Set your goal'} className="border-lime-400/30 ring-1 ring-inset ring-lime-400/30">
+          <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal={!!goalRace.name} startOpen />
+        </Card>
+
+        {!strava.connected && (
+          <Card title="Connect your watch">
+            <p className="mb-3 text-xs text-slate-500">
+              Your runs sync automatically, so the plan reacts to what you actually do.
+            </p>
+            <ConnectStrava athleteId={athlete.id} connected={strava.connected} configured={strava.configured} />
+          </Card>
+        )}
+
+        {/* Proof of value while they decide: the debrief of their latest run. */}
+        {latestDebrief && (
+          <Link href={`/me/${athlete.id}/runs/${latestRun!.activityId}`} className="block transition hover:opacity-95">
+            <RunDebriefCard debrief={latestDebrief} daysAgo={latestRun!.daysAgo} dayMiles={latestRun!.dayMiles} crossTraining={null} />
+          </Link>
+        )}
+
+        <BottomNav athleteId={athlete.id} />
+      </div>
+    );
+  }
+
+  // ── TRAINING STAGE — live goal. Order answers the athlete's questions:
+  // where do I stand → what do I do today → how is my body handling it →
+  // how has training gone → ask the coach.
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-20 sm:pb-4">
       <p className="px-1 pt-1 text-sm text-slate-400">Hi {firstName} 👋 · {today}</p>
 
-      {/* ── GOAL TRACKER — where do I stand? (the hook) ──────────────────── */}
+      {/* Where you stand */}
       {goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} />}
 
-      {/* ── TODAY / NEXT STEP — the one thing to do now, with the specific workout ── */}
+      {/* Today — the one thing to do now, with the specific workout */}
       <NextStepBanner
         step={nextStep}
         athleteId={athlete.id}
@@ -201,27 +258,17 @@ export default async function PortalPage({
         </div>
       )}
 
-      {/* Recovery & body — wearable-driven readiness (Whoop) */}
-      {recovery.hasData && <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} />}
-
-      {/* Goal setup — shown when there's no live goal */}
-      <div id="goal-setup" className="scroll-mt-4" />
-      {needsGoal && (
-        <Card
-          title={goalDone ? "What's next?" : 'What are you training for?'}
-          className="border-lime-400/30 ring-1 ring-inset ring-lime-400/30"
-        >
-          {goalDone && (
-            <p className="mb-3 text-sm text-slate-600">
-              Congrats on {goalRace.name}! The fitness you built is a launchpad — momentum fades fast if it
-              doesn't point at something. Pick the next goal and we'll build the plan.
-            </p>
-          )}
-          <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal={!!goalRace.name} startOpen />
-        </Card>
+      {/* ── YOUR BODY ────────────────────────────────────────────────────── */}
+      {recovery.hasData && (
+        <>
+          <SectionHeader>How your body is responding</SectionHeader>
+          <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} />
+        </>
       )}
 
-      {/* Latest run debrief — cross-training folded in at the bottom */}
+      {/* ── YOUR TRAINING ────────────────────────────────────────────────── */}
+      <SectionHeader>How training is going</SectionHeader>
+
       {latestDebrief ? (
         <Link href={`/me/${athlete.id}/runs/${latestRun!.activityId}`} className="block transition hover:opacity-95">
           <RunDebriefCard
@@ -237,23 +284,18 @@ export default async function PortalPage({
         )
       )}
 
-      {/* Nothing logged at all → constructive nudge */}
+      {/* Nothing logged at all → get the data flowing */}
       {!latestRun && crossTraining.sessions === 0 && !calendar.hasActuals && (
-        <Card title="No activity logged yet">
-          <p className="text-sm text-slate-600">
-            Your runs and rides show up here automatically once Strava is connected — with a coach's debrief on
-            every run.
+        <Card title="Connect your watch">
+          <p className="mb-3 text-xs text-slate-500">
+            Your runs and rides show up here automatically — with a coach's debrief on every run.
           </p>
-          <Link href={`/me/${athlete.id}/settings`} className="mt-3 inline-block text-sm font-medium text-sky-300 hover:underline">
-            Connect Strava in settings →
-          </Link>
+          <ConnectStrava athleteId={athlete.id} connected={strava.connected} configured={strava.configured} />
         </Card>
       )}
 
-      {/* Consistency / streak */}
       {consistency?.show && <ConsistencyStrip stats={consistency} />}
 
-      {/* ── TRAINING CALENDAR ────────────────────────────────────────────── */}
       <div id="training" className="scroll-mt-4" />
       <Card title="Planned vs actual" action={strava.connected ? <SyncButton athleteId={athlete.id} /> : undefined}>
         {calendar.weeks.length > 0 ? (
@@ -265,7 +307,18 @@ export default async function PortalPage({
         )}
       </Card>
 
-      {/* ── CHAT ─────────────────────────────────────────────────────────── */}
+      {/* Change goal / target time — collapsed; the tracker's CTA lands here. */}
+      <div id="goal-setup" className="scroll-mt-4" />
+      <Card title="Your goal">
+        <p className="mb-2 text-xs text-slate-500">
+          {goalRace.name} · {goalRace.date}
+          {goalTracker?.cta ? ' — add a target time to unlock the on-pace verdict.' : ''}
+        </p>
+        <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal />
+      </Card>
+
+      {/* ── ASK YOUR COACH ───────────────────────────────────────────────── */}
+      <SectionHeader>Ask your coach</SectionHeader>
       <div id="chat" className="scroll-mt-4" />
       <Card title="Your coach, on demand">
         <TrainingChat athleteId={athlete.id} configured={chatConfigured()} />
@@ -274,4 +327,8 @@ export default async function PortalPage({
       <BottomNav athleteId={athlete.id} />
     </div>
   );
+}
+
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return <h2 className="px-1 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{children}</h2>;
 }

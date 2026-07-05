@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getRoster, todayISO } from '@/server/console';
 import { BandBadge, Flag } from '@/components/ui';
+import { RebuildPlansButton } from '@/components/RebuildPlansButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,9 +10,12 @@ export default async function RosterPage() {
 
   return (
     <div>
-      <div className="mb-4 flex items-baseline justify-between">
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-lg font-semibold text-slate-900">Roster</h1>
-        <span className="text-sm text-slate-500">{todayISO()} · sorted by needs-attention</span>
+        <span className="flex items-center gap-3 text-sm text-slate-500">
+          <RebuildPlansButton />
+          {todayISO()} · sorted by needs-attention
+        </span>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-card">
