@@ -38,7 +38,7 @@ function isCoachEmail(email: string | null | undefined): boolean {
 }
 
 /** Coach-only path prefixes (the console). Everything else is athlete-facing. */
-const COACH_PREFIXES = ['/athletes', '/escalations', '/feedback', '/import'];
+const COACH_PREFIXES = ['/coach', '/athletes', '/escalations', '/feedback', '/import'];
 /**
  * Paths anyone (even signed-out) may hit. Whoop OAuth (connect/callback) and its
  * webhook all live under /api/whoop and must be reachable without a session —
@@ -87,7 +87,9 @@ export const authConfig = {
       const signedIn = !!auth?.user;
       if (role === 'coach') return true; // coaches have full access
 
-      const needsCoach = COACH_PREFIXES.some((p) => pathname.startsWith(p)) || pathname === '/';
+      // '/' is a role-aware redirect page (soon the public landing page), so any
+      // signed-in user may hit it; the console itself lives under /coach.
+      const needsCoach = COACH_PREFIXES.some((p) => pathname.startsWith(p));
       if (needsCoach) {
         // A signed-in ATHLETE on a coach-only path (incl. '/') must go to their
         // own area — NOT back to /signin, which would infinite-loop since they're

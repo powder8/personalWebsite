@@ -18,7 +18,7 @@ export default async function MeIndex() {
   }
   const session = await auth();
   if (!session?.user) redirect('/signin?callbackUrl=/me');
-  if (session.user.role === 'coach') redirect('/');
+  if (session.user.role === 'coach') redirect('/coach');
   if (session.user.athleteId) {
     // New self-service athlete who hasn't finished onboarding → the wizard.
     const db = await getDb();

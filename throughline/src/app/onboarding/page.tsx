@@ -22,7 +22,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   if (authConfigured()) {
     const session = await auth();
     if (!session?.user) redirect('/signin?callbackUrl=/onboarding');
-    if (session.user.role === 'coach') redirect('/');
+    if (session.user.role === 'coach') redirect('/coach');
     athleteId = session.user.athleteId ?? null;
   } else {
     athleteId = devId ?? null;

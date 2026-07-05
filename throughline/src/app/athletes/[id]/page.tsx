@@ -88,7 +88,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
   return (
     <div className="space-y-5">
       <div>
-        <Link href="/" className="text-sm text-sky-300 hover:underline">
+        <Link href="/coach" className="text-sm text-sky-300 hover:underline">
           ← Roster
         </Link>
         <div className="mt-1 flex items-center justify-between">

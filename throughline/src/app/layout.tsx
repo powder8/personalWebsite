@@ -64,7 +64,7 @@ export default async function RootLayout({
             <nav className="ml-auto flex items-center gap-4 text-sm">
               {isCoach ? (
                 <>
-                  <Link href="/" className="text-slate-600 hover:text-slate-900">
+                  <Link href="/coach" className="text-slate-600 hover:text-slate-900">
                     Roster
                   </Link>
                   <Link href="/import" className="text-slate-600 hover:text-slate-900">

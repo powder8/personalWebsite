@@ -29,7 +29,7 @@ export default async function SignInPage({
 
   // Already signed in? Send them on.
   const session = await auth();
-  if (session?.user) redirect(callbackUrl || (session.user.role === 'coach' ? '/' : '/me'));
+  if (session?.user) redirect(callbackUrl || (session.user.role === 'coach' ? '/coach' : '/me'));
 
   const googleEnabled = !!process.env.AUTH_GOOGLE_ID;
   const emailEnabled = !!process.env.AUTH_RESEND_KEY;
