@@ -44,7 +44,11 @@ export default async function RootLayout({
   const role = session?.user?.role;
   // Open/dev mode (auth unconfigured) keeps the full coach console visible.
   const isCoach = !authConfigured() || role === 'coach';
-  const { escalations: openEscalations, feedback: openFeedback } = isCoach
+  // A real visitor who hasn't signed in — distinct from dev mode, where
+  // authConfigured() is false but we still want the full console for
+  // convenience. Only this case gets the public/marketing nav.
+  const signedOut = authConfigured() && !session?.user;
+  const { escalations: openEscalations, feedback: openFeedback } = isCoach && !signedOut
     ? await counts()
     : { escalations: 0, feedback: 0 };
   return (
@@ -58,11 +62,13 @@ export default async function RootLayout({
             <Link href="/" className="font-semibold tracking-tight text-slate-900">
               Throughline
             </Link>
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
-              {isCoach ? 'Coach Console' : 'Athlete'}
-            </span>
+            {!signedOut && (
+              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                {isCoach ? 'Coach Console' : 'Athlete'}
+              </span>
+            )}
             <nav className="ml-auto flex items-center gap-4 text-sm">
-              {isCoach ? (
+              {signedOut ? null : isCoach ? (
                 <>
                   <Link href="/coach" className="text-slate-600 hover:text-slate-900">
                     Roster
@@ -112,7 +118,10 @@ export default async function RootLayout({
                     </button>
                   </form>
                 ) : (
-                  <Link href="/signin" className="font-medium text-sky-300 hover:text-sky-200">
+                  <Link
+                    href="/signin"
+                    className="rounded-full bg-lime-300 px-4 py-1.5 font-semibold text-[#0c1018] hover:bg-lime-200"
+                  >
                     Sign in
                   </Link>
                 ))}

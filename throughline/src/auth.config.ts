@@ -81,6 +81,11 @@ export const authConfig = {
     authorized({ auth, request }) {
       if (!authConfigured()) return true;
       const { pathname } = request.nextUrl;
+      // Exact match only — '/' must NOT be a startsWith prefix, or every path
+      // would match it and the whole gate would be defeated. The root page
+      // itself branches: signed-out visitors see the public marketing page;
+      // signed-in users are redirected to their own home.
+      if (pathname === '/') return true;
       if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) return true;
 
       const role = auth?.user?.role;
