@@ -14,9 +14,9 @@ import { LandingPage } from '@/components/LandingPage';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Throughline — Your honest AI running coach',
+  title: 'Throughline — Your smart, adaptive running coach',
   description:
-    'Specific, adapting training plans that tell you the truth about whether you are on track for your goal — and read how your body is handling the work.',
+    'An AI running coach that rebuilds your plan around real workouts, real recovery data, and where you actually stand.',
 };
 
 export default async function RootPage() {

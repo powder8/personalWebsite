@@ -41,11 +41,11 @@ export function LandingPage() {
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 px-6 py-14 text-center shadow-lg sm:px-12 sm:py-20">
         <h1 className="mx-auto max-w-2xl text-3xl font-bold tracking-tight text-white sm:text-5xl">
-          Your honest running coach
+          Training that adapts as fast as you do
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-slate-300 sm:text-lg">
-          Throughline builds a specific, adapting training plan around your goal — then tells you the truth about
-          whether you&apos;re on track, and exactly what to do next.
+          An AI coach that rebuilds your plan around real workouts, real recovery data, and where you actually
+          stand.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
