@@ -43,7 +43,7 @@ export function LandingPage() {
         <h1 className="mx-auto max-w-2xl text-3xl font-bold tracking-tight text-white sm:text-5xl">
           Training that adapts as fast as you do
         </h1>
-        <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-slate-300 sm:text-lg">
+        <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-slate-400 sm:text-lg">
           An AI coach that rebuilds your plan around real workouts, real recovery data, and where you actually
           stand.
         </p>
@@ -56,7 +56,7 @@ export function LandingPage() {
           </Link>
           <a
             href="#how-it-works"
-            className="rounded-full px-6 py-3 text-sm font-semibold text-slate-300 ring-1 ring-inset ring-white/15 transition hover:bg-white/5"
+            className="rounded-full px-6 py-3 text-sm font-semibold text-slate-400 ring-1 ring-inset ring-white/15 transition hover:bg-white/5"
           >
             See how it works
           </a>
@@ -100,7 +100,7 @@ export function LandingPage() {
       {/* ── FINAL CTA ────────────────────────────────────────────────────── */}
       <section className="rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 px-6 py-10 text-center shadow-lg">
         <h2 className="text-2xl font-bold tracking-tight text-white">Ready to train with a plan that adapts to you?</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm text-slate-300">
+        <p className="mx-auto mt-2 max-w-md text-sm text-slate-400">
           Set a goal and see your first week, free.
         </p>
         <Link
