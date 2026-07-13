@@ -73,6 +73,9 @@ export default async function RootLayout({
                   <Link href="/coach" className="text-slate-600 hover:text-slate-900">
                     Roster
                   </Link>
+                  <Link href="/coach/analytics" className="text-slate-600 hover:text-slate-900">
+                    Analytics
+                  </Link>
                   <Link href="/import" className="text-slate-600 hover:text-slate-900">
                     Import
                   </Link>
