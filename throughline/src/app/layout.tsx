@@ -42,13 +42,16 @@ export default async function RootLayout({
 }>) {
   const session = authConfigured() ? await auth() : null;
   const role = session?.user?.role;
-  // Open/dev mode (auth unconfigured) keeps the full coach console visible.
-  const isCoach = !authConfigured() || role === 'coach';
+  // Console = admin or coach (or dev mode). Admin additionally sees site-wide
+  // views (Analytics, Import, product Feedback); a coach sees only their roster.
+  const isAdmin = !authConfigured() || role === 'admin';
+  const isConsole = isAdmin || role === 'coach';
   // A real visitor who hasn't signed in — distinct from dev mode, where
   // authConfigured() is false but we still want the full console for
   // convenience. Only this case gets the public/marketing nav.
   const signedOut = authConfigured() && !session?.user;
-  const { escalations: openEscalations, feedback: openFeedback } = isCoach && !signedOut
+  // Escalation/feedback badge counts are site-wide (admin-only concern).
+  const { escalations: openEscalations, feedback: openFeedback } = isAdmin && !signedOut
     ? await counts()
     : { escalations: 0, feedback: 0 };
   return (
@@ -64,11 +67,11 @@ export default async function RootLayout({
             </Link>
             {!signedOut && (
               <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                {isCoach ? 'Coach Console' : 'Athlete'}
+                {isAdmin ? 'Admin' : isConsole ? 'Coach Console' : 'Athlete'}
               </span>
             )}
             <nav className="ml-auto flex items-center gap-4 text-sm">
-              {signedOut ? null : isCoach ? (
+              {signedOut ? null : isConsole ? (
                 <>
                   <Link href="/coach" className="text-slate-600 hover:text-slate-900">
                     Roster
@@ -76,25 +79,30 @@ export default async function RootLayout({
                   <Link href="/coach/analytics" className="text-slate-600 hover:text-slate-900">
                     Analytics
                   </Link>
-                  <Link href="/import" className="text-slate-600 hover:text-slate-900">
-                    Import
-                  </Link>
-                  <Link href="/escalations" className="flex items-center gap-1 text-slate-600 hover:text-slate-900">
-                    Escalations
-                    {openEscalations > 0 && (
-                      <span className="rounded-full bg-rose-600 px-1.5 text-[10px] font-semibold text-white">
-                        {openEscalations}
-                      </span>
-                    )}
-                  </Link>
-                  <Link href="/feedback" className="flex items-center gap-1 text-slate-600 hover:text-slate-900">
-                    Feedback
-                    {openFeedback > 0 && (
-                      <span className="rounded-full bg-sky-600 px-1.5 text-[10px] font-semibold text-white">
-                        {openFeedback}
-                      </span>
-                    )}
-                  </Link>
+                  {/* Site-wide tools are admin-only. */}
+                  {isAdmin && (
+                    <>
+                      <Link href="/import" className="text-slate-600 hover:text-slate-900">
+                        Import
+                      </Link>
+                      <Link href="/escalations" className="flex items-center gap-1 text-slate-600 hover:text-slate-900">
+                        Escalations
+                        {openEscalations > 0 && (
+                          <span className="rounded-full bg-rose-600 px-1.5 text-[10px] font-semibold text-white">
+                            {openEscalations}
+                          </span>
+                        )}
+                      </Link>
+                      <Link href="/feedback" className="flex items-center gap-1 text-slate-600 hover:text-slate-900">
+                        Feedback
+                        {openFeedback > 0 && (
+                          <span className="rounded-full bg-sky-600 px-1.5 text-[10px] font-semibold text-white">
+                            {openFeedback}
+                          </span>
+                        )}
+                      </Link>
+                    </>
+                  )}
                 </>
               ) : (
                 <>

@@ -181,6 +181,11 @@ export const athletes = pgTable(
     userId: text('user_id').references((): import('drizzle-orm/pg-core').AnyPgColumn => users.id, {
       onDelete: 'set null',
     }),
+    // WHICH coach works with this athlete (users.id of a coach/admin account).
+    // Null = unassigned — visible to every coach until an admin assigns one.
+    coachUserId: text('coach_user_id').references((): import('drizzle-orm/pg-core').AnyPgColumn => users.id, {
+      onDelete: 'set null',
+    }),
     // Who coaches this athlete: a human (assisted) or the app (autonomous).
     coachingMode: coachingModeEnum('coaching_mode').notNull().default('assisted'),
     active: boolean('active').notNull().default(true),
@@ -788,7 +793,9 @@ export const readinessAssessments = pgTable(
 // `athletes.userId` links a signed-in user to their athlete record (by email
 // on first sign-in). See src/auth.ts.
 
-export const userRoleEnum = pgEnum('user_role', ['coach', 'athlete']);
+// admin = site owner (all athletes + site-wide analytics); coach = works with
+// their assigned athletes only; athlete = their own portal.
+export const userRoleEnum = pgEnum('user_role', ['admin', 'coach', 'athlete']);
 
 export const users = pgTable('users', {
   id: text('id')

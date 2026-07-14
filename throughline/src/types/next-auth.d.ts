@@ -4,7 +4,9 @@ import type { DefaultSession } from 'next-auth';
 declare module 'next-auth' {
   interface Session {
     user: {
-      role: 'coach' | 'athlete';
+      /** users.id — used for coach→athlete assignment scoping. */
+      id: string;
+      role: 'admin' | 'coach' | 'athlete';
       athleteId: string | null;
     } & DefaultSession['user'];
   }
@@ -12,7 +14,7 @@ declare module 'next-auth' {
 
 declare module 'next-auth/jwt' {
   interface JWT {
-    role?: 'coach' | 'athlete';
+    role?: 'admin' | 'coach' | 'athlete';
     athleteId?: string | null;
   }
 }

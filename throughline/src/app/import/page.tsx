@@ -1,11 +1,15 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { ImportForm } from '@/components/ImportForm';
 import { FileUploadForm } from '@/components/FileUploadForm';
 import { Card } from '@/components/ui';
+import { consoleViewer } from '@/server/access';
 
 export const dynamic = 'force-dynamic';
 
-export default function ImportPage() {
+export default async function ImportPage() {
+  const viewer = await consoleViewer();
+  if (viewer?.kind !== 'admin') notFound();
   return (
     <div className="space-y-5">
       <div>

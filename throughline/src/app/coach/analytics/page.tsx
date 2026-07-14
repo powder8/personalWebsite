@@ -1,8 +1,11 @@
 /**
- * Coach analytics — the "how is the product doing?" overview. Growth,
- * engagement, training mix, goals, today's readiness, feedback + escalations.
- * Pure server markup; charts are inline SVG following WeeklyVolumeChart's
- * conventions (recessive #26304a gridlines, slate-400 labels, thin marks).
+ * Analytics — role-aware.
+ *  - ADMIN sees the whole website: growth/signups, all engagement, and the
+ *    site-wide product-feedback queue.
+ *  - A COACH sees the same training/engagement/readiness metrics but scoped to
+ *    only the athletes assigned to them; the site-wide business numbers and
+ *    product feedback are hidden. Scope is enforced server-side in
+ *    getAdminAnalytics — a coach never receives another coach's athlete data.
  *
  * Color rationale (validated via the dataviz palette checker):
  *  - signups columns: single hue (sky-400, 8.2:1 on card) — magnitude, not identity
@@ -12,9 +15,11 @@
  *  - readiness: the app's reserved status colors via BandBadge
  */
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { getDb } from '@/db';
 import { todayISO } from '@/server/console';
-import { getAdminAnalytics, type AdminAnalytics } from '@/server/adminAnalytics';
+import { getAdminAnalytics, type AdminAnalytics, type AnalyticsScope } from '@/server/adminAnalytics';
+import { consoleViewer, visibleAthleteIds } from '@/server/access';
 import { Card, BandBadge } from '@/components/ui';
 import { SESSION_COLOR, SESSION_LABEL } from '@/components/WeekStrip';
 import type { Band } from '@/server/console';
@@ -22,9 +27,17 @@ import type { Band } from '@/server/console';
 export const dynamic = 'force-dynamic';
 
 export default async function AnalyticsPage() {
+  const viewer = await consoleViewer();
+  if (!viewer) notFound();
+
   const db = await getDb();
   const today = todayISO();
-  const a = await getAdminAnalytics(db, today);
+  const scope: AnalyticsScope =
+    viewer.kind === 'admin'
+      ? { kind: 'site' }
+      : { kind: 'coach', athleteIds: (await visibleAthleteIds(db, viewer)) ?? new Set() };
+  const a = await getAdminAnalytics(db, today, scope);
+  const isSite = a.scope === 'site';
 
   return (
     <div className="space-y-5">
@@ -33,16 +46,18 @@ export default async function AnalyticsPage() {
           ← Roster
         </Link>
         <div className="mt-1 flex items-baseline justify-between">
-          <h1 className="text-lg font-semibold text-slate-900">Analytics</h1>
-          <span className="text-sm text-slate-500">{today}</span>
+          <h1 className="text-lg font-semibold text-slate-900">{isSite ? 'Analytics' : 'Your athletes'}</h1>
+          <span className="text-sm text-slate-500">
+            {isSite ? 'Whole website' : 'Your roster only'} · {today}
+          </span>
         </div>
       </div>
 
-      {/* ── GROWTH ─────────────────────────────────────────────────────── */}
-      <SectionHeader>Growth</SectionHeader>
+      {/* ── GROWTH (admin) / YOUR ATHLETES (coach) ─────────────────────── */}
+      <SectionHeader>{isSite ? 'Growth' : 'Your athletes'}</SectionHeader>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile label="Active athletes" value={a.growth.activeAthletes} />
-        <StatTile label="Signed-up accounts" value={a.growth.signedUpUsers} />
+        <StatTile label={isSite ? 'Active athletes' : 'Athletes'} value={a.growth.activeAthletes} />
+        {isSite && <StatTile label="Signed-up accounts" value={a.growth.signedUpUsers} />}
         <StatTile label="Onboarded" value={a.growth.onboarded} />
         <StatTile
           label="Coaching mode"
@@ -50,9 +65,11 @@ export default async function AnalyticsPage() {
           sublabel="coach-guided / autonomous"
         />
       </div>
-      <Card title="Athlete signups · last 12 weeks">
-        <SignupChart weeks={a.growth.athleteSignupsByWeek} />
-      </Card>
+      {isSite && (
+        <Card title="Athlete signups · last 12 weeks">
+          <SignupChart weeks={a.growth.athleteSignupsByWeek} />
+        </Card>
+      )}
 
       {/* ── ENGAGEMENT ─────────────────────────────────────────────────── */}
       <SectionHeader>Engagement</SectionHeader>
@@ -128,11 +145,11 @@ export default async function AnalyticsPage() {
         </Card>
       )}
 
-      {/* ── FEEDBACK & ESCALATIONS ─────────────────────────────────────── */}
-      <SectionHeader>Feedback &amp; escalations</SectionHeader>
+      {/* ── ESCALATIONS (both) + FEEDBACK (admin) ──────────────────────── */}
+      <SectionHeader>{isSite ? 'Feedback & escalations' : 'Escalations'}</SectionHeader>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <StatTile label="Open feedback" value={a.feedback.open} />
-        <StatTile label="Addressed" value={a.feedback.addressed} />
+        {isSite && <StatTile label="Open feedback" value={a.feedback.open} />}
+        {isSite && <StatTile label="Addressed" value={a.feedback.addressed} />}
         <StatTile label="Open escalations" value={a.escalations.open} />
       </div>
       {a.escalations.byKind.length > 0 && (
@@ -150,36 +167,38 @@ export default async function AnalyticsPage() {
           </div>
         </Card>
       )}
-      <Card
-        title="Recent feedback"
-        action={
-          <Link href="/feedback" className="text-xs font-medium text-sky-300 hover:underline">
-            All feedback →
-          </Link>
-        }
-      >
-        {a.feedback.recent.length > 0 ? (
-          <ul className="divide-y divide-slate-100">
-            {a.feedback.recent.map((f, i) => (
-              <li key={i} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
-                <span
-                  className={`mt-1 h-2 w-2 shrink-0 rounded-full ${f.status === 'open' ? 'bg-amber-400' : 'bg-emerald-400'}`}
-                  title={f.status}
-                />
-                <div className="min-w-0">
-                  <p className="text-sm leading-snug text-slate-700">{f.body}</p>
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    {f.author}
-                    {f.category ? ` · ${f.category}` : ''} · {f.createdAt}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Empty>No feedback yet.</Empty>
-        )}
-      </Card>
+      {isSite && (
+        <Card
+          title="Recent feedback"
+          action={
+            <Link href="/feedback" className="text-xs font-medium text-sky-300 hover:underline">
+              All feedback →
+            </Link>
+          }
+        >
+          {a.feedback.recent.length > 0 ? (
+            <ul className="divide-y divide-slate-100">
+              {a.feedback.recent.map((f, i) => (
+                <li key={i} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
+                  <span
+                    className={`mt-1 h-2 w-2 shrink-0 rounded-full ${f.status === 'open' ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                    title={f.status}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm leading-snug text-slate-700">{f.body}</p>
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      {f.author}
+                      {f.category ? ` · ${f.category}` : ''} · {f.createdAt}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Empty>No feedback yet.</Empty>
+          )}
+        </Card>
+      )}
     </div>
   );
 }

@@ -23,6 +23,7 @@ import { getTrainingSummary } from '@/server/weeklyVolume';
 import { SegmentList } from '@/components/SegmentList';
 import type { PortalSegment } from '@/server/portal';
 import { getDb } from '@/db';
+import { consoleViewer, athleteVisible } from '@/server/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,12 +44,17 @@ function dow(day: string): string {
 export default async function AthletePage({ params }: { params: Promise<{ id: string }> }) {
   const TODAY = todayISO();
   const { id } = await params;
+  // A coach may only open athletes assigned to them (deep-link guard); admins
+  // and dev mode see everyone. Missing/forbidden both 404 (no existence leak).
+  const viewer = await consoleViewer();
+  if (!viewer) notFound();
+  const db = await getDb();
+  if (!(await athleteVisible(db, viewer, id))) notFound();
   const detail = await getAthleteDetail(id);
   if (!detail) notFound();
   const fitness = await getFitnessFatigueSeries(id);
   const compliance = await getComplianceWeeks(id, TODAY);
   const insights = await getTrainingInsights(id);
-  const db = await getDb();
   const cycle = computeCycle(await getCycle(db, id), TODAY);
   const trainingSummary = await getTrainingSummary(db, id, TODAY, 12);
 

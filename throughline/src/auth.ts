@@ -14,7 +14,7 @@ import { neon } from '@neondatabase/serverless';
 import { eq } from 'drizzle-orm';
 import * as schema from '@/db/schema';
 import { users, accounts, sessions, verificationTokens, athletes } from '@/db/schema';
-import { authConfig, authConfigured, isCoachEmail } from '@/auth.config';
+import { authConfig, authConfigured, isCoachEmail, isAdminEmail } from '@/auth.config';
 
 function authDb() {
   return drizzle(neon(process.env.DATABASE_URL!), { schema });
@@ -41,7 +41,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
      *  the athlete record (by email) so the token carries role + athleteId. */
     async jwt({ token, user }) {
       if (user?.email && db) {
-        const coach = isCoachEmail(user.email);
+        // Admin (site owner) wins over coach; both are console roles.
+        const role = isAdminEmail(user.email) ? 'admin' : isCoachEmail(user.email) ? 'coach' : 'athlete';
+        const privileged = role !== 'athlete';
         let [athlete] = await db
           .select({ id: athletes.id, userId: athletes.userId })
           .from(athletes)
@@ -51,10 +53,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (athlete && !athlete.userId && user.id) {
           await db.update(athletes).set({ userId: user.id, updatedAt: new Date() }).where(eq(athletes.id, athlete.id));
         }
-        // Self-service: a non-coach with no athlete record yet gets one created
-        // (autonomous — no human coach), so the front door is never locked. The
-        // onboarding wizard then collects their fitness + goal.
-        if (!athlete && !coach && user.id) {
+        // Self-service: a non-console user with no athlete record yet gets one
+        // created (autonomous — no human coach), so the front door is never
+        // locked. The onboarding wizard then collects their fitness + goal.
+        if (!athlete && !privileged && user.id) {
           const [created] = await db
             .insert(athletes)
             .values({
@@ -66,10 +68,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             .returning({ id: athletes.id, userId: athletes.userId });
           athlete = created;
         }
-        if (coach && user.id) {
-          await db.update(users).set({ role: 'coach' }).where(eq(users.id, user.id));
+        if (privileged && user.id) {
+          await db.update(users).set({ role }).where(eq(users.id, user.id));
         }
-        token.role = coach ? 'coach' : 'athlete';
+        token.role = role;
         token.athleteId = athlete?.id ?? null;
       }
       return token;

@@ -1,8 +1,10 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { getDb } from '@/db';
 import { listFeedback } from '@/server/feedback';
 import { FeedbackActions } from '@/components/FeedbackActions';
 import { Card } from '@/components/ui';
+import { consoleViewer } from '@/server/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +15,8 @@ function age(d: Date): string {
 }
 
 export default async function FeedbackPage() {
+  const viewer = await consoleViewer();
+  if (viewer?.kind !== 'admin') notFound();
   const db = await getDb();
   const rows = await listFeedback(db);
   const open = rows.filter((r) => r.status === 'open');

@@ -1,19 +1,24 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { getRoster, todayISO } from '@/server/console';
+import { consoleViewer } from '@/server/access';
 import { BandBadge, Flag } from '@/components/ui';
 import { RebuildPlansButton } from '@/components/RebuildPlansButton';
 
 export const dynamic = 'force-dynamic';
 
 export default async function RosterPage() {
-  const roster = await getRoster();
+  const viewer = await consoleViewer();
+  if (!viewer) notFound();
+  const roster = await getRoster(viewer);
+  const isAdmin = viewer.kind === 'admin';
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-lg font-semibold text-slate-900">Roster</h1>
         <span className="flex items-center gap-3 text-sm text-slate-500">
-          <RebuildPlansButton />
+          {isAdmin && <RebuildPlansButton />}
           {todayISO()} · sorted by needs-attention
         </span>
       </div>

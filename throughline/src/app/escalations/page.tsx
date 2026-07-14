@@ -1,8 +1,10 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { getDb } from '@/db';
 import { listEscalations, ESCALATION_LABELS } from '@/server/escalations';
 import { EscalationActions } from '@/components/EscalationActions';
 import { Card } from '@/components/ui';
+import { consoleViewer } from '@/server/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +16,8 @@ function ageDays(d: Date): string {
 }
 
 export default async function EscalationsPage() {
+  const viewer = await consoleViewer();
+  if (viewer?.kind !== 'admin') notFound();
   const db = await getDb();
   const rows = await listEscalations(db);
 

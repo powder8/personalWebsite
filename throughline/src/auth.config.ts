@@ -27,14 +27,23 @@ if (process.env.AUTH_RESEND_KEY) {
   );
 }
 
-/** Coach role is granted to these emails (comma-separated env). */
-function isCoachEmail(email: string | null | undefined): boolean {
+function emailInList(email: string | null | undefined, env: string | undefined): boolean {
   if (!email) return false;
-  const list = (process.env.COACH_EMAILS || '')
+  const list = (env || '')
     .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
   return list.includes(email.toLowerCase());
+}
+
+/** Coach role is granted to these emails (comma-separated env). */
+function isCoachEmail(email: string | null | undefined): boolean {
+  return emailInList(email, process.env.COACH_EMAILS);
+}
+
+/** Admin (site owner) role — full console + site-wide analytics. Wins over coach. */
+function isAdminEmail(email: string | null | undefined): boolean {
+  return emailInList(email, process.env.ADMIN_EMAILS);
 }
 
 /** Coach-only path prefixes (the console). Everything else is athlete-facing. */
@@ -90,7 +99,9 @@ export const authConfig = {
 
       const role = auth?.user?.role;
       const signedIn = !!auth?.user;
-      if (role === 'coach') return true; // coaches have full access
+      // Admins and coaches may enter the console; WHICH athletes a coach can
+      // see is enforced at the data layer (coach assignment), not by path.
+      if (role === 'admin' || role === 'coach') return true;
 
       // '/' is a role-aware redirect page (soon the public landing page), so any
       // signed-in user may hit it; the console itself lives under /coach.
@@ -112,7 +123,8 @@ export const authConfig = {
     /** Map token → session (edge-safe; no DB). Lets middleware read role/athleteId. */
     session({ session, token }) {
       if (session.user) {
-        session.user.role = (token.role as 'coach' | 'athlete' | undefined) ?? 'athlete';
+        session.user.id = (token.sub as string | undefined) ?? session.user.id;
+        session.user.role = (token.role as 'admin' | 'coach' | 'athlete' | undefined) ?? 'athlete';
         session.user.athleteId = (token.athleteId as string | null | undefined) ?? null;
       }
       return session;
@@ -120,4 +132,4 @@ export const authConfig = {
   },
 } satisfies NextAuthConfig;
 
-export { isCoachEmail };
+export { isCoachEmail, isAdminEmail };

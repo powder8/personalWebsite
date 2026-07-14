@@ -22,11 +22,12 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 export async function POST() {
-  // Coach-only. (When auth is unconfigured — local dev — allow it.)
+  // Admin-only: this wipes and rebuilds EVERY athlete's plan, so it is not a
+  // coach action. (When auth is unconfigured — local dev — allow it.)
   if (authConfigured()) {
     const session = await auth();
-    if (session?.user?.role !== 'coach') {
-      return NextResponse.json({ error: 'Coach only.' }, { status: 403 });
+    if (session?.user?.role !== 'admin') {
+      return NextResponse.json({ error: 'Admin only.' }, { status: 403 });
     }
   }
 

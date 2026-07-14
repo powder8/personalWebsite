@@ -17,6 +17,7 @@ import {
 } from '@/engine/plan';
 import { getAthleteZones, getAthleteVdot } from '@/db/paceConfig';
 import { listEscalationsForAthlete, type EscalationRow } from '@/server/escalations';
+import { athleteVisibleTo, type ConsoleViewer } from '@/server/accessLogic';
 import { getUpcomingWeeks, type UpcomingWeek } from '@/server/season';
 import { listActiveDirectives, type DirectiveRow } from '@/server/directives';
 import { suggestAnchorCandidates, type AnchorCandidate } from '@/server/anchor';
@@ -75,10 +76,12 @@ function attentionScore(band: Band | null, injuries: number, missed: boolean): n
   return n;
 }
 
-export async function getRoster(): Promise<RosterEntry[]> {
+export async function getRoster(viewer: ConsoleViewer = { kind: 'admin' }): Promise<RosterEntry[]> {
   const TODAY = todayISO();
   const db = await getDb();
-  const rows = await db.select().from(athletes).where(eq(athletes.active, true));
+  const all = await db.select().from(athletes).where(eq(athletes.active, true));
+  // Coaches see their assigned athletes (+ unassigned); admins see everyone.
+  const rows = all.filter((a) => athleteVisibleTo(viewer, a.coachUserId));
 
   const entries = await Promise.all(
     rows.map(async (a) => {
