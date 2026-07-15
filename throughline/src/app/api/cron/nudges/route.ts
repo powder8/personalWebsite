@@ -8,9 +8,11 @@
  */
 import { NextResponse } from 'next/server';
 import { runNudges } from '@/server/nudges';
+import { runMonitor } from '@/server/monitor';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -28,8 +30,11 @@ export async function GET(req: Request) {
   const atParam = url.searchParams.get('at');
   const now = dryRun && atParam ? new Date(atParam) : undefined;
   try {
-    const result = await runNudges({ dryRun, now });
-    return NextResponse.json({ ok: true, dryRun, ...result });
+    // Adapt the schedule to recovery/layoff signals BEFORE nudging, so any
+    // message reflects the just-adjusted plan.
+    const monitor = await runMonitor({ dryRun });
+    const nudges = await runNudges({ dryRun, now });
+    return NextResponse.json({ ok: true, dryRun, monitor, nudges });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 500 });
   }

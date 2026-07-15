@@ -702,6 +702,10 @@ export const injuryRecords = pgTable(
     allowedModalities: text('allowed_modalities').array(), // e.g. ['bike','swim','pool_run']
     onsetDate: date('onset_date').notNull(),
     clearedDate: date('cleared_date'),
+    // Athlete-driven return flow: whether they said they can keep training
+    // through it, and the self-set date to proactively check "ready to resume?".
+    canContinue: boolean('can_continue'),
+    checkBackDate: date('check_back_date'),
     note: text('note'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
