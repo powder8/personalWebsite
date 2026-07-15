@@ -24,6 +24,8 @@ import { SegmentList } from '@/components/SegmentList';
 import type { PortalSegment } from '@/server/portal';
 import { getDb } from '@/db';
 import { consoleViewer, athleteVisible } from '@/server/access';
+import { listProposedDirectives } from '@/server/directives';
+import { ProposalActions } from '@/components/ProposalActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,6 +59,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
   const insights = await getTrainingInsights(id);
   const cycle = computeCycle(await getCycle(db, id), TODAY);
   const trainingSummary = await getTrainingSummary(db, id, TODAY, 12);
+  const proposals = await listProposedDirectives(db, id);
 
   const {
     athlete,
@@ -181,6 +184,36 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
                   <p className="mt-1 text-slate-600">{e.reason}</p>
                 </div>
                 <EscalationActions id={e.id} status={e.status} />
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {/* Proposed adaptations (assisted mode) — the monitor suggests, you decide */}
+      {proposals.length > 0 && (
+        <Card title="Proposed adaptations" className="border-amber-400/30 bg-amber-400/10">
+          <p className="mb-3 text-xs text-slate-500">
+            The monitor spotted a signal and proposes easing the plan. Nothing changes until you approve.
+          </p>
+          <ul className="space-y-2.5 text-sm">
+            {proposals.map((p) => (
+              <li key={p.id} className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="font-medium text-slate-800">{ADJ_LABEL[p.type] ?? p.type}</span>
+                  {p.type === 'reduce_volume' && p.factor != null && (
+                    <span className="text-slate-500"> → {Math.round(p.factor * 100)}%</span>
+                  )}
+                  {p.type === 'pace_adjust' && p.deltaSecPerMile != null && (
+                    <span className="text-slate-500"> {p.deltaSecPerMile > 0 ? '+' : ''}{p.deltaSecPerMile}s/mi</span>
+                  )}
+                  <span className="ml-2 text-xs text-slate-500">
+                    {p.from}
+                    {p.to ? ` → ${p.to}` : ' → ongoing'}
+                  </span>
+                  {p.label && <p className="mt-0.5 text-xs text-slate-600">{p.label}</p>}
+                </div>
+                <ProposalActions id={p.id} />
               </li>
             ))}
           </ul>

@@ -29,6 +29,8 @@ import { ConnectStrava } from '@/components/ConnectStrava';
 import { getGoalTracker } from '@/server/goalTracker';
 import { BottomNav } from '@/components/BottomNav';
 import { getRecentCrossTraining } from '@/server/weeklyVolume';
+import { InjuryPanel } from '@/components/InjuryPanel';
+import { getActiveInjury } from '@/server/injury';
 import { getDb } from '@/db';
 import { ensureSeasonCoverage } from '@/server/seasonCoverage';
 import { todayISO } from '@/server/console';
@@ -61,7 +63,7 @@ export default async function PortalPage({
   const portal = await getAthletePortal(id);
   if (!portal) notFound();
 
-  const [hasAnchorRaw, adaptation, consistency, latestRun, calendar, crossTraining, recovery] = await Promise.all([
+  const [hasAnchorRaw, adaptation, consistency, latestRun, calendar, crossTraining, recovery, injury] = await Promise.all([
     getAthleteVdot(db, id),
     getAdaptationState(id, portal.today),
     getConsistency(id, portal.today),
@@ -69,6 +71,7 @@ export default async function PortalPage({
     getTrainingCalendar(id, portal.today),
     getRecentCrossTraining(db, id, portal.today),
     getRecoveryInsights(db, id, portal.today),
+    getActiveInjury(db, id, portal.today),
   ]);
 
   // Live readiness computed from wearable data takes precedence over any stored
@@ -173,7 +176,7 @@ export default async function PortalPage({
             <>
               <h1 className="text-2xl font-bold tracking-tight">You raced {goalRace.name}! 🎉</h1>
               <p className="mt-1 text-sm text-slate-300">
-                Big effort. The fitness you built fades fast if it sits — pick the next goal and we'll build the
+                Big effort. The fitness you built fades fast if it sits — pick the next goal and we&apos;ll build the
                 plan that keeps it.
               </p>
             </>
@@ -181,7 +184,7 @@ export default async function PortalPage({
             <>
               <h1 className="text-2xl font-bold tracking-tight">What are you chasing?</h1>
               <p className="mt-1 text-sm text-slate-300">
-                Pick a race or a goal and I'll build your week-by-week plan — every run specific, adjusted to how
+                Pick a race or a goal and I&apos;ll build your week-by-week plan — every run specific, adjusted to how
                 your body is responding.
               </p>
             </>
@@ -259,12 +262,13 @@ export default async function PortalPage({
       )}
 
       {/* ── YOUR BODY ────────────────────────────────────────────────────── */}
-      {recovery.hasData && (
-        <>
-          <SectionHeader>How your body is responding</SectionHeader>
-          <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} />
-        </>
+      {(recovery.hasData || injury) && (
+        <SectionHeader>How your body is responding</SectionHeader>
       )}
+      {recovery.hasData && <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} />}
+
+      {/* Injury: prominent status + resume check when hurt, a quiet report link otherwise. */}
+      <InjuryPanel athleteId={athlete.id} injury={injury} />
 
       {/* ── YOUR TRAINING ────────────────────────────────────────────────── */}
       <SectionHeader>How training is going</SectionHeader>
@@ -288,7 +292,7 @@ export default async function PortalPage({
       {!latestRun && crossTraining.sessions === 0 && !calendar.hasActuals && (
         <Card title="Connect your watch">
           <p className="mb-3 text-xs text-slate-500">
-            Your runs and rides show up here automatically — with a coach's debrief on every run.
+            Your runs and rides show up here automatically — with a coach&apos;s debrief on every run.
           </p>
           <ConnectStrava athleteId={athlete.id} connected={strava.connected} configured={strava.configured} />
         </Card>

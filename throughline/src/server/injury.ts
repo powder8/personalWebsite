@@ -60,6 +60,14 @@ export async function reportInjury(
     ? null
     : addDaysISO(today, input.checkBackDays && input.checkBackDays > 0 ? input.checkBackDays : 7);
 
+  // Single active injury at a time: a fresh report supersedes any open one so we
+  // don't leave a phantom the resume/clear flow can't reach. (Re-reporting the
+  // same issue "getting worse" naturally replaces the prior entry too.)
+  await db
+    .update(injuryRecords)
+    .set({ status: 'cleared', clearedDate: today, updatedAt: new Date() })
+    .where(and(eq(injuryRecords.athleteId, athleteId), inArray(injuryRecords.status, ['acute', 'returning'])));
+
   await db.insert(injuryRecords).values({
     athleteId,
     bodyPart: input.bodyPart,
