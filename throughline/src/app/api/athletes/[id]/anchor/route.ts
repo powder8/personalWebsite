@@ -9,11 +9,15 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { setAnchor, type AnchorInput } from '@/server/anchor';
 import { todayISO } from '@/server/console';
+import { guardAthleteWrite } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
+  const denied = await guardAthleteWrite(id);
+  if (denied) return denied;
+
   let body: AnchorInput;
   try {
     body = (await req.json()) as AnchorInput;

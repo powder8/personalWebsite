@@ -5,11 +5,15 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { assignActivityShoe } from '@/server/shoes';
+import { guardAthleteWrite } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string; activityId: string }> }) {
   const { id, activityId } = await ctx.params;
+  const denied = await guardAthleteWrite(id);
+  if (denied) return denied;
+
   let body: { shoeId?: string | null };
   try {
     body = await req.json();

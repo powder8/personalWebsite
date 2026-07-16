@@ -5,11 +5,15 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { syncWhoopData } from '@/server/whoop';
+import { guardAthleteWrite } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: athleteId } = await params;
+  const denied = await guardAthleteWrite(athleteId);
+  if (denied) return denied;
+
   try {
     const db = await getDb();
     const result = await syncWhoopData(db, athleteId, 14);

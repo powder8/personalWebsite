@@ -5,11 +5,15 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { mergeAthletes } from '@/server/mergeAthletes';
+import { guardAthleteWrite } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
+  const denied = await guardAthleteWrite(id);
+  if (denied) return denied;
+
   let body: { intoAthleteId?: string };
   try {
     body = await req.json();
@@ -19,6 +23,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!body.intoAthleteId) {
     return NextResponse.json({ error: 'intoAthleteId is required.' }, { status: 400 });
   }
+
+  const deniedTarget = await guardAthleteWrite(body.intoAthleteId);
+  if (deniedTarget) return deniedTarget;
   try {
     const db = await getDb();
     const result = await mergeAthletes(db, id, body.intoAthleteId);

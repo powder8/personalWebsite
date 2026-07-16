@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { athleteVisibleTo, type ConsoleViewer } from '../accessLogic';
+import { athleteVisibleTo, decideAthleteWriteAccess, type ConsoleViewer } from '../accessLogic';
 
 const admin: ConsoleViewer = { kind: 'admin' };
 const coachA: ConsoleViewer = { kind: 'coach', userId: 'user_a' };
@@ -24,4 +24,38 @@ test('a coach does NOT see another coach\'s athletes', () => {
 test('unassigned athletes are visible to any coach (until an admin assigns one)', () => {
   assert.equal(athleteVisibleTo(coachA, null), true);
   assert.equal(athleteVisibleTo(coachB, null), true);
+});
+
+// ── write guard (decideAthleteWriteAccess) ──────────────────────────────────
+const ATH = 'athlete_1';
+const coachUser = { role: 'coach', id: 'user_a' };
+const adminUser = { role: 'admin', id: 'user_x' };
+const athleteUser = { role: 'athlete', athleteId: ATH };
+
+test('unconfigured (local/staged) allows everyone — no lockout before auth is live', () => {
+  assert.equal(decideAthleteWriteAccess({ configured: false, user: null, athleteId: ATH, coachVisible: false }), 'allow');
+});
+
+test('signed-out is forbidden once auth is configured', () => {
+  assert.equal(decideAthleteWriteAccess({ configured: true, user: null, athleteId: ATH, coachVisible: false }), 'forbid');
+});
+
+test('admin may write to any athlete', () => {
+  assert.equal(decideAthleteWriteAccess({ configured: true, user: adminUser, athleteId: ATH, coachVisible: false }), 'allow');
+});
+
+test('an athlete may write to their OWN id but not another', () => {
+  assert.equal(decideAthleteWriteAccess({ configured: true, user: athleteUser, athleteId: ATH, coachVisible: false }), 'allow');
+  assert.equal(
+    decideAthleteWriteAccess({ configured: true, user: athleteUser, athleteId: 'athlete_2', coachVisible: false }),
+    'forbid',
+  );
+});
+
+test('a coach may write only to a visible (assigned/unassigned) athlete', () => {
+  assert.equal(decideAthleteWriteAccess({ configured: true, user: coachUser, athleteId: ATH, coachVisible: true }), 'allow');
+});
+
+test('a coach is FORBIDDEN from another coach\'s athlete — the gap this guard closes', () => {
+  assert.equal(decideAthleteWriteAccess({ configured: true, user: coachUser, athleteId: ATH, coachVisible: false }), 'forbid');
 });

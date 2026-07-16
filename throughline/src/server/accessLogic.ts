@@ -13,3 +13,34 @@ export function athleteVisibleTo(viewer: ConsoleViewer, coachUserId: string | nu
   if (viewer.kind === 'admin') return true;
   return coachUserId == null || coachUserId === viewer.userId;
 }
+
+/** The signed-in user as seen by a write guard (fields we key on). */
+export interface WriteAccessUser {
+  role?: string | null;
+  /** The athlete this user IS (athletes only); null/absent for coaches/admins. */
+  athleteId?: string | null;
+  /** The console user id (coaches), for assignment checks. */
+  id?: string | null;
+}
+
+/**
+ * PURE decision for "may this user WRITE to /api/athletes/[athleteId]?".
+ *
+ * `coachVisible` is the caller-supplied result of athleteVisibleTo for a coach
+ * viewer (the DB lookup lives in the server shell). It's only consulted on the
+ * coach branch, so callers may pass false when the user isn't a coach.
+ */
+export function decideAthleteWriteAccess(input: {
+  configured: boolean;
+  user: WriteAccessUser | null;
+  athleteId: string;
+  coachVisible: boolean;
+}): 'allow' | 'forbid' {
+  if (!input.configured) return 'allow'; // local dev / staged rollout
+  const u = input.user;
+  if (!u) return 'forbid';
+  if (u.role === 'admin') return 'allow';
+  if (u.athleteId && u.athleteId === input.athleteId) return 'allow'; // own data
+  if (u.role === 'coach' && u.id && input.coachVisible) return 'allow';
+  return 'forbid';
+}

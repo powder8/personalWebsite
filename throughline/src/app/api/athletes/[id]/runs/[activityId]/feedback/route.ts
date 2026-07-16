@@ -5,11 +5,15 @@
  */
 import { NextResponse } from 'next/server';
 import { saveRunFeedback, type RunFeedbackInput } from '@/server/runDebrief';
+import { guardAthleteWrite } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string; activityId: string }> }) {
   const { id, activityId } = await ctx.params;
+  const denied = await guardAthleteWrite(id);
+  if (denied) return denied;
+
   let body: RunFeedbackInput;
   try {
     body = (await req.json()) as RunFeedbackInput;

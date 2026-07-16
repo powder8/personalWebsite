@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { createDirective, type NewDirective } from '@/server/directives';
 import type { AdjustmentType } from '@/engine/plan';
+import { guardAthleteWrite } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
 
@@ -13,6 +14,9 @@ const TYPES: AdjustmentType[] = ['pace_adjust', 'reduce_volume', 'unavailable'];
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
+  const denied = await guardAthleteWrite(id);
+  if (denied) return denied;
+
   let body: Partial<NewDirective>;
   try {
     body = await req.json();

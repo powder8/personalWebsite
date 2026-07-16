@@ -8,6 +8,7 @@ import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { athletes } from '@/db/schema';
+import { guardAthleteWrite } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
 
@@ -16,6 +17,9 @@ const SEX = new Set(['female', 'male', 'other']);
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
+  const denied = await guardAthleteWrite(id);
+  if (denied) return denied;
+
   let body: { dateOfBirth?: string | null; sex?: string };
   try {
     body = await req.json();

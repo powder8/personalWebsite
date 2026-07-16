@@ -7,12 +7,16 @@ import { getDb } from '@/db';
 import { syncStravaActivities } from '@/server/strava';
 import { ensureAutoAnchor } from '@/server/anchor';
 import { todayISO } from '@/server/console';
+import { guardAthleteWrite } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // each call processes a bounded chunk; client loops until done
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
+  const denied = await guardAthleteWrite(id);
+  if (denied) return denied;
+
   const url = new URL(req.url);
   // ?full=1 starts a whole-history pull; ?after=<unix> continues a prior chunk.
   const full = url.searchParams.get('full') === '1';
