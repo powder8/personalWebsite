@@ -58,7 +58,7 @@ export function ReadinessCheck({
         <span aria-hidden>🫀</span>
         <span>{title}</span>
       </h2>
-      <p className="mt-1.5 text-sm leading-relaxed text-slate-100">{body}</p>
+      <p className="mt-1.5 text-sm leading-relaxed text-white/80">{body}</p>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         {OPTIONS.map((opt) => (
           <button

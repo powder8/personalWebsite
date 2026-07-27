@@ -60,7 +60,7 @@ export function NextStepBanner({
         <span aria-hidden>{step.emoji}</span>
         <span>{step.headline}</span>
       </h2>
-      <p className="mt-1.5 text-sm leading-relaxed text-slate-100">{step.detail}</p>
+      <p className="mt-1.5 text-sm leading-relaxed text-white/80">{step.detail}</p>
 
       {loggedToday && (
         <p className="mt-1.5 text-sm font-semibold text-lime-200">
