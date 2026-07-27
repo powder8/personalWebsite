@@ -105,3 +105,31 @@ test('goal race, no feasibility, slipping → drifting', () => {
   const g = buildGoalTracker({ ...base, feasibility: null, target: null, targetTimeSeconds: null, consistency: consistency(null, 1) })!;
   assert.equal(g.verdict, 'drifting');
 });
+
+// Advice must fit the countdown: no promising "two solid weeks" inside race week.
+const driftingSoon: BuildGoalTrackerInput = {
+  ...base,
+  feasibility: null,
+  target: null,
+  daysAway: 5,
+  consistency: consistency(22, 1), // 78% under plan
+};
+
+test('drifting far out → still offers the two-week rebuild', () => {
+  const g = buildGoalTracker({ ...driftingSoon, daysAway: 84 })!;
+  assert.equal(g.verdict, 'drifting');
+  assert.match(g.advocateLine, /two solid weeks/);
+});
+
+test('drifting with 5 days to go → NO impossible two-week advice (the maths must math)', () => {
+  const g = buildGoalTracker(driftingSoon)!;
+  assert.equal(g.verdict, 'drifting');
+  assert.doesNotMatch(g.advocateLine, /two solid weeks|two weeks/);
+  assert.match(g.advocateLine, /5 days out/);
+});
+
+test('drifting on race eve → arrive-rested framing, no cramming', () => {
+  const g = buildGoalTracker({ ...driftingSoon, daysAway: 1 })!;
+  assert.doesNotMatch(g.advocateLine, /weeks/);
+  assert.match(g.advocateLine, /banked|rest/i);
+});

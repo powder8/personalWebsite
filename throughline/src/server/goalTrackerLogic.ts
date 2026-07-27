@@ -96,6 +96,21 @@ export interface BuildGoalTrackerInput {
   consistency: ConsistencyStats | null;
 }
 
+/**
+ * A drifting athlete's advice has to fit the calendar in front of them: you
+ * can't "rebuild base over two solid weeks" when the race is only days away.
+ * Inside the final ~2 weeks the honest play is to arrive rested and race what's
+ * already banked, then reset and build afterwards — not to cram.
+ */
+export function driftingAdvice(days: number | null): string {
+  if (days != null && days <= 13) {
+    return days <= 1
+      ? "Race is basically here — the fitness is banked. Rest up, run smart, and we rebuild after."
+      : `Only ${days} days out — too little runway to rebuild base, so don't cram. Arrive rested, race what you've got, and we build it back properly afterwards.`;
+  }
+  return 'The race is still yours — get two solid weeks back-to-back and the base rebuilds fast.';
+}
+
 /** Pure verdict builder. Returns null when there is no goal to track. */
 export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | null {
   const { goalName, daysAway, targetTimeSeconds, target, feasibility, consistency } = input;
@@ -129,7 +144,7 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
       advocateLine: needsTime
         ? "Add a target time and I'll show you exactly whether you're on pace to hit it — not just building blind."
         : drifting
-          ? 'The race is still yours — get two solid weeks back-to-back and the base rebuilds fast.'
+          ? driftingAdvice(days)
           : 'Keep stacking consistent weeks — that is what shows up on race day.',
       cta: needsTime ? { label: 'Set a target time', href: '#goal-setup' } : null,
     };
