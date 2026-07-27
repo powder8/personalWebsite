@@ -83,7 +83,7 @@ export function NextStepBanner({
           {session.segments.length > 0 ? (
             <SegmentList segments={session.segments} onDark />
           ) : (
-            session.description && <p className="mt-1 text-sm leading-relaxed text-white/70">{session.description}</p>
+            session.description && <p className="mt-1 text-sm leading-relaxed text-white/85">{session.description}</p>
           )}
           {session.terrain && <p className="mt-2 text-xs text-slate-400">📍 {session.terrain}</p>}
         </div>

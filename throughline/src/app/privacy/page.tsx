@@ -16,7 +16,7 @@ export default function PrivacyPage() {
       </Section>
 
       <Section title="Data we collect">
-        <ul className="list-disc space-y-1 pl-5 text-sm text-slate-300">
+        <ul className="list-disc space-y-1 pl-5 text-sm text-slate-200">
           <li>Training activity data (pace, distance, heart rate) imported from connected wearables and apps such as Strava and Whoop.</li>
           <li>Health metrics from Whoop: HRV, resting heart rate, sleep stages, recovery score, respiratory rate, and skin temperature.</li>
           <li>Self-reported check-in data: subjective soreness, energy, and perceived effort.</li>
@@ -59,7 +59,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <section className="mb-8">
       <h2 className="mb-2 text-base font-semibold text-white">{title}</h2>
-      <div className="text-sm leading-relaxed text-slate-300">{children}</div>
+      <div className="text-sm leading-relaxed text-slate-200">{children}</div>
     </section>
   );
 }

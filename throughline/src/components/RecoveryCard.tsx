@@ -144,7 +144,7 @@ export function RecoveryCard({
             </div>
           )}
           {readiness?.sentence && (
-            <p className="mt-0.5 text-sm leading-snug text-slate-300">{readiness.sentence}</p>
+            <p className="mt-0.5 text-sm leading-snug text-slate-100">{readiness.sentence}</p>
           )}
           {snapshot.n < 14 && (
             <p className="mt-1 text-[11px] text-slate-500">

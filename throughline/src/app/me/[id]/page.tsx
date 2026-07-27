@@ -175,7 +175,7 @@ export default async function PortalPage({
           {goalDone ? (
             <>
               <h1 className="text-2xl font-bold tracking-tight">You raced {goalRace.name}! 🎉</h1>
-              <p className="mt-1 text-sm text-slate-300">
+              <p className="mt-1 text-sm text-slate-100">
                 Big effort. The fitness you built fades fast if it sits — pick the next goal and we&apos;ll build the
                 plan that keeps it.
               </p>
@@ -183,7 +183,7 @@ export default async function PortalPage({
           ) : (
             <>
               <h1 className="text-2xl font-bold tracking-tight">What are you chasing?</h1>
-              <p className="mt-1 text-sm text-slate-300">
+              <p className="mt-1 text-sm text-slate-100">
                 Pick a race or a goal and I&apos;ll build your week-by-week plan — every run specific, adjusted to how
                 your body is responding.
               </p>
@@ -257,7 +257,7 @@ export default async function PortalPage({
             <span aria-hidden>{readinessGate.kind === 'ease' ? '🔻' : '👍'}</span>
             <span>{readinessGate.title}</span>
           </h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-slate-300">{readinessGate.body}</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-slate-100">{readinessGate.body}</p>
         </div>
       )}
 
