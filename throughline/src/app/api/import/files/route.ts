@@ -5,10 +5,14 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { importUploadedFiles, type UploadedFile } from '@/server/sheetImport';
+import { guardConsole } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
+  const denied = await guardConsole({ adminOnly: true });
+  if (denied) return denied;
+
   let form: FormData;
   try {
     form = await req.formData();

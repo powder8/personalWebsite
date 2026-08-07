@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { athleteVisibleTo, decideAthleteWriteAccess, type ConsoleViewer } from '../accessLogic';
+import { athleteVisibleTo, decideAthleteWriteAccess, decideConsoleAccess, type ConsoleViewer } from '../accessLogic';
 
 const admin: ConsoleViewer = { kind: 'admin' };
 const coachA: ConsoleViewer = { kind: 'coach', userId: 'user_a' };
@@ -58,4 +58,27 @@ test('a coach may write only to a visible (assigned/unassigned) athlete', () => 
 
 test('a coach is FORBIDDEN from another coach\'s athlete — the gap this guard closes', () => {
   assert.equal(decideAthleteWriteAccess({ configured: true, user: coachUser, athleteId: ATH, coachVisible: false }), 'forbid');
+});
+
+// ── console guard (decideConsoleAccess) ─────────────────────────────────────
+const adminViewer: ConsoleViewer = { kind: 'admin' };
+const coachViewer: ConsoleViewer = { kind: 'coach', userId: 'user_a' };
+
+test('unconfigured allows any console access', () => {
+  assert.equal(decideConsoleAccess({ configured: false, viewer: null }), 'allow');
+});
+
+test('non-console viewer (athlete/signed-out → null) is forbidden', () => {
+  assert.equal(decideConsoleAccess({ configured: true, viewer: null }), 'forbid');
+  assert.equal(decideConsoleAccess({ configured: true, viewer: null, adminOnly: true }), 'forbid');
+});
+
+test('coach passes a plain console gate but NOT an admin-only one', () => {
+  assert.equal(decideConsoleAccess({ configured: true, viewer: coachViewer }), 'allow');
+  assert.equal(decideConsoleAccess({ configured: true, viewer: coachViewer, adminOnly: true }), 'forbid');
+});
+
+test('admin passes both plain and admin-only console gates', () => {
+  assert.equal(decideConsoleAccess({ configured: true, viewer: adminViewer }), 'allow');
+  assert.equal(decideConsoleAccess({ configured: true, viewer: adminViewer, adminOnly: true }), 'allow');
 });

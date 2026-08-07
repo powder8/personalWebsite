@@ -72,6 +72,12 @@ export async function deactivateDirective(db: DB, id: string): Promise<void> {
   await db.update(directives).set({ active: false }).where(eq(directives.id, id));
 }
 
+/** The athlete a directive belongs to (for authz scoping), or null if missing. */
+export async function getDirectiveAthleteId(db: DB, id: string): Promise<string | null> {
+  const [row] = await db.select({ athleteId: directives.athleteId }).from(directives).where(eq(directives.id, id)).limit(1);
+  return row?.athleteId ?? null;
+}
+
 async function setStatus(db: DB, id: string, status: DirectiveStatus, active: boolean): Promise<void> {
   const [row] = await db.select({ params: directives.params }).from(directives).where(eq(directives.id, id)).limit(1);
   const params = { ...((row?.params as DirectiveParams | null) ?? {}), status };

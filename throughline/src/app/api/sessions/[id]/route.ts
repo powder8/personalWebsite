@@ -4,7 +4,8 @@
  */
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
-import { editSession, type SessionEdits, type OverrideReason } from '@/server/sessionEdit';
+import { editSession, getSessionAthleteId, type SessionEdits, type OverrideReason } from '@/server/sessionEdit';
+import { guardAthleteConsole } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
 
@@ -35,6 +36,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
   try {
     const db = await getDb();
+    const athleteId = await getSessionAthleteId(db, id);
+    if (!athleteId) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
+    const denied = await guardAthleteConsole(db, athleteId);
+    if (denied) return denied;
     await editSession(db, id, body.edits ?? {}, { reasonCode, note: body.note });
     return NextResponse.json({ ok: true });
   } catch (e) {

@@ -59,6 +59,12 @@ export async function listEscalationsForAthlete(db: DB, athleteId: string): Prom
   return rows as EscalationRow[];
 }
 
+/** The athlete an escalation belongs to (for authz scoping), or null if missing. */
+export async function getEscalationAthleteId(db: DB, id: string): Promise<string | null> {
+  const [row] = await db.select({ athleteId: escalations.athleteId }).from(escalations).where(eq(escalations.id, id)).limit(1);
+  return row?.athleteId ?? null;
+}
+
 export async function setEscalationStatus(
   db: DB,
   id: string,

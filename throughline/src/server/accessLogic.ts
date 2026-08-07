@@ -24,6 +24,22 @@ export interface WriteAccessUser {
 }
 
 /**
+ * PURE decision for a console (coach/admin) route with no athlete in scope.
+ * `viewer` is the resolved console viewer (null = not a console user). Set
+ * adminOnly for endpoints the app restricts to the site owner (import, feedback).
+ */
+export function decideConsoleAccess(input: {
+  configured: boolean;
+  viewer: ConsoleViewer | null;
+  adminOnly?: boolean;
+}): 'allow' | 'forbid' {
+  if (!input.configured) return 'allow'; // local dev / staged rollout
+  if (!input.viewer) return 'forbid';
+  if (input.adminOnly && input.viewer.kind !== 'admin') return 'forbid';
+  return 'allow';
+}
+
+/**
  * PURE decision for "may this user WRITE to /api/athletes/[athleteId]?".
  *
  * `coachVisible` is the caller-supplied result of athleteVisibleTo for a coach

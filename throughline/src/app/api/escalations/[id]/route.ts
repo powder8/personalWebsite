@@ -4,7 +4,8 @@
  */
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
-import { setEscalationStatus, type EscalationStatus } from '@/server/escalations';
+import { getEscalationAthleteId, setEscalationStatus, type EscalationStatus } from '@/server/escalations';
+import { guardAthleteConsole } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
 
@@ -24,6 +25,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
   try {
     const db = await getDb();
+    const athleteId = await getEscalationAthleteId(db, id);
+    if (!athleteId) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
+    const denied = await guardAthleteConsole(db, athleteId);
+    if (denied) return denied;
     await setEscalationStatus(db, id, status);
     return NextResponse.json({ ok: true });
   } catch (e) {

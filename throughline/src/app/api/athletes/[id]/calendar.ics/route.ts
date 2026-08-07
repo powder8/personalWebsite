@@ -5,12 +5,18 @@
  */
 import { getDb } from '@/db';
 import { buildPlanIcs } from '@/server/calendar';
+import { guardAthleteWrite } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
+  // The plan is personal data: only the athlete, an assigned coach, or an admin
+  // may read it. (guardAthleteWrite is the same admin/own/assigned-coach rule —
+  // "write" is a misnomer for reads but the access decision is identical.)
+  const denied = await guardAthleteWrite(id);
+  if (denied) return denied;
   const db = await getDb();
   const ics = await buildPlanIcs(db, id);
   if (ics == null) {
@@ -21,7 +27,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     headers: {
       'content-type': 'text/calendar; charset=utf-8',
       'content-disposition': 'inline; filename="throughline.ics"',
-      'cache-control': 'public, max-age=3600',
+      // Access-controlled per athlete — must not be shared-cached.
+      'cache-control': 'private, max-age=3600',
     },
   });
 }

@@ -6,10 +6,14 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { importMultipleSheets } from '@/server/sheetImport';
+import { guardConsole } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
+  const denied = await guardConsole({ adminOnly: true });
+  if (denied) return denied;
+
   let body: {
     url?: string;
     name?: string;

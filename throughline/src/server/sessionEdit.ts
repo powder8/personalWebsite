@@ -47,6 +47,16 @@ function snapshot(s: typeof plannedSessions.$inferSelect) {
   };
 }
 
+/** The athlete a planned session belongs to (for authz scoping), or null. */
+export async function getSessionAthleteId(db: DB, sessionId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ athleteId: plannedSessions.athleteId })
+    .from(plannedSessions)
+    .where(eq(plannedSessions.id, sessionId))
+    .limit(1);
+  return row?.athleteId ?? null;
+}
+
 export async function editSession(
   db: DB,
   sessionId: string,

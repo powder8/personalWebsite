@@ -4,11 +4,17 @@
  */
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
+import { auth } from '@/auth';
+import { authConfigured } from '@/auth.config';
 import { createFeedback, listFeedback } from '@/server/feedback';
+import { guardConsole } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
 
+// The triage list mirrors the admin-gated /feedback page — not for every signed-in user.
 export async function GET() {
+  const denied = await guardConsole({ adminOnly: true });
+  if (denied) return denied;
   try {
     const db = await getDb();
     const items = await listFeedback(db);
@@ -18,8 +24,10 @@ export async function GET() {
   }
 }
 
+// Anyone signed in may leave feedback, but the author is the session identity —
+// never trusted from the request body (which was spoofable).
 export async function POST(req: Request) {
-  let body: { author?: string; path?: string; category?: string; body?: string };
+  let body: { path?: string; category?: string; body?: string };
   try {
     body = await req.json();
   } catch {
@@ -29,9 +37,14 @@ export async function POST(req: Request) {
   if (!message) {
     return NextResponse.json({ error: 'Please include a message.' }, { status: 400 });
   }
+  let author: string | undefined; // dev (unconfigured): undefined → server default
+  if (authConfigured()) {
+    const u = (await auth())?.user;
+    author = u?.name || u?.email || 'Anonymous';
+  }
   try {
     const db = await getDb();
-    await createFeedback(db, { author: body.author, path: body.path, category: body.category, body: message });
+    await createFeedback(db, { author, path: body.path, category: body.category, body: message });
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });

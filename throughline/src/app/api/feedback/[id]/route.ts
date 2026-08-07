@@ -4,12 +4,16 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { setFeedbackStatus, type FeedbackStatus } from '@/server/feedback';
+import { guardConsole } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
 
 const VALID: FeedbackStatus[] = ['open', 'addressed'];
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const denied = await guardConsole({ adminOnly: true });
+  if (denied) return denied;
+
   const { id } = await ctx.params;
   let body: { status?: string };
   try {
