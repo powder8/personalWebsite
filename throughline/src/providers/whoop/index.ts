@@ -47,14 +47,14 @@ async function parseTokenResponse(res: Response): Promise<Omit<WhoopTokens, 'pro
 // make during the OAuth exchange to capture the WHOOP user_id.
 const WHOOP_SCOPES = 'read:recovery read:cycles read:sleep read:workout read:profile read:body_measurement offline';
 
-export function getAuthorizationUrl(athleteId: string): string {
+export function getAuthorizationUrl(state: string): string {
   const { clientId, redirectUri, authBaseUrl } = whoopEnv();
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: clientId,
     redirect_uri: redirectUri,
     scope: WHOOP_SCOPES,
-    state: athleteId,
+    state,
   });
   return `${authBaseUrl}/auth?${params}`;
 }

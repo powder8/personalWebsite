@@ -38,7 +38,10 @@ function verifySignature(
   signature: string | null,
   clientSecret: string,
 ): boolean {
-  if (!clientSecret) return true; // no secret configured → skip verification
+  // Fail CLOSED: with no secret we cannot authenticate the caller, so reject
+  // rather than process forged events. (A misconfigured prod deploy will see
+  // WHOOP retries 401 — visible — instead of silently accepting spoofed data.)
+  if (!clientSecret) return false;
   if (!timestamp || !signature) return false;
 
   // Replay protection: timestamp must be recent and numeric.

@@ -6,9 +6,11 @@
  *   https://throughline.badoo.net/api/whoop/callback
  */
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { getDb } from '@/db';
 import { exchangeCode } from '@/providers/whoop';
 import { saveWhoopTokens, syncWhoopData } from '@/server/whoop';
+import { verifyOAuthState, oauthCookieName } from '@/server/oauthState';
 
 export const runtime = 'nodejs';
 
@@ -16,14 +18,29 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const error = url.searchParams.get('error');
   const code = url.searchParams.get('code');
-  const athleteId = url.searchParams.get('state'); // we set state = athleteId
   const base = url.origin;
 
+  // Trust the athleteId bound in our signed connect-time cookie, never the
+  // returned `state` param — that's what makes this CSRF-safe.
+  const cookieName = oauthCookieName('whoop');
+  const store = await cookies();
+  const athleteId = verifyOAuthState(url.searchParams.get('state'), store.get(cookieName)?.value);
+  const clear = (res: NextResponse) => {
+    res.cookies.set(cookieName, '', { path: '/', maxAge: 0 });
+    return res;
+  };
+
   if (error) {
-    return NextResponse.redirect(`${base}/me/${athleteId ?? ''}/settings?whoop=denied`);
+    return clear(NextResponse.redirect(`${base}/me/${athleteId ?? ''}/settings?whoop=denied`));
   }
-  if (!code || !athleteId) {
-    return NextResponse.json({ error: 'Missing code or state.' }, { status: 400 });
+  if (!athleteId) {
+    return NextResponse.json(
+      { error: 'Invalid or expired connect request. Please start the Whoop connection again.' },
+      { status: 400 },
+    );
+  }
+  if (!code) {
+    return NextResponse.json({ error: 'Missing code.' }, { status: 400 });
   }
 
   try {
@@ -34,11 +51,11 @@ export async function GET(req: Request) {
     await syncWhoopData(db, athleteId, 30).catch(() => {
       // Non-fatal — the data will sync on the next webhook event.
     });
-    return NextResponse.redirect(`${base}/me/${athleteId}/settings?whoop=connected`);
+    return clear(NextResponse.redirect(`${base}/me/${athleteId}/settings?whoop=connected`));
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Whoop connection failed.';
-    return NextResponse.redirect(
-      `${base}/me/${athleteId}/settings?whoop=error&msg=${encodeURIComponent(msg)}`,
+    return clear(
+      NextResponse.redirect(`${base}/me/${athleteId}/settings?whoop=error&msg=${encodeURIComponent(msg)}`),
     );
   }
 }

@@ -9,6 +9,8 @@
 import { NextResponse } from 'next/server';
 import { whoopConfigured } from '@/providers/whoop/env';
 import { getAuthorizationUrl } from '@/providers/whoop';
+import { guardAthleteWrite } from '@/server/apiAccess';
+import { issueOAuthState } from '@/server/oauthState';
 
 export const runtime = 'nodejs';
 
@@ -24,5 +26,16 @@ export async function GET(req: Request) {
       { status: 503 },
     );
   }
-  return NextResponse.redirect(getAuthorizationUrl(athleteId));
+  // Only the athlete themselves (or an admin / assigned coach) may start a
+  // connect for this athlete — the flow is under a public prefix, so nothing
+  // upstream checks this.
+  const denied = await guardAthleteWrite(athleteId);
+  if (denied) return denied;
+
+  // Bind a signed, single-use state nonce to this athlete in an httpOnly cookie;
+  // the callback trusts the cookie, not the returned `state` param (CSRF).
+  const { state, cookie } = issueOAuthState('whoop', athleteId);
+  const res = NextResponse.redirect(getAuthorizationUrl(state));
+  res.cookies.set(cookie.name, cookie.value, cookie.options);
+  return res;
 }

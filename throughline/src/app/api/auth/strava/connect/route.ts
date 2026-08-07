@@ -1,11 +1,13 @@
 /**
  * Begin the Strava OAuth connect flow: redirect the athlete to Strava's
- * authorization page. `state` carries the athleteId so the callback can attach
- * the tokens to the right athlete. (TODO: sign state with a CSRF nonce.)
+ * authorization page. `state` is a signed single-use nonce bound to the athlete
+ * in an httpOnly cookie; the callback trusts the cookie, not the query (CSRF).
  */
 import { NextResponse } from 'next/server';
 import { getProvider } from '@/providers';
 import { stravaConfigured } from '@/providers/strava/env';
+import { guardAthleteWrite } from '@/server/apiAccess';
+import { issueOAuthState } from '@/server/oauthState';
 
 export const runtime = 'nodejs';
 
@@ -21,6 +23,12 @@ export async function GET(req: Request) {
       { status: 503 },
     );
   }
-  const authUrl = getProvider('strava').getAuthorizationUrl(athleteId);
-  return NextResponse.redirect(authUrl);
+  // Only the athlete themselves (or an admin / assigned coach) may start this.
+  const denied = await guardAthleteWrite(athleteId);
+  if (denied) return denied;
+
+  const { state, cookie } = issueOAuthState('strava', athleteId);
+  const res = NextResponse.redirect(getProvider('strava').getAuthorizationUrl(state));
+  res.cookies.set(cookie.name, cookie.value, cookie.options);
+  return res;
 }
