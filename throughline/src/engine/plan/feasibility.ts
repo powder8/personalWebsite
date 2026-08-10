@@ -51,13 +51,15 @@ function fmt(s: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`;
 }
 
-export function assessGoalFeasibility(input: {
+export interface GoalFeasibilityInput {
   currentVdot: number;
   goalVdot: number;
   weeksToRace: number;
   goalDistanceMeters: number;
   goalLabel?: string | null; // e.g. "2:38 marathon"
-}): GoalFeasibility {
+}
+
+export function assessGoalFeasibility(input: GoalFeasibilityInput): GoalFeasibility {
   const { currentVdot, goalVdot, weeksToRace, goalDistanceMeters } = input;
   const taper = taperWeeksFor(goalDistanceMeters);
   const trainableWeeks = Math.max(0, weeksToRace - taper);

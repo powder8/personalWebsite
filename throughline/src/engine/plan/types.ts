@@ -35,6 +35,13 @@ export type RunType =
 
 export type TrainingPhase = 'base' | 'build' | 'peak' | 'taper';
 
+/**
+ * The sport a plan is built for. Running is the original, fully-implemented
+ * discipline; cycling is being added behind a strategy seam (see strategy.ts).
+ * Mirrors the `discipline` pgEnum on athletes/plans/planned_sessions.
+ */
+export type Discipline = 'run' | 'bike';
+
 /** Pace band in seconds per km. `fast` <= `slow` (lower seconds = faster). */
 export interface PaceRange {
   fastSecPerKm: number;
