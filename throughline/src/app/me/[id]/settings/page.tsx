@@ -23,6 +23,7 @@ import { getRacePlan } from '@/server/racePlan';
 import { RacePlanCard } from '@/components/RacePlanCard';
 import { PlanTimeline } from '@/components/PlanTimeline';
 import { CheckInForm } from '@/components/CheckInForm';
+import { AboutYou } from '@/components/AboutYou';
 import { AvailabilityForm } from '@/components/AvailabilityForm';
 import { BottomNav } from '@/components/BottomNav';
 import { getDb } from '@/db';
@@ -117,6 +118,10 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
             </form>
           )}
         </div>
+      </Card>
+
+      <Card title="About you">
+        <AboutYou athleteId={athlete.id} initialDob={athlete.dateOfBirth} initialSex={athlete.sex} />
       </Card>
 
       {/* ── SYNC ─────────────────────────────────────────────────────────── */}
