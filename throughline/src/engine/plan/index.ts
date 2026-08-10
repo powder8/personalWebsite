@@ -23,21 +23,30 @@ export * from './raceWindows';
 export * from './racePurpose';
 export * from './guardrails';
 export * from './directives';
+export * from './strategy';
 
-import type { PaceZones, PlannedWeek, TemplateSet } from './types';
+import type { Discipline, PaceZones, PlannedWeek, TemplateSet } from './types';
 import type { GoalClass } from './raceWindows';
 import { periodize, type PeriodizationInput } from './periodize';
 import { generateWeek } from './generate';
 import { COACH_TEMPLATE_SET } from './templates';
+import { selectStrategy } from './strategy';
 
 /**
  * Generate a full periodized plan (one PlannedWeek per week) from fitness +
  * race date. Adaptation is applied separately, per-week, as signals arrive.
+ *
+ * The sport-agnostic skeleton (periodization, load distribution) is shared;
+ * the sport-specific quality prescription is selected via `discipline` (default
+ * 'run', so existing behaviour is unchanged).
  */
 export function generatePlan(
-  input: PeriodizationInput & { goalClass?: GoalClass },
+  input: PeriodizationInput & { goalClass?: GoalClass; discipline?: Discipline },
   zones: PaceZones,
   templates: TemplateSet = COACH_TEMPLATE_SET,
 ): PlannedWeek[] {
-  return periodize(input).map((w) => generateWeek(w, templates[w.phase], zones, '', input.goalClass));
+  const strategy = selectStrategy(input.discipline ?? 'run');
+  return periodize(input).map((w) =>
+    generateWeek(w, templates[w.phase], zones, '', input.goalClass, strategy),
+  );
 }

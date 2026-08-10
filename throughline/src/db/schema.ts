@@ -67,6 +67,14 @@ export const sportEnum = pgEnum('sport', [
   'other',
 ]);
 
+/**
+ * The sport a coaching plan is built for. Distinct from `sport` (which tags
+ * ingested activities across many modalities): `discipline` is the narrower set
+ * the coaching engine actually periodizes for. 'run' is the original; 'bike' is
+ * being added behind the engine's discipline strategy seam.
+ */
+export const disciplineEnum = pgEnum('discipline', ['run', 'bike']);
+
 export const sessionTypeEnum = pgEnum('session_type', [
   'recovery',
   'easy',
@@ -172,6 +180,9 @@ export const athletes = pgTable(
     sex: text('sex'), // 'female' | 'male' | 'other' | null — gates cycle tracking, age-grading
     goalRace: text('goal_race'),
     goalRaceDate: date('goal_race_date'),
+    // The sport this athlete is coached for. Additive: existing athletes default
+    // to 'run', preserving all current behaviour.
+    discipline: disciplineEnum('discipline').notNull().default('run'),
     // Per-athlete pace customization (AthletePaceConfig): VDOT/threshold anchor
     // + per-zone overrides, layered on the global model. Null = pure global.
     paceConfig: jsonb('pace_config'),
@@ -614,6 +625,8 @@ export const plans = pgTable(
       .notNull()
       .references(() => athletes.id, { onDelete: 'cascade' }),
     status: planStatusEnum('status').notNull().default('draft'),
+    // Sport this plan periodizes for; defaults to 'run' for every existing plan.
+    discipline: disciplineEnum('discipline').notNull().default('run'),
     weekStart: date('week_start').notNull(), // first day (Monday) of the planned week
     weekEnd: date('week_end').notNull(),
     phase: text('phase'), // base | build | peak | taper
@@ -643,6 +656,8 @@ export const plannedSessions = pgTable(
       .notNull()
       .references(() => athletes.id, { onDelete: 'cascade' }),
     day: date('day').notNull(),
+    // Sport of this session; defaults to 'run' for every existing session.
+    discipline: disciplineEnum('discipline').notNull().default('run'),
     sessionType: sessionTypeEnum('session_type').notNull(),
     zone: text('zone'), // pace zone key (recovery…rep); null for rest/cross_train
     targetLoad: doublePrecision('target_load'),

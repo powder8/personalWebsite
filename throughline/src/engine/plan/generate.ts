@@ -25,7 +25,8 @@ import {
   midpoint,
   secPerKmToMinPerMile,
 } from './zones';
-import { buildQualitySegments, buildQualityDescription } from './workouts';
+import type { DisciplineStrategy } from './strategy';
+import { runStrategy } from './runStrategy';
 
 const LONG_RUN_CAP_MILES = 22;
 
@@ -124,6 +125,7 @@ export function generateWeek(
   zones: PaceZones,
   rationale = '',
   goalClass?: GoalClass,
+  strategy: DisciplineStrategy = runStrategy,
 ): PlannedWeek {
   const weeklyMiles = metersToMiles(week.targetVolumeMeters);
 
@@ -211,8 +213,8 @@ export function generateWeek(
         distanceMeters: milesToMeters(miles),
         warmup: `${wuCd} mi easy + drills/strides`,
         cooldown: `${wuCd} mi easy`,
-        segments: buildQualitySegments(miles, qZone, zones, workMiles, wuCd, seed),
-        description: buildQualityDescription(miles, qZone, zones, workMiles, wuCd, seed),
+        segments: strategy.buildQualitySegments(miles, qZone, zones, workMiles, wuCd, seed),
+        description: strategy.buildQualityDescription(miles, qZone, zones, workMiles, wuCd, seed),
       };
     }
 
