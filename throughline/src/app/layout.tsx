@@ -109,6 +109,9 @@ export default async function RootLayout({
                   <Link href="/me" className="text-slate-600 hover:text-slate-900">
                     My training
                   </Link>
+                  <Link href="/me/health" className="text-slate-600 hover:text-slate-900">
+                    Health
+                  </Link>
                   <Link href="/me/settings" className="text-slate-600 hover:text-slate-900">
                     Settings
                   </Link>
