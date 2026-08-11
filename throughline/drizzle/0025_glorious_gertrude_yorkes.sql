@@ -1,0 +1,1 @@
+ALTER TABLE "engine_settings" ADD COLUMN "load_currency" text;

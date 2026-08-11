@@ -15,7 +15,8 @@ import { asc, eq } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { activities } from '@/db/schema';
 import { computeFitnessFatigue } from '@/engine/fitnessFatigue';
-import { estimateLoad } from '@/engine/load';
+import { selectDailyLoad, NO_ANCHORS } from '@/engine/loadSelectLogic';
+import { getLoadCurrency, resolveAthleteLoadAnchors } from '@/db/loadCurrencyConfig';
 import { vdotFromRace, STANDARD_DISTANCES } from '@/engine/plan';
 import { vdotCeiling, isCorroborated, isRaceEffort, type Effort } from '@/server/perf';
 import type { DailyReading } from '@/engine/types';
@@ -177,18 +178,38 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
       durationSeconds: activities.durationSeconds,
       avgPaceSecPerKm: activities.avgPaceSecPerKm,
       avgHr: activities.avgHr,
+      maxHr: activities.maxHr,
       trainingLoad: activities.trainingLoad,
+      trainingLoadTss: activities.trainingLoadTss,
     })
     .from(activities)
     .where(eq(activities.athleteId, athleteId))
     .orderBy(asc(activities.startTime));
   if (rows.length < 10) return null;
 
+  // Flag-gated currency swap (spec L2). DEFAULT 'trimp' ⇒ selectDailyLoad returns
+  // the exact legacy value, so this is byte-identical to before the cutover.
+  const currency = await getLoadCurrency(db);
+  const anchors = currency === 'tss' ? await resolveAthleteLoadAnchors(db, athleteId) : NO_ANCHORS;
+
   // Daily load (all activities — matches the PMC) → CTL/ATL/TSB.
   const loads: DailyReading[] = rows.map((r) => {
     const day = r.startTime.toISOString().slice(0, 10);
-    if (r.trainingLoad && r.trainingLoad > 0) return { day, value: r.trainingLoad };
-    return { day, value: estimateLoad({ durationSeconds: durationOf(r), avgHr: r.avgHr, distanceMeters: r.distanceMeters }).load };
+    const { value } = selectDailyLoad(
+      {
+        sport: r.sport,
+        durationSeconds: durationOf(r),
+        distanceMeters: r.distanceMeters,
+        avgHr: r.avgHr,
+        avgPaceSecPerKm: r.avgPaceSecPerKm,
+        maxHr: r.maxHr,
+        trainingLoad: r.trainingLoad,
+        trainingLoadTss: r.trainingLoadTss,
+      },
+      currency,
+      anchors,
+    );
+    return { day, value };
   });
   const from = rows[0].startTime.toISOString().slice(0, 10);
   const to = rows[rows.length - 1].startTime.toISOString().slice(0, 10);

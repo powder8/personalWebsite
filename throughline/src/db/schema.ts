@@ -221,6 +221,11 @@ export const engineSettings = pgTable('engine_settings', {
   id: text('id').primaryKey().default('global'),
   paceModel: jsonb('pace_model'), // GlobalPaceModel
   powerModel: jsonb('power_model'), // GlobalPowerModel (cycling analog of paceModel)
+  // Load-currency cutover flag (spec story L2): 'trimp' | 'tss'. NULL = default
+  // ('trimp'), so shipping the column changes nothing until an owner flips it.
+  // Read via db/loadCurrencyConfig.ts:getLoadCurrency (env LOAD_CURRENCY overrides
+  // this). See docs/multisport/load-currency-transfer-spec.md §2.4.
+  loadCurrency: text('load_currency'), // 'trimp' | 'tss' | null
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
