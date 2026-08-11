@@ -186,6 +186,10 @@ export const athletes = pgTable(
     // Per-athlete pace customization (AthletePaceConfig): VDOT/threshold anchor
     // + per-zone overrides, layered on the global model. Null = pure global.
     paceConfig: jsonb('pace_config'),
+    // Per-athlete CYCLING customization (AthletePowerConfig): FTP anchor (watts) /
+    // FTP-test / LTHR + per-zone overrides, layered on the global power model.
+    // The power-side analog of paceConfig. Null = pure global. (Cycling story 1.)
+    powerConfig: jsonb('power_config'),
     // Auth account that owns this athlete record (linked by email on first
     // sign-in). Null until the athlete signs in. `users` is defined lower in
     // this file; the reference callback is lazy so the forward ref is fine.
@@ -216,6 +220,7 @@ export const athletes = pgTable(
 export const engineSettings = pgTable('engine_settings', {
   id: text('id').primaryKey().default('global'),
   paceModel: jsonb('pace_model'), // GlobalPaceModel
+  powerModel: jsonb('power_model'), // GlobalPowerModel (cycling analog of paceModel)
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

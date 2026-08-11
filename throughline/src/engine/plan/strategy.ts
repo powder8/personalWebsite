@@ -23,9 +23,21 @@
  * both satisfy this interface; `selectStrategy(discipline)` picks one. The
  * engine defaults to `runStrategy`, so existing running behaviour is unchanged.
  */
-import type { PaceZones, WorkoutSegment, ZoneKey, Discipline } from './types';
+import type { PaceZones, WorkoutSegment, ZoneKey, Discipline, TrainingZones } from './types';
 import type { AthletePaceConfig, GlobalPaceModel } from './paceConfig';
+import type { AthletePowerConfig, GlobalPowerModel } from './ftpLogic';
 import type { GoalFeasibility, GoalFeasibilityInput } from './feasibility';
+
+/**
+ * The athlete config a strategy resolves from: pace-shaped for running,
+ * power-shaped for cycling. Both are all-optional bags, so each strategy simply
+ * reads its own sport's fields. (Story 0 typed this as `AthletePaceConfig`; it
+ * is widened here so `bikeStrategy` can read an `AthletePowerConfig`.)
+ */
+export type AthleteFitnessConfig = AthletePaceConfig | AthletePowerConfig;
+
+/** The global model a strategy layers on: pace-side or power-side. */
+export type GlobalFitnessModel = GlobalPaceModel | GlobalPowerModel;
 
 export interface DisciplineStrategy {
   /** Which sport this strategy implements. */
@@ -34,17 +46,19 @@ export interface DisciplineStrategy {
   /**
    * Resolve the athlete's scalar fitness anchor from their config, or null if
    * none can be derived. Running: VDOT (from an explicit VDOT, a race, or a
-   * threshold pace). This is the number the feasibility model reasons over —
-   * NOT re-derived from the (tweak-carrying) training zones.
+   * threshold pace). Cycling: FTP (watts). This is the number the feasibility
+   * model reasons over — NOT re-derived from the (tweak-carrying) training zones.
    */
-  resolveFitnessAnchor(config: AthletePaceConfig): number | null;
+  resolveFitnessAnchor(config: AthleteFitnessConfig): number | null;
 
   /**
    * Resolve effective training zones from the athlete's config layered on the
    * global model. Throws only when no fitness anchor is available. Running:
-   * threshold-anchored pace zones (see zones.ts / vdot.ts / paceConfig.ts).
+   * threshold-anchored pace zones (PaceZones). Cycling: %FTP power zones, or
+   * %LTHR HR zones with no meter (PowerZones). Return type is the generalized
+   * `TrainingZones` union; narrow with isPaceZones()/isPowerZones().
    */
-  resolveZones(config: AthletePaceConfig, global?: GlobalPaceModel): PaceZones;
+  resolveZones(config: AthleteFitnessConfig, global?: GlobalFitnessModel): TrainingZones;
 
   /**
    * Structured segments for one quality day — warm-up, the main set scaled to

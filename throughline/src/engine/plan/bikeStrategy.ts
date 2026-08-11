@@ -1,34 +1,36 @@
 /**
- * Cycling discipline strategy — STUB. Not yet implemented.
+ * Cycling discipline strategy.
  *
- * This exists so the discipline seam is complete and type-checks end to end;
- * every method throws until the cycling agents build it. See strategy.ts for
- * the contract. What each method must eventually do for cycling:
+ * Story 1 (this file) wires the two pieces the cycling engine needs first — the
+ * FTP fitness anchor and the power/HR zones — through the discipline seam, the
+ * exact power-side mirror of `runStrategy` (VDOT + pace zones). The remaining
+ * methods stay throwing stubs until their stories land:
  *
- *   - resolveFitnessAnchor : return the athlete's FTP (functional threshold
- *     power, watts) — the cycling analogue of VDOT — from config/history.
- *   - resolveZones         : derive power zones (Coggan Z1–Z7, watts) from FTP,
- *     the analogue of pace zones. NOTE the current `PaceZones`/`ZoneKey` types
- *     are pace/second-per-km shaped; cycling will need a power-shaped zone model
- *     (either a parallel type or a generalised one) — flag this for the seam.
- *   - buildQuality*        : prescribe power-based intervals (e.g. 4×8 min @ FTP,
- *     30/30s at VO2 power) with the same warm-up → work → cool-down structure.
- *   - assessGoalFeasibility: a power/CTL improvement model (watts or W/kg gain
- *     over the trainable weeks), replacing the running VDOT/Riegel model.
+ *   - resolveFitnessAnchor : DONE — FTP (watts) from powerConfig (ftpLogic.ts).
+ *   - resolveZones         : DONE — %FTP power zones, or %LTHR HR zones with no
+ *                            power meter (powerZonesLogic.ts / ftpLogic.ts).
+ *   - buildQuality*        : STUB (Story 4) — power-based interval prescription.
+ *   - assessGoalFeasibility: STUB (Story 6) — an FTP/CTL improvement model.
+ *
+ * The pure logic lives in ftpLogic.ts (anchor) and powerZonesLogic.ts (zones);
+ * this file is just the wiring that puts them behind the seam — same as
+ * runStrategy delegates to paceConfig/vdot/workouts.
  */
 import type { DisciplineStrategy } from './strategy';
+import type { AthletePowerConfig, GlobalPowerModel } from './ftpLogic';
+import { resolveFtp, resolvePowerZones } from './ftpLogic';
 
 const NOT_IMPLEMENTED = 'bike strategy not yet implemented';
 
 export const bikeStrategy: DisciplineStrategy = {
   discipline: 'bike',
 
-  resolveFitnessAnchor() {
-    throw new Error(NOT_IMPLEMENTED);
+  resolveFitnessAnchor(config) {
+    return resolveFtp(config as AthletePowerConfig);
   },
 
-  resolveZones() {
-    throw new Error(NOT_IMPLEMENTED);
+  resolveZones(config, global) {
+    return resolvePowerZones(config as AthletePowerConfig, global as GlobalPowerModel | undefined);
   },
 
   buildQualitySegments() {
