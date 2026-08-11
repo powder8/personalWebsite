@@ -169,6 +169,13 @@
       "when": 1786462153163,
       "tag": "0023_cycling_power_config",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1786464127304,
+      "tag": "0024_organic_white_queen",
+      "breakpoints": true
     }
   ]
 }
