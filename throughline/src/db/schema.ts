@@ -416,7 +416,14 @@ export const activities = pgTable(
       onDelete: 'set null',
     }),
     cadence: integer('cadence'),
-    trainingLoad: doublePrecision('training_load'), // derived TRIMP/load impulse
+    trainingLoad: doublePrecision('training_load'), // derived TRIMP/load impulse (legacy currency — what the PMC reads today)
+    // --- Load-currency unification (spec story L1), NON-DESTRUCTIVE parallel columns ---
+    // The new TSS-equivalent currency (Load = IF² × hours × 100), computed by the
+    // backfill (scripts/backfill-load-tss.ts) alongside the legacy `trainingLoad`.
+    // NULLABLE and unread by the app: nothing switches to these until the later,
+    // owner-signed-off cutover (story L2). See docs/multisport/load-currency-transfer-spec.md.
+    trainingLoadTss: doublePrecision('training_load_tss'), // TSS-equivalent load (parallel to trainingLoad)
+    loadConfidence: text('load_confidence'), // provenance tier: 'power' | 'pace' | 'css' | 'hr' | 'estimated'
     splits: jsonb('splits'), // [{ distanceMeters, durationSeconds, avgHr, paceSecPerKm, elevDiffMeters }]
     laps: jsonb('laps'), // watch/interval laps [{ distanceMeters, durationSeconds, avgHr }] — finer than splits for rep workouts
     mapPolyline: text('map_polyline'), // encoded route polyline (Strava map.summary_polyline)
