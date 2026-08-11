@@ -13,7 +13,8 @@ import { asc, eq } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { activities } from '@/db/schema';
 import { computeFitnessFatigue } from '@/engine/fitnessFatigue';
-import { estimateLoad } from '@/engine/load';
+import { selectDailyLoad, NO_ANCHORS } from '@/engine/loadSelectLogic';
+import { getLoadCurrency, resolveAthleteLoadAnchors } from '@/db/loadCurrencyConfig';
 import type { DailyReading, FitnessFatiguePoint } from '@/engine/types';
 
 const ASSUMED_EASY_SEC_PER_KM = 330; // ~8:50/mi, used only when pace+duration are both absent
@@ -41,11 +42,14 @@ export async function getFitnessFatigueSeries(athleteId: string, days = 120): Pr
   const rows = await db
     .select({
       startTime: activities.startTime,
+      sport: activities.sport,
       durationSeconds: activities.durationSeconds,
       distanceMeters: activities.distanceMeters,
       avgPaceSecPerKm: activities.avgPaceSecPerKm,
       avgHr: activities.avgHr,
+      maxHr: activities.maxHr,
       trainingLoad: activities.trainingLoad,
+      trainingLoadTss: activities.trainingLoadTss,
     })
     .from(activities)
     .where(eq(activities.athleteId, athleteId))
@@ -55,20 +59,31 @@ export async function getFitnessFatigueSeries(athleteId: string, days = 120): Pr
     return { points: [], current: null, form: null, estimated: true };
   }
 
+  // Flag-gated currency swap (spec L2). DEFAULT 'trimp' ⇒ selectDailyLoad returns
+  // the exact legacy value, so this path is byte-identical to before the cutover.
+  // Anchors are only resolved for the 'tss' on-the-fly fallback (unbackfilled rows).
+  const currency = await getLoadCurrency(db);
+  const anchors = currency === 'tss' ? await resolveAthleteLoadAnchors(db, athleteId) : NO_ANCHORS;
+
   let anyEstimated = false;
   const loads: DailyReading[] = rows.map((r) => {
     const day = r.startTime.toISOString().slice(0, 10);
-    if (r.trainingLoad != null && r.trainingLoad > 0) {
-      return { day, value: r.trainingLoad };
-    }
-    const dur = activityDuration(r);
-    const { load, estimated } = estimateLoad({
-      durationSeconds: dur,
-      avgHr: r.avgHr,
-      distanceMeters: r.distanceMeters,
-    });
+    const { value, estimated } = selectDailyLoad(
+      {
+        sport: r.sport,
+        durationSeconds: activityDuration(r),
+        distanceMeters: r.distanceMeters,
+        avgHr: r.avgHr,
+        avgPaceSecPerKm: r.avgPaceSecPerKm,
+        maxHr: r.maxHr,
+        trainingLoad: r.trainingLoad,
+        trainingLoadTss: r.trainingLoadTss,
+      },
+      currency,
+      anchors,
+    );
     if (estimated) anyEstimated = true;
-    return { day, value: load };
+    return { day, value };
   });
 
   const from = rows[0].startTime.toISOString().slice(0, 10);
@@ -80,6 +95,12 @@ export async function getFitnessFatigueSeries(athleteId: string, days = 120): Pr
   return {
     points,
     current: last ? { ctl: last.ctl, atl: last.atl, tsb: last.tsb, day: last.day } : null,
+    // FORM THRESHOLDS (TSB > 5 fresh / < −10 fatigued) are kept AS-IS across the
+    // currency cutover on purpose. They MUST be recalibrated from the owner's
+    // prod diff report (scripts/load-currency-diff.ts, spec §2.3) once the flag
+    // flips to 'tss': CTL/ATL/TSB renumber to ~0.6× on real TRIMP data, so these
+    // bands need re-picking against the per-athlete TSB distribution. Do NOT
+    // invent new numbers here before that diff confirms them.
     form: last ? (last.tsb > 5 ? 'fresh' : last.tsb < -10 ? 'fatigued' : 'neutral') : null,
     estimated: anyEstimated,
   };

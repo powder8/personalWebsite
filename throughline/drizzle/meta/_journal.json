@@ -176,6 +176,13 @@
       "when": 1786464127304,
       "tag": "0024_organic_white_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1786465715732,
+      "tag": "0025_glorious_gertrude_yorkes",
+      "breakpoints": true
     }
   ]
 }
