@@ -162,6 +162,13 @@
       "when": 1786391614262,
       "tag": "0022_discipline_dimension",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1786462153163,
+      "tag": "0023_cycling_power_config",
+      "breakpoints": true
     }
   ]
 }

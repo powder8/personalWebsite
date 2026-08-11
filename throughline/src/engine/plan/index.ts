@@ -15,6 +15,8 @@ export * from './generate';
 export * from './adapt';
 export * from './diff';
 export * from './vdot';
+export * from './powerZonesLogic';
+export * from './ftpLogic';
 export * from './gap';
 export * from './bestEffort';
 export * from './feasibility';

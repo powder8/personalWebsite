@@ -12,6 +12,8 @@ import {
   bikeStrategy,
   resolvePaceZones,
   assessGoalFeasibility,
+  resolveFtp,
+  resolvePowerZones,
 } from '../index';
 
 const zones = buildZones(222.5); // elite threshold, matches plan.test.ts fixture
@@ -61,12 +63,17 @@ test('run strategy delegates to the existing running modules (same outputs)', ()
   assert.deepEqual(runStrategy.assessGoalFeasibility(feas), assessGoalFeasibility(feas));
 });
 
-// --- bike strategy stub throws everywhere ---
+// --- bike strategy: anchor + zones are wired (Story 1); the rest still stubs ---
 
-test('bikeStrategy stub throws "not yet implemented" from every method', () => {
+test('bikeStrategy anchor + zones are implemented and delegate to ftpLogic', () => {
+  assert.equal(bikeStrategy.resolveFitnessAnchor({ ftpWatts: 250 }), resolveFtp({ ftpWatts: 250 }));
+  assert.deepEqual(bikeStrategy.resolveZones({ ftpWatts: 250 }), resolvePowerZones({ ftpWatts: 250 }));
+  // No anchor at all → the zone resolver throws (its own message, not the stub).
+  assert.throws(() => bikeStrategy.resolveZones({}), /no fitness anchor/);
+});
+
+test('bikeStrategy prescription + feasibility remain "not yet implemented" stubs', () => {
   const msg = /bike strategy not yet implemented/;
-  assert.throws(() => bikeStrategy.resolveFitnessAnchor({}), msg);
-  assert.throws(() => bikeStrategy.resolveZones({}), msg);
   assert.throws(() => bikeStrategy.buildQualitySegments(6, 'threshold', zones, 3, 1.5, 0), msg);
   assert.throws(() => bikeStrategy.buildQualityDescription(6, 'threshold', zones, 3, 1.5, 0), msg);
   assert.throws(
