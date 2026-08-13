@@ -85,12 +85,19 @@ test('already at goal fitness → ahead', () => {
   assert.equal(g.tone, 'positive');
 });
 
-test('unrealistic goal → at_risk, honest but with a path (even if executing)', () => {
+test('unrealistic goal → at_risk: explains the gap, keeps the goal, offers a real path', () => {
   const g = buildGoalTracker({ ...base, feasibility: feas('unrealistic'), consistency: consistency(95, 4) })!;
   assert.equal(g.verdict, 'at_risk');
   assert.equal(g.tone, 'risk');
-  assert.ok(g.cta, 'offers a rework-the-goal CTA');
-  assert.match(g.advocateLine, /Chase it/);
+  // Transparency: the honest "why" is surfaced from the feasibility model.
+  assert.ok(g.gapNote, 'shows the gap explanation');
+  assert.match(g.gapNote!, /project|runway|weeks|faster/i);
+  // Voice: collaborative, not a scold — keep the goal, here is the path.
+  assert.match(g.advocateLine, /season target|adjust it below/i);
+  assert.doesNotMatch(g.headline, /isn't this race|aim honestly/i);
+  // The CTA is actionable, not a dead end.
+  assert.ok(g.cta, 'offers an adjust-the-goal CTA');
+  assert.match(g.cta!.label, /adjust/i);
 });
 
 test('goal race but no time/fitness data → execution-only verdict', () => {

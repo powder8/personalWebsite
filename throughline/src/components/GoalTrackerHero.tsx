@@ -3,7 +3,6 @@
  * One honest verdict (fitness × execution), the projected outcome vs the goal,
  * and the single lever that moves it. Pure markup; data from server/goalTracker.
  */
-import Link from 'next/link';
 import type { GoalTracker, GoalTone } from '@/server/goalTracker';
 
 const TONE: Record<GoalTone, { fill: string; text: string; chip: string; ring: string; bar: string }> = {
@@ -35,7 +34,7 @@ const VERDICT_LABEL: Record<GoalTracker['verdict'], string> = {
   on_track: 'on track',
   stretch: 'a stretch',
   drifting: 'drifting',
-  at_risk: 'aim honestly',
+  at_risk: 'a big reach',
 };
 
 export function GoalTrackerHero({ tracker, athleteId }: { tracker: GoalTracker; athleteId: string }) {
@@ -78,18 +77,26 @@ export function GoalTrackerHero({ tracker, athleteId }: { tracker: GoalTracker; 
         <span>{tracker.rightLabel}</span>
       </div>
 
+      {/* The honest "why": what the gap actually is and the runway it needs. */}
+      {tracker.gapNote && (
+        <p className="mt-3 text-sm leading-relaxed text-white/70">{tracker.gapNote}</p>
+      )}
+
       <div className={`mt-4 rounded-2xl p-3.5 ring-1 ring-inset ${t.ring} ${t.bar}`}>
         {tracker.execNote && (
           <div className={`text-xs font-semibold ${t.text}`}>{tracker.execNote}</div>
         )}
         <p className="mt-1 text-sm leading-relaxed text-white/90">{tracker.advocateLine}</p>
         {tracker.cta && (
-          <Link
+          // Native anchor: a Next <Link> to a bare "#hash" does NOT reliably scroll
+          // in the App Router. `#goal-setup` targets the goal editor (which opens
+          // itself on that hash — see GoalSetup).
+          <a
             href={tracker.cta.href}
             className="mt-2.5 inline-block rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:bg-white/15"
           >
             {tracker.cta.label}
-          </Link>
+          </a>
         )}
       </div>
     </div>

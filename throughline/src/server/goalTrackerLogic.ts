@@ -25,6 +25,7 @@ export interface GoalTracker {
   daysAway: number | null; // days to race day (for the countdown)
   headline: string; // "Sub-3:05 is in reach"
   projectionLine: string | null; // "projected today 3:07 → race day 3:04"
+  gapNote: string | null; // the honest "why": the size of the gap + the runway it needs
   fillPct: number; // 0-100 — how close the projected outcome is to the goal
   goalMarkerPct: number; // where the goal line sits on the bar
   leftLabel: string;
@@ -80,8 +81,8 @@ function execNoteFor(exec: Execution, c: ConsistencyStats | null): string | null
       return 'Training is steady — keep stacking weeks';
     case 'slipping':
       return c.adherence28dPct != null
-        ? `Volume running ${Math.max(1, 100 - c.adherence28dPct)}% under plan`
-        : `Only ${c.runs28d} run${c.runs28d === 1 ? '' : 's'} logged in 4 weeks`;
+        ? `Training ${Math.max(1, 100 - c.adherence28dPct)}% under plan the last 4 weeks`
+        : `${c.runs28d} run${c.runs28d === 1 ? '' : 's'} logged in the last 4 weeks`;
     default:
       return null;
   }
@@ -134,6 +135,7 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
       daysAway: days,
       headline: drifting ? 'You are drifting off plan' : `Building toward ${goalName}`,
       projectionLine: needsTime ? 'No target time set yet' : null,
+      gapNote: null,
       fillPct: drifting ? 52 : 78,
       goalMarkerPct: GOAL_MARKER,
       leftLabel: 'training consistency',
@@ -154,6 +156,31 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
   const solid = target ? clockShort(target.solidSeconds) : null;
   const projectionLine =
     solid != null ? `projected today ${solid} → race day ${projected}` : `projected race day ~${projected}`;
+
+  // The honest, non-preachy "why": how big the ask is and how much runway it
+  // really needs — straight from the feasibility model, which already computes
+  // it. Shown for the two "is this reachable?" verdicts so the athlete can see
+  // exactly what they're up against and decide for themselves.
+  const gapPct =
+    targetTimeSeconds != null && feasibility.projectedTimeSeconds > 0
+      ? Math.round(((feasibility.projectedTimeSeconds - targetTimeSeconds) / feasibility.projectedTimeSeconds) * 100)
+      : null;
+  const weeksLeft = feasibility.weeksToRace;
+  const weeksNeeded = feasibility.weeksNeededForGoal;
+  let gapNote: string | null = null;
+  if (feasibility.verdict === 'unrealistic' && goalLabel) {
+    const gapClause =
+      gapPct != null && gapPct > 0
+        ? `${goalLabel} is about ${gapPct}% faster than your fitness projects for race day (~${projected}). `
+        : `${goalLabel} is ahead of where your fitness projects for race day (~${projected}). `;
+    const runwayClause =
+      weeksNeeded && weeksNeeded > weeksLeft
+        ? `A normal build to it runs ~${weeksNeeded} weeks — more than the ${weeksLeft} this race gives. It's a genuine season goal.`
+        : `Closing it needs consistent, structured weeks between now and race day.`;
+    gapNote = gapClause + runwayClause;
+  } else if (feasibility.verdict === 'stretch' && goalLabel) {
+    gapNote = `${goalLabel} asks for a strong ${weeksLeft}-week block — a good build gets you close; stack the weeks and see how near you land.`;
+  }
 
   // Destination verdict, then let execution downgrade a capable athlete who
   // isn't doing the work.
@@ -182,12 +209,12 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
               ? `${goalLabel} is slipping`
               : 'Your goal is slipping'
             : goalLabel
-              ? `${goalLabel} isn't this race`
-              : 'Time to aim honestly';
+              ? `${goalLabel} needs a longer runway`
+              : 'This goal needs a longer runway';
 
   const leftLabel =
     verdict === 'at_risk'
-      ? `realistic ${projected}`
+      ? `projected ${projected}`
       : verdict === 'drifting'
         ? consistency?.adherence28dPct != null
           ? `${consistency.adherence28dPct}% of planned miles`
@@ -209,7 +236,7 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
           ? 'It\'s the ceiling, not the floor. Stack consistent weeks and see how close you get.'
           : verdict === 'drifting'
             ? 'The goal is still alive. Nail this week\'s key session and long run and you\'re back on the line.'
-            : `Chase it, treat ~${projected} as a real win — and let\'s set ${goalLabel ?? 'the big one'} for a race with room to reach it.`;
+            : `Keep ${goalLabel ?? 'it'} as the season target — for this race, ~${projected} is a strong result to chase now. Want a race-day goal with more room? Adjust it below.`;
 
   return {
     verdict,
@@ -218,12 +245,13 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
     daysAway: days,
     headline,
     projectionLine,
+    gapNote,
     fillPct: FILL[verdict],
     goalMarkerPct: GOAL_MARKER,
     leftLabel,
-    rightLabel: 'goal',
+    rightLabel: goalLabel ? `${goalLabel} goal` : 'goal',
     execNote,
     advocateLine,
-    cta: verdict === 'at_risk' ? { label: 'Rework the goal', href: '#goal-setup' } : null,
+    cta: verdict === 'at_risk' ? { label: 'Adjust your goal', href: '#goal-setup' } : null,
   };
 }

@@ -49,3 +49,6 @@ next-env.d.ts
 
 # local PGlite dev database
 /.pgdata
+
+# Agent worktrees (per-session, never committed)
+.claude/worktrees/

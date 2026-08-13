@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type GoalKind = 'finish' | 'time' | 'fitness';
 const DISTANCES = [
@@ -64,6 +64,19 @@ export function GoalSetup({
   const [pickedDay, setPickedDay] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Open the editor when the page is navigated to its anchor (e.g. the goal
+  // tracker's "Adjust your goal" CTA → #goal-setup), including clicks while this
+  // component is already mounted. Without this, the CTA scrolls to a collapsed
+  // card and appears to do nothing.
+  useEffect(() => {
+    const openIfTargeted = () => {
+      if (typeof window !== 'undefined' && window.location.hash === '#goal-setup') setOpen(true);
+    };
+    openIfTargeted();
+    window.addEventListener('hashchange', openIfTargeted);
+    return () => window.removeEventListener('hashchange', openIfTargeted);
+  }, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
