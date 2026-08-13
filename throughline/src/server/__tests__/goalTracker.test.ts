@@ -100,6 +100,23 @@ test('unrealistic goal → at_risk: explains the gap, keeps the goal, offers a r
   assert.match(g.cta!.label, /adjust/i);
 });
 
+test('at_risk + slipping → attributes the two levers (consistency vs runway), no scold badge', () => {
+  const g = buildGoalTracker({
+    ...base,
+    feasibility: { ...feas('unrealistic'), weeksNeededForGoal: 30, weeksToRace: 11 },
+    consistency: consistency(40, 1), // slipping
+  })!;
+  assert.equal(g.verdict, 'at_risk');
+  // Consistency lever is surfaced IN CONTEXT — it protects the realistic
+  // projection, and the copy says the projection already assumes it.
+  assert.match(g.advocateLine, /assumes you train consistently/i);
+  assert.match(g.advocateLine, /protect it/i);
+  // Runway framing for the goal itself lives in the gap note.
+  assert.match(g.gapNote!, /season goal/i);
+  // No separate "runs logged" badge — the read is woven in, not a scold.
+  assert.equal(g.execNote, null);
+});
+
 test('goal race but no time/fitness data → execution-only verdict', () => {
   const g = buildGoalTracker({ ...base, feasibility: null, target: null, targetTimeSeconds: null, consistency: consistency(null, 3) })!;
   assert.equal(g.verdict, 'on_track');

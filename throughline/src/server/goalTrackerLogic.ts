@@ -169,10 +169,13 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
   const weeksNeeded = feasibility.weeksNeededForGoal;
   let gapNote: string | null = null;
   if (feasibility.verdict === 'unrealistic' && goalLabel) {
+    // Say the quiet part: the projected time already ASSUMES a consistent
+    // block, so the athlete can see consistency isn't the lever that unlocks
+    // the goal here — the runway is.
     const gapClause =
       gapPct != null && gapPct > 0
-        ? `${goalLabel} is about ${gapPct}% faster than your fitness projects for race day (~${projected}). `
-        : `${goalLabel} is ahead of where your fitness projects for race day (~${projected}). `;
+        ? `${goalLabel} is about ${gapPct}% faster than a fully consistent block projects for race day (~${projected}). `
+        : `${goalLabel} is ahead of what a fully consistent block projects for race day (~${projected}). `;
     const runwayClause =
       weeksNeeded && weeksNeeded > weeksLeft
         ? `A normal build to it runs ~${weeksNeeded} weeks — more than the ${weeksLeft} this race gives. It's a genuine season goal.`
@@ -227,6 +230,23 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
               : 'at goal fitness'
             : 'fitness climbing';
 
+  // At-risk splits into two honest, separately-attributed levers:
+  //   • consistency protects the REALISTIC race-day result (the projection
+  //     assumes it — and if the athlete is slipping, even that is at risk);
+  //   • runway is what makes the GOAL itself a season target, not this race.
+  // We only invoke consistency when it's actually the live lever (slipping).
+  const slipping = exec === 'slipping';
+  const runsPhrase =
+    consistency == null
+      ? null
+      : consistency.adherence28dPct != null
+        ? `${Math.max(1, 100 - consistency.adherence28dPct)}% under plan`
+        : `${consistency.runs28d} run${consistency.runs28d === 1 ? '' : 's'} in 4 weeks`;
+  const atRiskAdvocate =
+    slipping && runsPhrase
+      ? `That ~${projected} already assumes you train consistently — and at ${runsPhrase} right now, even it is slipping. Get consistent and you protect it; ${goalLabel ?? 'the big goal'} stays the season target to build toward. Want a race-day goal with more room? Adjust it below.`
+      : `You're doing the work — ${goalLabel ?? 'it'} is simply a bigger jump than ${weeksLeft} weeks allow, so keep it as your season target. For this race, ~${projected} is a strong result to chase now. Want more room? Adjust it below.`;
+
   const advocateLine =
     verdict === 'ahead'
       ? 'Hold this fitness — or let\'s aim a notch faster and make the race count.'
@@ -236,7 +256,7 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
           ? 'It\'s the ceiling, not the floor. Stack consistent weeks and see how close you get.'
           : verdict === 'drifting'
             ? 'The goal is still alive. Nail this week\'s key session and long run and you\'re back on the line.'
-            : `Keep ${goalLabel ?? 'it'} as the season target — for this race, ~${projected} is a strong result to chase now. Want a race-day goal with more room? Adjust it below.`;
+            : atRiskAdvocate;
 
   return {
     verdict,
@@ -250,7 +270,9 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
     goalMarkerPct: GOAL_MARKER,
     leftLabel,
     rightLabel: goalLabel ? `${goalLabel} goal` : 'goal',
-    execNote,
+    // For at-risk the consistency read is woven into the advocate as a lever,
+    // so the separate badge would just be a redundant scold.
+    execNote: verdict === 'at_risk' ? null : execNote,
     advocateLine,
     cta: verdict === 'at_risk' ? { label: 'Adjust your goal', href: '#goal-setup' } : null,
   };
