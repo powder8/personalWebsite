@@ -622,12 +622,20 @@ export const fitnessFatigueStates = pgTable(
       .notNull()
       .references(() => athletes.id, { onDelete: 'cascade' }),
     day: date('day').notNull(),
+    // Cross-sport transfer model (spec L3): each (athlete, day) now carries up to
+    // THREE tracks per trained discipline — `central:<d>` (transferable aerobic),
+    // `specific:<d>` (economy), `durability:<d>` (impact). ADDITIVE + backward
+    // compatible: legacy single-series rows default to 'central', and for a
+    // run-only athlete `central:run` reproduces the exact legacy curve. See
+    // engine/transferLogic.ts:trackId and docs/multisport/load-currency-transfer-spec.md §3.3.
+    track: text('track').notNull().default('central'),
     ctl: doublePrecision('ctl').notNull(), // chronic training load (fitness)
     atl: doublePrecision('atl').notNull(), // acute training load (fatigue)
     tsb: doublePrecision('tsb').notNull(), // training stress balance (ctl - atl)
     computedAt: timestamp('computed_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex('ff_states_athlete_day_uq').on(t.athleteId, t.day)],
+  // Uniqueness is now per (athlete, day, TRACK) so the parallel tracks coexist.
+  (t) => [uniqueIndex('ff_states_athlete_day_track_uq').on(t.athleteId, t.day, t.track)],
 );
 
 // ---------------------------------------------------------------------------
