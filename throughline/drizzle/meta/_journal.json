@@ -183,6 +183,13 @@
       "when": 1786465715732,
       "tag": "0025_glorious_gertrude_yorkes",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1786623415480,
+      "tag": "0026_goofy_sprite",
+      "breakpoints": true
     }
   ]
 }

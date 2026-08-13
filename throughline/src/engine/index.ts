@@ -9,4 +9,5 @@ export * from './dates';
 export * from './baselines';
 export * from './load';
 export * from './fitnessFatigue';
+export * from './transferLogic';
 export * from './readiness';
