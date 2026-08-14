@@ -249,6 +249,14 @@ export function assessTriFeasibility(input: TriFeasibilityInput): TriFeasibility
 
 const DISC_NAME: Record<Discipline, string> = { swim: 'swim', bike: 'bike', run: 'run' };
 
+/** An absolute anchor amount in the leg's native unit: "0.15 m/s" · "79 W" · "6.3 VDOT". */
+function absLabel(discipline: Discipline, v: number): string {
+  const m = Math.abs(v);
+  if (discipline === 'swim') return `${m.toFixed(2)} m/s`;
+  if (discipline === 'bike') return `${Math.round(m)} W`;
+  return `${m.toFixed(1)} VDOT`;
+}
+
 function triProse(
   g: GoalDecomposition,
   legs: Record<Discipline, TriLegFeasibility>,
@@ -276,10 +284,16 @@ function triProse(
         headline: `${target} is a stretch — the ${name} is the constraint`,
         note: `The ${name} needs about ${b.requiredWeeklyGainLabel} for ${b.trainableWeeks} weeks — the top of what typically happens, not the expectation. It's the leg that decides your day. Realistic finish on a normal build: ~${realistic}; treat that as success and ${target} as the reach.`,
       };
-    default:
+    default: {
+      // The gap exceeds what even an optimistic block yields. Be honest about
+      // WHY: usually the per-season fitness ceiling, not the runway — citing a
+      // "weeks needed" figure here is misleading when the season cap is the wall.
+      const gapLabel = absLabel(bindingLeg, b.gap);
+      const addsLabel = absLabel(bindingLeg, b.achievableGain);
       return {
         headline: `${target} isn't this race — the ${name} is too far`,
-        note: `The ${name} would need roughly ${b.requiredWeeklyGainLabel} sustained for ${b.trainableWeeks} weeks, well past a normal build (~${b.weeksNeededForGoal} weeks to get there honestly). A strong, realistic target for this race is ~${realistic} — then set ${target} for a later date once the ${name} catches up.`,
+        note: `The ${name} is the constraint: these ${b.trainableWeeks} training weeks realistically add ~${addsLabel} at your level, but ${target} needs about ${gapLabel} more (${absLabel(bindingLeg, b.currentAnchor)} → ${absLabel(bindingLeg, b.goalAnchor)}). That's beyond one build — so ~${realistic} is the honest target for this race, with ${target} a goal for a later season once the ${name} catches up.`,
       };
+    }
   }
 }

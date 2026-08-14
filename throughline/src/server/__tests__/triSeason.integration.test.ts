@@ -15,6 +15,7 @@ import { eq } from 'drizzle-orm';
 import * as schema from '@/db/schema';
 import { athletes, races, plans } from '@/db/schema';
 import { setupTriSeason } from '../triSeason';
+import { getTriGoalTracker } from '../triGoalTracker';
 
 let client: PGlite;
 let db: ReturnType<typeof drizzle<typeof schema>>;
@@ -83,6 +84,15 @@ test('setupTriSeason with a target finish persists the timed goal + returns the 
   const disciplines = new Set(planRows.map((p) => p.discipline));
   assert.equal(disciplines.size, 3);
   assert.ok(planRows.every((p) => p.status === 'published'));
+
+  // The portal tracker recomputes the same verdict from the persisted goal.
+  const tracker = await getTriGoalTracker(db, A, '2026-08-17');
+  assert.ok(tracker, 'tri goal tracker present for a timed tri goal');
+  assert.equal(tracker!.targetFinishSeconds, 5 * 3600 + 15 * 60);
+  assert.equal(tracker!.distance, '70.3');
+  assert.equal(tracker!.feasibility.verdict, res.feasibility!.verdict);
+  assert.equal(tracker!.feasibility.bindingLeg, res.feasibility!.bindingLeg);
+  assert.ok(tracker!.daysAway > 0);
 });
 
 test('setupTriSeason WITHOUT a target finish → untimed goal, no feasibility (unchanged path)', async () => {
@@ -97,4 +107,6 @@ test('setupTriSeason WITHOUT a target finish → untimed goal, no feasibility (u
   const [race] = await db.select().from(races).where(eq(races.athleteId, A));
   assert.equal(race.goalType, 'none');
   assert.equal(race.targetTimeSeconds, null);
+  // No timed goal → no tri tracker (portal falls back to the single-sport one).
+  assert.equal(await getTriGoalTracker(db, A, '2026-08-17'), null);
 });

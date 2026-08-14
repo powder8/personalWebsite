@@ -25,6 +25,8 @@ import { getRecoveryInsights, persistReadiness } from '@/server/recovery';
 import { ReadinessCheck } from '@/components/ReadinessCheck';
 import { decideReadinessGate } from '@/server/readinessGate';
 import { GoalTrackerHero } from '@/components/GoalTrackerHero';
+import { TriGoalTrackerHero } from '@/components/TriGoalTrackerHero';
+import { getTriGoalTracker } from '@/server/triGoalTracker';
 import { ConnectStrava } from '@/components/ConnectStrava';
 import { getGoalTracker } from '@/server/goalTracker';
 import { BottomNav } from '@/components/BottomNav';
@@ -106,6 +108,9 @@ export default async function PortalPage({
   // Goal tracker hook — the "where do I stand?" verdict. Only when there's a
   // live goal to track (a finished/absent goal is handled by the goal-setup CTA).
   const goalTracker = needsGoal ? null : await getGoalTracker(db, id, today, consistency);
+  // Triathletes with a TIMED goal get the multi-sport tracker (per-leg verdict +
+  // binding leg) instead of the single-sport one. Null for everyone else.
+  const triGoalTracker = needsGoal ? null : await getTriGoalTracker(db, id, today);
 
   const nextStep = decideNextStep({
     firstName,
@@ -225,7 +230,11 @@ export default async function PortalPage({
       <p className="px-1 pt-1 text-sm text-slate-400">Hi {firstName} 👋 · {today}</p>
 
       {/* Where you stand */}
-      {goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} />}
+      {triGoalTracker ? (
+        <TriGoalTrackerHero tracker={triGoalTracker} />
+      ) : (
+        goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} />
+      )}
 
       {/* Today — the one thing to do now, with the specific workout */}
       <NextStepBanner
