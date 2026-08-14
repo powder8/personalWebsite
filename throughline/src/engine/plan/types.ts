@@ -199,10 +199,10 @@ export interface PlannedDay {
   runType: RunType;
   /**
    * Primary zone (null for rest). Pace-shaped (`ZoneKey`) on the run discipline,
-   * power-shaped (`PowerZoneKey`) on the bike — widened additively so the running
-   * arm's values are unchanged.
+   * power-shaped (`PowerZoneKey`) on the bike, CSS-relative (`SwimZoneKey`) on the
+   * swim — widened additively so the running arm's values are unchanged.
    */
-  zone: ZoneKey | PowerZoneKey | null;
+  zone: ZoneKey | PowerZoneKey | SwimZoneKey | null;
   distanceMeters: number; // total incl. warmup/cooldown (running currency; 0 on the bike)
   // --- cycling: duration-at-power prescription (the distance/pace analog) ---
   /** Total session duration incl. warm-up/cool-down (bike currency). */
@@ -231,10 +231,17 @@ export interface PlannedWeek {
 // --- template model (the coach's microcycle, as config) ---
 
 export interface QualitySpec {
-  /** Pace zone on the run, power zone on the bike (widened additively). */
-  zone: ZoneKey | PowerZoneKey;
+  /** Pace zone on the run, power zone on the bike, CSS-relative zone on the swim (widened additively). */
+  zone: ZoneKey | PowerZoneKey | SwimZoneKey;
   /** Fraction of the day's distance that is quality work (rest are wu/cd). */
   workFraction: number;
+  /**
+   * Swim only: this "quality" day is a first-class TECHNIQUE/drill session
+   * (prescribed by frequency, not load — swim-foundation-spec §5). The swim
+   * generator routes these through `buildSwimTechniqueSegments` rather than the
+   * CSS-interval builder. Ignored on the run/bike arms (they never set it).
+   */
+  technique?: boolean;
   segments?: Omit<WorkoutSegment, 'distanceMeters'>[]; // optional explicit reps
 }
 
