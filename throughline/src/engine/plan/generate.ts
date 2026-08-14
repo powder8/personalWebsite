@@ -28,7 +28,7 @@ import {
 } from './zones';
 import type { DisciplineStrategy } from './strategy';
 import { runStrategy } from './runStrategy';
-import { isPowerZones } from './powerZonesLogic';
+import { isPaceZones } from './powerZonesLogic';
 import { generateBikeWeek } from './bikeGenerate';
 
 const LONG_RUN_CAP_MILES = 22;
@@ -135,7 +135,9 @@ export function generateWeek(
   if (strategy.discipline === 'bike') {
     return generateBikeWeek(week, template, zones, rationale, strategy);
   }
-  if (isPowerZones(zones)) {
+  // Run path: zones must be pace-shaped (bike handed off above; swim doesn't
+  // generate here yet). Asserting pace narrows out both the power and swim arms.
+  if (!isPaceZones(zones)) {
     throw new Error('runStrategy: expected pace zones on the running discipline');
   }
   const weeklyMiles = metersToMiles(week.targetVolumeMeters);

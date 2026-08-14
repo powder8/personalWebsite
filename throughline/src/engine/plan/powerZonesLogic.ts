@@ -172,7 +172,10 @@ export function isPowerZones(z: TrainingZones): z is PowerZones {
 }
 
 export function isPaceZones(z: TrainingZones): z is PaceZones {
-  return (z as PowerZones).kind !== 'power';
+  // Pace zones are the untagged running arm: no `kind` discriminant at all (the
+  // power arm is 'power', the swim arm is 'swim'). Checking for the ABSENCE of a
+  // kind keeps running byte-identical while excluding both tagged arms.
+  return (z as { kind?: string }).kind === undefined;
 }
 
 /** Display twin of `paceRangeLabel` — "250–290 W". */

@@ -23,21 +23,23 @@
  * both satisfy this interface; `selectStrategy(discipline)` picks one. The
  * engine defaults to `runStrategy`, so existing running behaviour is unchanged.
  */
-import type { WorkoutSegment, ZoneKey, PowerZoneKey, Discipline, TrainingZones } from './types';
+import type { WorkoutSegment, ZoneKey, PowerZoneKey, SwimZoneKey, Discipline, TrainingZones } from './types';
 import type { AthletePaceConfig, GlobalPaceModel } from './paceConfig';
 import type { AthletePowerConfig, GlobalPowerModel } from './ftpLogic';
+import type { AthleteSwimConfig, GlobalSwimModel } from './cssLogic';
 import type { GoalFeasibility, GoalFeasibilityInput } from './feasibility';
 
 /**
  * The athlete config a strategy resolves from: pace-shaped for running,
- * power-shaped for cycling. Both are all-optional bags, so each strategy simply
- * reads its own sport's fields. (Story 0 typed this as `AthletePaceConfig`; it
- * is widened here so `bikeStrategy` can read an `AthletePowerConfig`.)
+ * power-shaped for cycling, swim-shaped for swimming. All are all-optional bags,
+ * so each strategy simply reads its own sport's fields. (Story 0 typed this as
+ * `AthletePaceConfig`; it is widened here so `bikeStrategy`/`swimStrategy` can
+ * read an `AthletePowerConfig`/`AthleteSwimConfig`.)
  */
-export type AthleteFitnessConfig = AthletePaceConfig | AthletePowerConfig;
+export type AthleteFitnessConfig = AthletePaceConfig | AthletePowerConfig | AthleteSwimConfig;
 
-/** The global model a strategy layers on: pace-side or power-side. */
-export type GlobalFitnessModel = GlobalPaceModel | GlobalPowerModel;
+/** The global model a strategy layers on: pace-side, power-side, or swim-side. */
+export type GlobalFitnessModel = GlobalPaceModel | GlobalPowerModel | GlobalSwimModel;
 
 export interface DisciplineStrategy {
   /** Which sport this strategy implements. */
@@ -73,7 +75,7 @@ export interface DisciplineStrategy {
    */
   buildQualitySegments(
     dayVolume: number,
-    zone: ZoneKey | PowerZoneKey,
+    zone: ZoneKey | PowerZoneKey | SwimZoneKey,
     zones: TrainingZones,
     workVolume: number,
     wuCd: number,
@@ -83,7 +85,7 @@ export interface DisciplineStrategy {
   /** One-line prose mirror of the same quality session, in the coach's format. */
   buildQualityDescription(
     dayVolume: number,
-    zone: ZoneKey | PowerZoneKey,
+    zone: ZoneKey | PowerZoneKey | SwimZoneKey,
     zones: TrainingZones,
     workVolume: number,
     wuCd: number,
@@ -98,9 +100,11 @@ export interface DisciplineStrategy {
 }
 
 // Implementations are imported for the registry below. `runStrategy` carries the
-// real logic; `bikeStrategy` is a throwing stub until the cycling agents land.
+// real logic; `bikeStrategy` and `swimStrategy` wire anchor+zones+quality through
+// the seam (their feasibility methods remain stubs until those stories land).
 import { runStrategy } from './runStrategy';
 import { bikeStrategy } from './bikeStrategy';
+import { swimStrategy } from './swimStrategy';
 
 /** Pick the strategy for a discipline. Defaults to running at the call sites. */
 export function selectStrategy(discipline: Discipline): DisciplineStrategy {
@@ -109,6 +113,8 @@ export function selectStrategy(discipline: Discipline): DisciplineStrategy {
       return runStrategy;
     case 'bike':
       return bikeStrategy;
+    case 'swim':
+      return swimStrategy;
     default: {
       const _exhaustive: never = discipline;
       throw new Error(`selectStrategy: unknown discipline ${String(_exhaustive)}`);
@@ -116,4 +122,4 @@ export function selectStrategy(discipline: Discipline): DisciplineStrategy {
   }
 }
 
-export { runStrategy, bikeStrategy };
+export { runStrategy, bikeStrategy, swimStrategy };

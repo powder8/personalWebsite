@@ -11,7 +11,7 @@ import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import { plans, plannedSessions } from './schema';
 import * as schema from './schema';
 import { addDays } from '@/engine/dates';
-import { midpoint, dowMon0, isPowerZones } from '@/engine/plan';
+import { midpoint, dowMon0, isPowerZones, isPaceZones } from '@/engine/plan';
 import type {
   PlannedWeek,
   PlannedDay,
@@ -122,9 +122,13 @@ export async function persistPlanDraft(
 
     const planId = planRow.id;
 
-    const rows = week.days.map((d) =>
-      bike ? bikeSessionRow(planId, athleteId, d, zones) : runSessionRow(planId, athleteId, d, zones),
-    );
+    // Narrow per-arm so each row builder gets its exact zone shape. Swim plans
+    // aren't persisted through here yet (swim generate is a later story).
+    const rows = week.days.map((d) => {
+      if (isPowerZones(zones)) return bikeSessionRow(planId, athleteId, d, zones);
+      if (isPaceZones(zones)) return runSessionRow(planId, athleteId, d, zones);
+      throw new Error('persistPlanDraft: swim plans are not persisted yet');
+    });
     if (rows.length) await db.insert(plannedSessions).values(rows);
 
     out.push({ planId, weekStart: week.weekStart });
