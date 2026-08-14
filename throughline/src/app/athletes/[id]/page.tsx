@@ -22,6 +22,8 @@ import { WeeklyVolumeChart } from '@/components/WeeklyVolumeChart';
 import { getTrainingSummary } from '@/server/weeklyVolume';
 import { SegmentList } from '@/components/SegmentList';
 import type { PortalSegment } from '@/server/portal';
+import { sessionMetricLabel } from '@/engine/plan/segmentDisplayLogic';
+import { wattsLabel } from '@/engine/plan/powerZonesLogic';
 import { getDb } from '@/db';
 import { consoleViewer, athleteVisible } from '@/server/access';
 import { listProposedDirectives } from '@/server/directives';
@@ -454,12 +456,30 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
                   return (
                     <tr key={s.id} className={isToday ? 'bg-sky-400/10' : ''}>
                       <td className="w-12 px-2 py-2 font-medium text-slate-500">{dow(s.day)}</td>
-                      <td className="w-16 px-2 py-2 text-slate-700">{miles(s.targetDistanceMeters)} mi</td>
+                      <td className="w-16 px-2 py-2 text-slate-700">
+                        {s.discipline === 'run'
+                          ? `${miles(s.targetDistanceMeters)} mi`
+                          : sessionMetricLabel({
+                              discipline: s.discipline,
+                              distanceMeters: s.targetDistanceMeters,
+                              durationSeconds: s.targetDurationSeconds,
+                            })}
+                      </td>
                       <td className="px-2 py-2">
                         <span className="capitalize text-slate-800">{s.sessionType}</span>
+                        {s.discipline !== 'run' && (
+                          <span className="ml-1.5 rounded bg-slate-100 px-1 text-[10px] font-medium uppercase text-slate-500">
+                            {s.discipline}
+                          </span>
+                        )}
                         {s.targetPaceFastSecPerKm != null && (
                           <span className="ml-2 text-xs text-slate-400">
                             {pace(s.targetPaceFastSecPerKm)}–{pace(s.targetPaceSlowSecPerKm)}
+                          </span>
+                        )}
+                        {s.targetPowerLowWatts != null && s.targetPowerHighWatts != null && (
+                          <span className="ml-2 text-xs text-slate-400">
+                            {wattsLabel({ loWatts: s.targetPowerLowWatts, hiWatts: s.targetPowerHighWatts })}
                           </span>
                         )}
                         {s.pinned && (
@@ -545,13 +565,31 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
                         <tr key={s.id}>
                           <td className="w-12 px-2 py-1 font-medium text-slate-500">{dow(s.day)}</td>
                           <td className="w-16 px-2 py-1 text-slate-700">
-                            {s.targetDistanceMeters ? `${miles(s.targetDistanceMeters)} mi` : '—'}
+                            {s.discipline === 'run'
+                              ? s.targetDistanceMeters
+                                ? `${miles(s.targetDistanceMeters)} mi`
+                                : '—'
+                              : sessionMetricLabel({
+                                  discipline: s.discipline,
+                                  distanceMeters: s.targetDistanceMeters,
+                                  durationSeconds: s.targetDurationSeconds,
+                                })}
                           </td>
                           <td className="px-2 py-1">
                             <span className="capitalize text-slate-800">{s.sessionType}</span>
+                            {s.discipline !== 'run' && (
+                              <span className="ml-1.5 rounded bg-slate-100 px-1 text-[10px] font-medium uppercase text-slate-500">
+                                {s.discipline}
+                              </span>
+                            )}
                             {s.targetPaceFastSecPerKm != null && (
                               <span className="ml-2 text-xs text-slate-400">
                                 {pace(s.targetPaceFastSecPerKm)}–{pace(s.targetPaceSlowSecPerKm)}
+                              </span>
+                            )}
+                            {s.targetPowerLowWatts != null && s.targetPowerHighWatts != null && (
+                              <span className="ml-2 text-xs text-slate-400">
+                                {wattsLabel({ loWatts: s.targetPowerLowWatts, hiWatts: s.targetPowerHighWatts })}
                               </span>
                             )}
                             {s.adjustments.length > 0 && (

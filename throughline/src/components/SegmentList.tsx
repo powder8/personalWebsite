@@ -4,11 +4,13 @@
  * markup; works on light and dark ("onDark") surfaces.
  */
 import type { PortalSegment } from '@/server/portal';
+import { segmentHeadline } from '@/engine/plan/segmentDisplayLogic';
 
 const ROLE_LABEL: Record<string, string> = {
   warmup: 'Warm-up',
   work: 'Work',
   recovery_jog: 'Recovery',
+  recovery_spin: 'Recovery',
   cooldown: 'Cool-down',
 };
 
@@ -16,19 +18,16 @@ const ROLE_DOT: Record<string, string> = {
   warmup: 'bg-sky-400',
   work: 'bg-rose-400',
   recovery_jog: 'bg-teal-400',
+  recovery_spin: 'bg-teal-400',
   cooldown: 'bg-slate-400',
 };
 
-const mi = (m?: number) => (m == null ? null : (m / 1609.344).toFixed(m >= 1609 ? 1 : 2).replace(/\.00$/, ''));
-
-/** Headline for a segment: "5 × 1 mi" or "2.5 mi". */
-function headline(s: PortalSegment): string {
-  if (s.reps && s.repMeters) {
-    const rep = s.repMeters === 400 ? '400m' : `${mi(s.repMeters)} mi`;
-    return `${s.reps} × ${rep}`;
-  }
-  return s.distanceMeters ? `${mi(s.distanceMeters)} mi` : '';
-}
+/**
+ * Headline for a segment — discipline-aware, inferred from the segment's own
+ * fields: run "5 × 1 mi", bike "5 × 8 min @ 228–263 W", swim
+ * "11 × 100 m @ 1:16–1:20/100m". Running output is unchanged.
+ */
+const headline = (s: PortalSegment): string => segmentHeadline(s);
 
 export function SegmentList({ segments, onDark = false }: { segments: PortalSegment[]; onDark?: boolean }) {
   const label = onDark ? 'text-white/85' : 'text-slate-700';
