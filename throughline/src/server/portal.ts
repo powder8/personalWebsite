@@ -24,13 +24,29 @@ import { todayISO, type Band } from '@/server/console';
 import { getStravaAccount } from '@/server/strava';
 import { stravaConfigured } from '@/providers/strava/env';
 
-/** Structured workout segment as stored by the engine (see WorkoutSegment). */
+/**
+ * Structured workout segment as stored by the engine (see WorkoutSegment).
+ * Discipline-generalized: the RUN fields (distance-at-pace) are unchanged; the
+ * BIKE (duration-at-power) and SWIM (metres-at-CSS-pace) fields are carried
+ * alongside as optional so the client renderer can show them. A segment uses one
+ * family or the other — running never sets the new keys, so its shape (and
+ * rendered output) is byte-identical.
+ */
 export interface PortalSegment {
-  role: 'warmup' | 'work' | 'recovery_jog' | 'cooldown';
+  role: 'warmup' | 'work' | 'recovery_jog' | 'recovery_spin' | 'cooldown';
   zone: string;
   reps?: number;
+  // --- running: distance-at-pace ---
   repMeters?: number;
   distanceMeters?: number;
+  // --- cycling: duration-at-power ---
+  repSeconds?: number;
+  durationSeconds?: number;
+  targetLoWatts?: number;
+  targetHiWatts?: number;
+  // --- swimming: distance-at-CSS-pace (metres reuse reps/repMeters/distanceMeters) ---
+  targetFastSecPer100?: number;
+  targetSlowSecPer100?: number;
   restSeconds?: number;
   note?: string;
 }
