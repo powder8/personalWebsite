@@ -12,6 +12,7 @@ import { getAthleteVdot } from '@/db/paceConfig';
 import { TrainingCalendar } from '@/components/TrainingCalendar';
 import { getTrainingCalendar } from '@/server/trainingCalendar';
 import { NextStepBanner } from '@/components/NextStepBanner';
+import { TodayStack } from '@/components/TodayStack';
 import { getAdaptationState, easeBackDirectives } from '@/server/adaptation';
 import { decideNextStep } from '@/server/nextStepLogic';
 import { ConsistencyStrip } from '@/components/ConsistencyStrip';
@@ -123,6 +124,7 @@ export default async function PortalPage({
     athlete,
     today,
     todaySession,
+    todaySessions,
     goalRace,
     checkedInToday,
     recentCheckIns,
@@ -182,6 +184,14 @@ export default async function PortalPage({
       : null;
   const loggedToday =
     ranToday && latestRun?.day === today ? { miles: latestRun.dayMiles, runCount: latestRun.runCount } : null;
+
+  // Multi-sport day: more than one real (non-rest) session to do today. A
+  // triathlete gets the stacked view; a single-sport athlete keeps the focal
+  // NextStepBanner untouched. Only stack on an actual training day — the
+  // lifecycle states (done/rest/ease-back) stay with the banner.
+  const trainingSessionsToday = todaySessions.filter((s) => !isRestSession(s));
+  const showTodayStack =
+    !ranToday && trainingSessionsToday.length > 1 && (nextStep.kind === 'today' || nextStep.kind === 'eased_today');
 
   // ── SETUP STAGE — no live goal. One job: pick the goal (plus connect the
   // watch). Everything else stays out of the way until training starts.
@@ -246,15 +256,21 @@ export default async function PortalPage({
       {/* Where you stand */}
       {goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} />}
 
-      {/* Today — the one thing to do now, with the specific workout */}
-      <NextStepBanner
-        step={nextStep}
-        athleteId={athlete.id}
-        easeDirectives={easeDirectives}
-        latestActivityId={latestRun?.activityId ?? null}
-        session={sessionDetail}
-        loggedToday={loggedToday}
-      />
+      {/* Today — the one thing to do now, with the specific workout. A
+          triathlete with several sessions today gets the stacked multi-sport
+          view; everyone else gets the single-focal next-step banner. */}
+      {showTodayStack ? (
+        <TodayStack sessions={trainingSessionsToday} />
+      ) : (
+        <NextStepBanner
+          step={nextStep}
+          athleteId={athlete.id}
+          easeDirectives={easeDirectives}
+          latestActivityId={latestRun?.activityId ?? null}
+          session={sessionDetail}
+          loggedToday={loggedToday}
+        />
+      )}
 
       {/* Autonomous readiness gate: ask before easing, then recommend. */}
       {readinessGate.kind === 'ask' && (

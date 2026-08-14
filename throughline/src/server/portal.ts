@@ -7,7 +7,7 @@ import 'server-only';
  * "Today" comes from todayISO() — the real current date (APP_TODAY pins it for
  * demos/tests).
  */
-import { and, asc, eq, gte, lte, desc, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, lte, desc, sql, inArray } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { applyDirectives } from '@/engine/plan';
 import { getUpcomingWeeks } from '@/server/season';
@@ -79,7 +79,8 @@ export interface AthletePortal {
   athlete: typeof athletes.$inferSelect;
   today: string;
   readiness: { score: number | null; band: Band | null; sentence: string | null };
-  todaySession: PortalSession | null;
+  todaySession: PortalSession | null; // primary (first) — single-focal use
+  todaySessions: PortalSession[]; // ALL of today's sessions across disciplines (tri = up to 3)
   thisWeek: PortalWeek | null;
   comingWeeks: PortalWeek[];
   goalRace: { name: string | null; date: string | null; daysAway: number | null };
@@ -143,8 +144,10 @@ export async function getAthletePortal(id: string): Promise<AthletePortal | null
     };
   };
 
-  // Current published week.
-  const [plan] = await db
+  // Current published week(s). A triathlete has one published plan PER SPORT for
+  // the week, so fetch them ALL and merge — the portal shows swim+bike+run
+  // together. A single-sport athlete just has one, so this is a no-op for them.
+  const weekPlans = await db
     .select()
     .from(plans)
     .where(
@@ -154,20 +157,22 @@ export async function getAthletePortal(id: string): Promise<AthletePortal | null
         lte(plans.weekStart, TODAY),
         gte(plans.weekEnd, TODAY),
       ),
-    )
-    .limit(1);
+    );
 
   let thisWeek: PortalWeek | null = null;
   let todaySession: PortalSession | null = null;
-  if (plan) {
+  let todaySessions: PortalSession[] = [];
+  if (weekPlans.length) {
     const rows = await db
       .select()
       .from(plannedSessions)
-      .where(eq(plannedSessions.planId, plan.id))
+      .where(inArray(plannedSessions.planId, weekPlans.map((p) => p.id)))
       .orderBy(plannedSessions.day);
     const sessions = rows.map(overlay);
-    thisWeek = { weekStart: plan.weekStart, weekEnd: plan.weekEnd, phase: plan.phase, sessions };
-    todaySession = sessions.find((s) => s.day === TODAY) ?? null;
+    const wk = weekPlans[0];
+    thisWeek = { weekStart: wk.weekStart, weekEnd: wk.weekEnd, phase: wk.phase, sessions };
+    todaySessions = sessions.filter((s) => s.day === TODAY);
+    todaySession = todaySessions[0] ?? null;
   }
 
   // Look ahead (exclude the current week — that's `thisWeek`).
@@ -227,6 +232,7 @@ export async function getAthletePortal(id: string): Promise<AthletePortal | null
       sentence: readiness?.sentence ?? null,
     },
     todaySession,
+    todaySessions,
     thisWeek,
     comingWeeks,
     goalRace: { name: athlete.goalRace, date: athlete.goalRaceDate, daysAway },

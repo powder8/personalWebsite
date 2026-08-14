@@ -9,10 +9,31 @@ cohort MVP within ~1 month._
 - **All three legs now GENERATE weekly plans** and are LIVE: run (existing), bike (FTP/power, Story 5), swim (CSS/metres). Unified TSS currency throughout. Migrations through `0029`.
 - **Decisions locked (Peter):** race = **70.3 / half-iron** (June 2027); training budget expressed as **hours/week**; limiter = **self-reported** for the guinea-pig phase.
 - **DONE + LIVE:** tri time-budget allocator (`triAllocatorLogic`/`triPlan`/`server/triSeason` — hours→per-sport TSS, 70.3-weighted, composes a multi-sport week + weekly brick) and session-rendering UI (bike watts / swim pace/technique in `SegmentList` + coach `athletes/[id]`). Engine + composition + coach-view rendering complete.
-- **REMAINING for the usable cohort MVP (final wave):**
-  1. **Athlete portal multi-sport view** — `me/[id]/page.tsx` + `src/server/nextStepLogic.ts` are run-shaped: the rest-day gate uses `distanceMeters<=0`, so a BIKE day (metres=0) is wrongly treated as REST and won''t render. Make gating discipline-aware (bike→durationSeconds, swim→metres) + generalize the "today" copy; add `discipline`/duration/power to `PortalSession`; show swim+bike+run days together.
-  2. **Onboarding** — collect race distance (`TriDistance`), weekly **hours**, self-reported **limiter**, 3 anchors (VDOT/FTP/CSS) → call `setupTriSeason` (it throws naming any missing anchor).
-  3. **G1 test** — set up the 4 real athletes, generate, fix on live data.
+- **Athlete portal multi-sport view — DONE** (branch `feat/portal-multisport`, PR #1):
+  - _Increment 1_ (committed f08c687): rest-day gate + "today" copy made discipline-aware
+    (bike→durationSeconds, swim→metres); `discipline`/duration/power added to `PortalSession`;
+    `nextStepLogic` generalized. A bike/swim day no longer disappears as "rest."
+  - _Increment 2_ (this branch): `getAthletePortal` now fetches **all** published plans overlapping
+    the week (was `.limit(1)`) and exposes `todaySessions: PortalSession[]`; the portal renders a
+    triathlete's day as a **stacked multi-sport card** (`components/TodayStack.tsx` — swim→bike→run,
+    brick-marked) while single-sport athletes keep the focal `NextStepBanner` byte-identical.
+- **REMAINING for the usable cohort MVP:**
+  1. **Onboarding** — collect race distance (`TriDistance`), weekly **hours**, self-reported **limiter**, 3 anchors (VDOT/FTP/CSS) → call `setupTriSeason` (it throws naming any missing anchor). Extended in the goal-time spec's **G9** to also collect target finish time + `WeekSchedule`.
+  2. **G1 test** — set up the 4 real athletes, generate, fix on live data.
+
+## Next major design: goal-time + real-world schedule (spec written 2026-08-14)
+`docs/multisport/triathlon-goal-time-and-schedule-spec.md` — the sequel to the volume allocator.
+Turns a **target FINISH time** + **real-world schedule constraints** into a coordinated per-sport plan,
+reusing the anchor→zones→target machinery unchanged. Three orthogonal layers on one `generateWeek`:
+(1) **goal-time decomposition** — finish − transitions → moving budget → strength-relative split (each
+leg predicted from the athlete's own VDOT/FTP/CSS, scaled by a single factor `k`) → per-leg race-pace
+targets + required anchors; (2) **feasibility aggregate** — 3× `assessGoalFeasibility` (fills the existing
+bike/swim stubs), binding-leg verdict, honest realistic finish; (3) **schedule** — `DayBudget`
+(pool-access days, long day, per-day minutes) + deterministic `layoutTriWeek` greedy placement (brick on
+the long day). Every layer degrades to today's behaviour when its input is absent (additive, runner-neutral).
+Sequenced as **stories G1–G9** (~23–30 dev-days); goal-time chain G1→G2→G3→G4→G7→G8 is the spine,
+schedule **G5 parallelizes** as a worktree. New pure modules: `triGoalTimeLogic`, `triFeasibilityLogic`,
+`triScheduleLogic`, `triGoalTrackerLogic`. Biggest cohort-calibration target: bike physics (`CdA`/`Crr`).
 - **Tuning (with cohort data):** hours→TSS `TYPICAL_WEEKLY_IF`, `RUN_TRAINING_PACE_RATIO`, 70.3 `RACE_DEMAND_WEIGHT`, `DEFAULT_LIMITER_BOOST`, floors — all in `triAllocatorLogic.ts`, flagged as tunable.
 
 ## How to pick up
