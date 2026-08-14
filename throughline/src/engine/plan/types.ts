@@ -37,10 +37,11 @@ export type TrainingPhase = 'base' | 'build' | 'peak' | 'taper';
 
 /**
  * The sport a plan is built for. Running is the original, fully-implemented
- * discipline; cycling is being added behind a strategy seam (see strategy.ts).
- * Mirrors the `discipline` pgEnum on athletes/plans/planned_sessions.
+ * discipline; cycling and swimming are added behind a strategy seam (see
+ * strategy.ts). Mirrors the transfer model's `Discipline` (transferLogic.ts) and
+ * the `discipline` dimension on athletes/plans/planned_sessions.
  */
-export type Discipline = 'run' | 'bike';
+export type Discipline = 'run' | 'bike' | 'swim';
 
 /** Pace band in seconds per km. `fast` <= `slow` (lower seconds = faster). */
 export interface PaceRange {
@@ -108,14 +109,54 @@ export interface PowerZones {
   hrZones: Record<PowerZoneKey, HrRange> | null;
 }
 
+// --- swimming: CSS-relative pace zones (the pace/power-zone analog for swim) ---
+
+/**
+ * Swim training-intensity taxonomy — CSS-relative sec/100 m bands (Swim Smooth /
+ * Friel). `threshold` straddles CSS (the anchor); faster zones sit below CSS
+ * pace, easier zones above it. There are fewer, coarser bands than the run/bike
+ * taxonomies because swim pace resolution in the pool is coarser.
+ */
+export type SwimZoneKey =
+  | 'recovery' // very easy, technique/warm-up (CSS + 10–20 s/100)
+  | 'aerobic' // endurance / long-set base (CSS + 4–10 s/100)
+  | 'threshold' // at/around CSS — the anchor band (CSS ± 2 s/100)
+  | 'vo2max' // above CSS, short-course sharpening (CSS − 2–6 s/100)
+  | 'sprint'; // 25/50 speed work, well above CSS (CSS − 6 s/100 and faster)
+
+/**
+ * A swim pace band in sec/100 m. `fast` <= `slow` (fewer seconds = faster). The
+ * swim-side analog of `PaceRange` (sec/km) and `PowerRange` (watts).
+ */
+export interface SwimRange {
+  fastSecPer100: number;
+  slowSecPer100: number;
+}
+
+/**
+ * Swim training zones — the swim-side analog of `PaceZones` / `PowerZones`.
+ * Carries the `kind: 'swim'` discriminant so it can be told apart in the
+ * generalized `TrainingZones` union. Bands are CSS-relative sec/100 m; CSS is
+ * stored as m/s internally (`cssMetersPerSec`), with `cssPaceSecPer100` its
+ * display form (`100 / cssMetersPerSec`). No HR fallback (swim HR is unreliable).
+ */
+export interface SwimZones {
+  kind: 'swim';
+  cssMetersPerSec: number;
+  cssPaceSecPer100: number;
+  zones: Record<SwimZoneKey, SwimRange>;
+}
+
 /**
  * The generalized training-zone type a `DisciplineStrategy` resolves: pace-based
- * for running or power-based for cycling. The running arm is the EXISTING
- * `PaceZones` shape, left untagged and byte-identical so every current consumer
- * and test is unaffected; the cycling arm is `PowerZones`, tagged `kind:'power'`.
- * Narrow with `isPowerZones()` / `isPaceZones()` from powerZonesLogic.ts.
+ * for running, power-based for cycling, or CSS-relative pace for swimming. The
+ * running arm is the EXISTING `PaceZones` shape, left untagged and byte-identical
+ * so every current consumer and test is unaffected; the cycling arm is
+ * `PowerZones` (`kind:'power'`) and the swim arm is `SwimZones` (`kind:'swim'`).
+ * Narrow with `isPowerZones()` / `isPaceZones()` from powerZonesLogic.ts and
+ * `isSwimZones()` from swimZonesLogic.ts.
  */
-export type TrainingZones = PaceZones | PowerZones;
+export type TrainingZones = PaceZones | PowerZones | SwimZones;
 
 /**
  * A structured segment within a quality session (e.g. "6×1k @ threshold" for
@@ -130,7 +171,7 @@ export type TrainingZones = PaceZones | PowerZones;
  */
 export interface WorkoutSegment {
   role: 'warmup' | 'work' | 'recovery_jog' | 'recovery_spin' | 'cooldown';
-  zone: ZoneKey | PowerZoneKey;
+  zone: ZoneKey | PowerZoneKey | SwimZoneKey;
   reps?: number;
   // --- running: distance-at-pace ---
   /** repeats × repMeters describes running intervals; distanceMeters continuous. */
@@ -143,6 +184,10 @@ export interface WorkoutSegment {
   /** Power target for the block, filled from the athlete's %FTP zones at build. */
   targetLoWatts?: number;
   targetHiWatts?: number;
+  // --- swimming: distance-at-CSS-pace (metres; reuses reps/repMeters/distanceMeters) ---
+  /** Swim pace target (sec/100 m), filled from the athlete's CSS zones at build. */
+  targetFastSecPer100?: number;
+  targetSlowSecPer100?: number;
   restSeconds?: number;
   note?: string;
 }

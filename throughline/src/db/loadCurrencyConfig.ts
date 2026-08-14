@@ -15,6 +15,7 @@ import type { DB } from './client';
 import { athletes, engineSettings, intakeProfiles } from './schema';
 import { getAthleteVdot } from './paceConfig';
 import { getAthleteFtp } from './powerConfig';
+import { getAthleteCss } from './swimConfig';
 import { resolvePaceZones, type AthletePaceConfig } from '@/engine/plan';
 import { resolveLoadCurrency, type LoadCurrency } from '@/engine/loadCurrencyFlagLogic';
 import type { AthleteLoadAnchors } from '@/engine/loadSelectLogic';
@@ -62,11 +63,12 @@ export async function resolveAthleteLoadAnchors(db: DB, athleteId: string): Prom
   const [athlete] = await db.select().from(athletes).where(eq(athletes.id, athleteId)).limit(1);
   const thresholdPaceSecPerKm = await resolveThresholdPace(db, athleteId);
   const ftpWatts = await getAthleteFtp(db, athleteId);
+  const cssMetersPerSec = await getAthleteCss(db, athleteId);
   const [intake] = await db
     .select()
     .from(intakeProfiles)
     .where(eq(intakeProfiles.athleteId, athleteId))
     .limit(1);
   const lthrBpm = (intake?.answers as { lthrBpm?: number } | null)?.lthrBpm ?? null;
-  return { thresholdPaceSecPerKm, ftpWatts, lthrBpm, sex: athlete?.sex ?? null };
+  return { thresholdPaceSecPerKm, ftpWatts, cssMetersPerSec, lthrBpm, sex: athlete?.sex ?? null };
 }

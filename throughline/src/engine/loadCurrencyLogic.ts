@@ -81,6 +81,7 @@ export const DEFAULT_ESTIMATED_IF = 0.65;
 export const ZONE_IF: Readonly<Record<string, number>> = {
   recovery: 0.55,
   easy: 0.65,
+  aerobic: 0.65, // swim aerobic/endurance band (swimZonesLogic SwimZoneKey)
   endurance: 0.65,
   maintenance: 0.7,
   marathon: 0.78,
@@ -89,6 +90,7 @@ export const ZONE_IF: Readonly<Record<string, number>> = {
   threshold: 0.98,
   intervals: 1.05,
   vo2max: 1.05,
+  sprint: 1.1, // swim sprint band (aerobic kernel under-weights it — lowConfidence)
   rep: 1.1,
 };
 

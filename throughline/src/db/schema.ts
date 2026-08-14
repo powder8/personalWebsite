@@ -190,6 +190,12 @@ export const athletes = pgTable(
     // FTP-test / LTHR + per-zone overrides, layered on the global power model.
     // The power-side analog of paceConfig. Null = pure global. (Cycling story 1.)
     powerConfig: jsonb('power_config'),
+    // Per-athlete SWIM customization (AthleteSwimConfig): CSS anchor (m/s) /
+    // swim-test + CSS-relative zone overrides, layered on the global swim model.
+    // The swim-side analog of paceConfig/powerConfig. Null = pure global. This is
+    // what feeds LoadAnchors.cssMetersPerSec (getAthleteCss) so swim load prices
+    // as `css` confidence instead of the `estimated` fallback. (Swim leg.)
+    swimConfig: jsonb('swim_config'),
     // Auth account that owns this athlete record (linked by email on first
     // sign-in). Null until the athlete signs in. `users` is defined lower in
     // this file; the reference callback is lazy so the forward ref is fine.
@@ -221,6 +227,7 @@ export const engineSettings = pgTable('engine_settings', {
   id: text('id').primaryKey().default('global'),
   paceModel: jsonb('pace_model'), // GlobalPaceModel
   powerModel: jsonb('power_model'), // GlobalPowerModel (cycling analog of paceModel)
+  swimModel: jsonb('swim_model'), // GlobalSwimModel (swim analog of paceModel/powerModel)
   // Load-currency cutover flag (spec story L2): 'trimp' | 'tss'. NULL = default
   // ('trimp'), so shipping the column changes nothing until an owner flips it.
   // Read via db/loadCurrencyConfig.ts:getLoadCurrency (env LOAD_CURRENCY overrides

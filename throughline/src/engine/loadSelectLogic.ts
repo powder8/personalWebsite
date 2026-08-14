@@ -32,6 +32,12 @@ import type { HrParams } from './types';
 export interface AthleteLoadAnchors {
   thresholdPaceSecPerKm: number | null;
   ftpWatts: number | null;
+  /**
+   * Critical Swim Speed in m/s — turns swim load from `estimated` into `css`.
+   * Optional so pre-swim callers/tests that build anchors inline stay valid; a
+   * missing value simply means "no CSS anchor" (swim prices via the fallback).
+   */
+  cssMetersPerSec?: number | null;
   lthrBpm: number | null;
   sex: string | null; // athletes.sex: 'female' | 'male' | 'other' | null
 }
@@ -40,6 +46,7 @@ export interface AthleteLoadAnchors {
 export const NO_ANCHORS: AthleteLoadAnchors = {
   thresholdPaceSecPerKm: null,
   ftpWatts: null,
+  cssMetersPerSec: null,
   lthrBpm: null,
   sex: null,
 };
@@ -123,6 +130,7 @@ export function selectDailyLoad(
       {
         thresholdPaceSecPerKm: anchors.thresholdPaceSecPerKm,
         ftpWatts: anchors.ftpWatts,
+        cssMetersPerSec: anchors.cssMetersPerSec,
         lthrBpm: anchors.lthrBpm,
         hr: hrParamsFromMaxHr(anchors.sex, row.maxHr),
       },
