@@ -55,7 +55,11 @@ export interface PortalSession {
   id: string;
   day: string;
   sessionType: string;
-  distanceMeters: number | null;
+  discipline: 'run' | 'bike' | 'swim';
+  distanceMeters: number | null; // run/swim volume
+  durationSeconds: number | null; // bike volume
+  targetPowerLoWatts: number | null; // bike
+  targetPowerHiWatts: number | null; // bike
   paceFastSecPerKm: number | null;
   paceSlowSecPerKm: number | null;
   description: string | null;
@@ -125,7 +129,11 @@ export async function getAthletePortal(id: string): Promise<AthletePortal | null
       id: s.id,
       day: s.day,
       sessionType: adj.sessionType,
+      discipline: s.discipline as 'run' | 'bike' | 'swim',
       distanceMeters: adj.distanceMeters,
+      durationSeconds: s.targetDurationSeconds ?? null,
+      targetPowerLoWatts: s.targetPowerLowWatts ?? null,
+      targetPowerHiWatts: s.targetPowerHighWatts ?? null,
       paceFastSecPerKm: adj.paceFastSecPerKm,
       paceSlowSecPerKm: adj.paceSlowSecPerKm,
       description: s.description,
