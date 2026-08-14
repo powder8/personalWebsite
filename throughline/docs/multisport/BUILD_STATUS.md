@@ -8,8 +8,12 @@ cohort MVP within ~1 month._
 ## Progress (updated as we go)
 - **All three legs now GENERATE weekly plans** and are LIVE: run (existing), bike (FTP/power, Story 5), swim (CSS/metres). Unified TSS currency throughout. Migrations through `0029`.
 - **Decisions locked (Peter):** race = **70.3 / half-iron** (June 2027); training budget expressed as **hours/week**; limiter = **self-reported** for the guinea-pig phase.
-- **In flight (worktrees):** the **tri time-budget allocator** (hours → per-sport TSS, floors-first, 70.3-weighted, composes the 3 generators into a multi-sport week + a weekly brick) and the **session-rendering UI** (bike watts / swim pace/technique in SegmentList + PortalSegment).
-- **Then:** multi-sport week VIEW + onboarding (race/hours/limiter/3 anchors) → G1 cohort test with the 4 athletes on real data.
+- **DONE + LIVE:** tri time-budget allocator (`triAllocatorLogic`/`triPlan`/`server/triSeason` — hours→per-sport TSS, 70.3-weighted, composes a multi-sport week + weekly brick) and session-rendering UI (bike watts / swim pace/technique in `SegmentList` + coach `athletes/[id]`). Engine + composition + coach-view rendering complete.
+- **REMAINING for the usable cohort MVP (final wave):**
+  1. **Athlete portal multi-sport view** — `me/[id]/page.tsx` + `src/server/nextStepLogic.ts` are run-shaped: the rest-day gate uses `distanceMeters<=0`, so a BIKE day (metres=0) is wrongly treated as REST and won''t render. Make gating discipline-aware (bike→durationSeconds, swim→metres) + generalize the "today" copy; add `discipline`/duration/power to `PortalSession`; show swim+bike+run days together.
+  2. **Onboarding** — collect race distance (`TriDistance`), weekly **hours**, self-reported **limiter**, 3 anchors (VDOT/FTP/CSS) → call `setupTriSeason` (it throws naming any missing anchor).
+  3. **G1 test** — set up the 4 real athletes, generate, fix on live data.
+- **Tuning (with cohort data):** hours→TSS `TYPICAL_WEEKLY_IF`, `RUN_TRAINING_PACE_RATIO`, 70.3 `RACE_DEMAND_WEIGHT`, `DEFAULT_LIMITER_BOOST`, floors — all in `triAllocatorLogic.ts`, flagged as tunable.
 
 ## How to pick up
 Read this + `docs/multisport/` (cycling-engine-spec, load-currency-transfer-spec,
