@@ -35,6 +35,8 @@ export * from './guardrails';
 export * from './directives';
 export * from './strategy';
 export * from './triAllocatorLogic';
+export * from './triGoalTimeLogic';
+export * from './triFeasibilityLogic';
 export * from './triPlan';
 export * from './triScheduleLogic';
 

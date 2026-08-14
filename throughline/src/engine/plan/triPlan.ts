@@ -39,7 +39,7 @@ import { assessTriFeasibility, type TriFeasibility } from './triFeasibilityLogic
 
 /** Default rider mass (kg) for the bike watts↔speed model when the caller
  * hasn't supplied one. Only used when a goal finish time is being decomposed. */
-const DEFAULT_RIDER_MASS_KG = 75;
+export const DEFAULT_RIDER_MASS_KG = 75;
 
 /** Whole training weeks between two 'YYYY-MM-DD' days (min 1). */
 function weeksBetween(startDay: string, endDay: string): number {

@@ -31,6 +31,19 @@ export async function getAthleteFtp(db: DB, athleteId: string): Promise<number |
   return resolveFtp(cfg, global);
 }
 
+/**
+ * The athlete's body mass (kg) from their power config, used by the bike
+ * watts↔speed goal-time model. Null when unset — callers default it. (Weight is
+ * carried on powerConfig for W/kg + climbing; a dynamic weight feed can update
+ * it over time.)
+ */
+export async function getAthleteWeightKg(db: DB, athleteId: string): Promise<number | null> {
+  const [athlete] = await db.select().from(athletes).where(eq(athletes.id, athleteId)).limit(1);
+  if (!athlete) return null;
+  const cfg = (athlete.powerConfig as AthletePowerConfig | null) ?? {};
+  return cfg.weightKg ?? null;
+}
+
 export async function getGlobalPowerModel(db: DB): Promise<GlobalPowerModel> {
   const [row] = await db.select().from(engineSettings).where(eq(engineSettings.id, 'global')).limit(1);
   return (row?.powerModel as GlobalPowerModel | null) ?? DEFAULT_GLOBAL_POWER_MODEL;

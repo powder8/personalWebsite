@@ -18,15 +18,18 @@ import { eq } from 'drizzle-orm';
 import type { DB } from '@/db';
 import { athletes, races, plans } from '@/db/schema';
 import { persistPlanDraft } from '@/db/plans';
-import { getAthleteZones } from '@/db/paceConfig';
-import { getAthletePowerZones } from '@/db/powerConfig';
-import { getAthleteSwimZones } from '@/db/swimConfig';
+import { getAthleteZones, getAthleteVdot } from '@/db/paceConfig';
+import { getAthletePowerZones, getAthleteFtp, getAthleteWeightKg } from '@/db/powerConfig';
+import { getAthleteSwimZones, getAthleteCss } from '@/db/swimConfig';
 import {
   buildTriPlan,
   TRI_DISCIPLINES,
+  DEFAULT_RIDER_MASS_KG,
   type Discipline,
   type TrainingZones,
   type TriDistance,
+  type GoalDecomposition,
+  type TriFeasibility,
 } from '@/engine/plan';
 
 export interface TriSeasonSetupInput {
@@ -36,6 +39,12 @@ export interface TriSeasonSetupInput {
   weeklyHours: number;
   /** Self-reported weakest sport. */
   limiter: Discipline;
+  /**
+   * Optional TARGET FINISH time (seconds). When set, the plan is built with the
+   * goal-time layer (per-leg targets + binding-leg feasibility) and the target
+   * is persisted on the goal race (`goalType: 'time'`, `targetTimeSeconds`).
+   */
+  goalFinishSeconds?: number;
   /** Publish immediately (athlete self-service) instead of leaving drafts. */
   publish?: boolean;
 }
@@ -44,6 +53,10 @@ export interface TriSeasonSetupResult {
   weeksPerSport: number;
   budgets: Record<Discipline, { hours: number; tss: number }>;
   totalTss: number;
+  /** Per-leg race targets (only when a finish target was supplied). */
+  goalTime?: GoalDecomposition;
+  /** Honest binding-leg verdict + realistic finish (finish target + all 3 anchors). */
+  feasibility?: TriFeasibility;
 }
 
 /**
@@ -73,6 +86,15 @@ export async function setupTriSeason(
 ): Promise<TriSeasonSetupResult> {
   const zones = await resolveTriZones(db, athleteId);
 
+  // Raw fitness anchors (numbers, not zones) + body mass — needed by the
+  // goal-time model. resolveTriZones already guaranteed all three exist.
+  const [vdot, ftp, css, weightKg] = await Promise.all([
+    getAthleteVdot(db, athleteId),
+    getAthleteFtp(db, athleteId),
+    getAthleteCss(db, athleteId),
+    getAthleteWeightKg(db, athleteId),
+  ]);
+
   const plan = buildTriPlan({
     startDay: input.startDay,
     goalRaceDay: input.goalRace.date,
@@ -80,6 +102,9 @@ export async function setupTriSeason(
     weeklyHours: input.weeklyHours,
     limiter: input.limiter,
     zones,
+    anchors: { run: vdot ?? undefined, bike: ftp ?? undefined, swim: css ?? undefined },
+    goalFinishSeconds: input.goalFinishSeconds,
+    riderMassKg: weightKg ?? DEFAULT_RIDER_MASS_KG,
   });
 
   // Athlete goal summary (for the roster).
@@ -98,7 +123,10 @@ export async function setupTriSeason(
     distanceMeters: input.goalRace.distanceMeters ?? null,
     priority: 'goal',
     purpose: 'goal',
-    goalType: 'none',
+    // A target finish makes this a timed goal; the portal tracker recomputes the
+    // per-leg decomposition + verdict from this + the athlete's anchors.
+    goalType: input.goalFinishSeconds != null ? 'time' : 'none',
+    targetTimeSeconds: input.goalFinishSeconds ?? null,
   });
 
   // Regenerate: clear all plans, then persist one discipline-tagged plan per sport
@@ -125,5 +153,7 @@ export async function setupTriSeason(
     weeksPerSport: plan.perSport.bike.length,
     budgets,
     totalTss: plan.allocation.totalTss,
+    goalTime: plan.goalTime,
+    feasibility: plan.feasibility,
   };
 }
