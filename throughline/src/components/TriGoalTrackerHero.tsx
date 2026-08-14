@@ -83,7 +83,8 @@ export function TriGoalTrackerHero({ tracker }: { tracker: TriGoalTracker }) {
         {ORDER.map((d) => {
           const leg = f.legs[d];
           const lt = TONE[VERDICT_TONE[leg.verdict]];
-          const binding = d === f.bindingLeg;
+          // When everything's within reach there's no limiter to flag.
+          const binding = d === f.bindingLeg && f.verdict !== 'ahead';
           return (
             <div
               key={d}

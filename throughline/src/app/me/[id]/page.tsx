@@ -201,6 +201,18 @@ export default async function PortalPage({
           <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal={!!goalRace.name} startOpen />
         </Card>
 
+        <Link href={`/me/${athlete.id}/tri-setup`} className="block">
+          <Card className="transition hover:ring-1 hover:ring-inset hover:ring-indigo-400/40">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-white">Training for a triathlon? 🏊 🚴 🏃</div>
+                <p className="mt-0.5 text-xs text-slate-400">Set up a coordinated swim/bike/run plan with an honest read on your target.</p>
+              </div>
+              <span aria-hidden className="text-slate-500">→</span>
+            </div>
+          </Card>
+        </Link>
+
         {!strava.connected && (
           <Card title="Connect your watch">
             <p className="mb-3 text-xs text-slate-500">
