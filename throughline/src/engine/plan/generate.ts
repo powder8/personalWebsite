@@ -12,6 +12,7 @@ import type {
   PlannedDay,
   WeekTemplate,
   PaceZones,
+  TrainingZones,
   WorkoutSegment,
   ZoneKey,
   RunType,
@@ -27,6 +28,8 @@ import {
 } from './zones';
 import type { DisciplineStrategy } from './strategy';
 import { runStrategy } from './runStrategy';
+import { isPowerZones } from './powerZonesLogic';
+import { generateBikeWeek } from './bikeGenerate';
 
 const LONG_RUN_CAP_MILES = 22;
 
@@ -122,11 +125,19 @@ function zoneForRunType(rt: RunType): ZoneKey | null {
 export function generateWeek(
   week: WeekPlan,
   template: WeekTemplate,
-  zones: PaceZones,
+  zones: TrainingZones,
   rationale = '',
   goalClass?: GoalClass,
   strategy: DisciplineStrategy = runStrategy,
 ): PlannedWeek {
+  // Cycling is a distinct currency (TSS/duration @ power) — hand off to the
+  // power-side generator. Running falls through unchanged (byte-identical).
+  if (strategy.discipline === 'bike') {
+    return generateBikeWeek(week, template, zones, rationale, strategy);
+  }
+  if (isPowerZones(zones)) {
+    throw new Error('runStrategy: expected pace zones on the running discipline');
+  }
   const weeklyMiles = metersToMiles(week.targetVolumeMeters);
 
   // Distance-aware quality: the nth quality day this week takes the nth
@@ -200,7 +211,9 @@ export function generateWeek(
     // A real quality session needs room for warm-up + work + cool-down; below
     // ~MIN_QUALITY_MILES it degrades to junk — run it as a steady/easy day.
     if (dt.runType === 'quality' && dt.quality && miles >= MIN_QUALITY_MILES) {
-      const qZone = qualityZoneFor(dt.quality.zone);
+      // Running templates only ever carry pace `ZoneKey`s (the union widened to
+      // admit power zones for the bike arm, which never reaches here).
+      const qZone = qualityZoneFor(dt.quality.zone as ZoneKey);
       const wuCd = warmupCooldownMiles(miles);
       const workMiles = roundMiles(Math.max(0, miles - 2 * wuCd));
       // Deterministic variety: rotate the template by week + day so an athlete

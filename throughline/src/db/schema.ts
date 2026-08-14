@@ -657,6 +657,9 @@ export const plans = pgTable(
     phase: text('phase'), // base | build | peak | taper
     cycle: integer('cycle'), // 1-based mesocycle index
     weeklyTargetMeters: doublePrecision('weekly_target_meters'),
+    // Discipline-generic weekly load: TSS-equivalent target for the bike (the
+    // `weekly_target_meters` analog). Null on running plans. Additive (spec §4.3).
+    weeklyTargetTss: doublePrecision('weekly_target_tss'),
     rationale: text('rationale'), // the "Things to think about" note
     // Deterministic provenance: the exact inputs this plan was generated from,
     // so the same (state, constraints, directives, pins) reproduce it.
@@ -690,6 +693,10 @@ export const plannedSessions = pgTable(
     targetPaceSecPerKm: doublePrecision('target_pace_sec_per_km'), // zone midpoint
     targetPaceFastSecPerKm: doublePrecision('target_pace_fast_sec_per_km'), // zone fast bound
     targetPaceSlowSecPerKm: doublePrecision('target_pace_slow_sec_per_km'), // zone slow bound
+    // --- cycling: duration-at-power prescription (the distance/pace analog) ---
+    targetDurationSeconds: doublePrecision('target_duration_seconds'), // total incl. wu/cd
+    targetPowerLowWatts: doublePrecision('target_power_low_watts'), // primary-zone watt band, low
+    targetPowerHighWatts: doublePrecision('target_power_high_watts'), // primary-zone watt band, high
     warmup: text('warmup'),
     cooldown: text('cooldown'),
     segments: jsonb('segments'), // structured workout segments (warmup/work/cooldown)

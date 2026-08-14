@@ -12,6 +12,8 @@ export * from './zones';
 export * from './templates';
 export * from './periodize';
 export * from './generate';
+export * from './bikeGenerate';
+export * from './bikeTemplates';
 export * from './adapt';
 export * from './diff';
 export * from './vdot';
@@ -28,28 +30,39 @@ export * from './guardrails';
 export * from './directives';
 export * from './strategy';
 
-import type { Discipline, PaceZones, PlannedWeek, TemplateSet } from './types';
+import type { Discipline, TrainingZones, PlannedWeek, TemplateSet } from './types';
 import type { GoalClass } from './raceWindows';
 import { periodize, type PeriodizationInput } from './periodize';
 import { generateWeek } from './generate';
 import { COACH_TEMPLATE_SET } from './templates';
+import { COACH_BIKE_TEMPLATE_SET } from './bikeTemplates';
 import { selectStrategy } from './strategy';
 
 /**
  * Generate a full periodized plan (one PlannedWeek per week) from fitness +
- * race date. Adaptation is applied separately, per-week, as signals arrive.
+ * event date. Adaptation is applied separately, per-week, as signals arrive.
  *
- * The sport-agnostic skeleton (periodization, load distribution) is shared;
- * the sport-specific quality prescription is selected via `discipline` (default
- * 'run', so existing behaviour is unchanged).
+ * The sport-agnostic skeleton (periodization, load distribution) is shared; the
+ * sport-specific pieces are selected via `discipline` (default 'run', so
+ * existing behaviour is byte-identical):
+ *   - RUN  → pace zones, distributes MILES, distance @ pace, `COACH_TEMPLATE_SET`.
+ *   - BIKE → power zones, distributes TSS, duration @ power, `COACH_BIKE_TEMPLATE_SET`.
+ *
+ * `zones` must match the discipline (`PaceZones` for run, `PowerZones` for bike);
+ * `startVolumeMiles`/`peakVolumeMiles` are read as weekly TSS on the bike.
  */
 export function generatePlan(
   input: PeriodizationInput & { goalClass?: GoalClass; discipline?: Discipline },
-  zones: PaceZones,
-  templates: TemplateSet = COACH_TEMPLATE_SET,
+  zones: TrainingZones,
+  templates?: TemplateSet,
 ): PlannedWeek[] {
-  const strategy = selectStrategy(input.discipline ?? 'run');
-  return periodize(input).map((w) =>
-    generateWeek(w, templates[w.phase], zones, '', input.goalClass, strategy),
+  const discipline = input.discipline ?? 'run';
+  const strategy = selectStrategy(discipline);
+  const bike = discipline === 'bike';
+  const templateSet = templates ?? (bike ? COACH_BIKE_TEMPLATE_SET : COACH_TEMPLATE_SET);
+  // Cycling periodizes on weekly TSS, running on miles→meters (spec §4.3).
+  const periodized = periodize({ ...input, volumeUnit: bike ? 'tss' : 'meters' });
+  return periodized.map((w) =>
+    generateWeek(w, templateSet[w.phase], zones, '', input.goalClass, strategy),
   );
 }
