@@ -5,6 +5,12 @@ session rooted in this repo). Deadline: Peter + friends race a triathlon in
 **June 2027**; they're the guinea-pig cohort → public release. Target: a usable
 cohort MVP within ~1 month._
 
+## Progress (updated as we go)
+- **All three legs now GENERATE weekly plans** and are LIVE: run (existing), bike (FTP/power, Story 5), swim (CSS/metres). Unified TSS currency throughout. Migrations through `0029`.
+- **Decisions locked (Peter):** race = **70.3 / half-iron** (June 2027); training budget expressed as **hours/week**; limiter = **self-reported** for the guinea-pig phase.
+- **In flight (worktrees):** the **tri time-budget allocator** (hours → per-sport TSS, floors-first, 70.3-weighted, composes the 3 generators into a multi-sport week + a weekly brick) and the **session-rendering UI** (bike watts / swim pace/technique in SegmentList + PortalSegment).
+- **Then:** multi-sport week VIEW + onboarding (race/hours/limiter/3 anchors) → G1 cohort test with the 4 athletes on real data.
+
 ## How to pick up
 Read this + `docs/multisport/` (cycling-engine-spec, load-currency-transfer-spec,
 triathlon-time-optimization-spec, **triathlon-program-plan**, **swim-foundation-spec**),
