@@ -17,11 +17,13 @@ import { computeFitnessFatigue } from '../fitnessFatigue';
 
 // ── flag resolution / precedence ───────────────────────────────────────────────
 
-test('resolveLoadCurrency: defaults to trimp when nothing is set', () => {
-  assert.equal(DEFAULT_LOAD_CURRENCY, 'trimp');
-  assert.equal(resolveLoadCurrency(undefined, undefined), 'trimp');
-  assert.equal(resolveLoadCurrency(null, null), 'trimp');
-  assert.equal(resolveLoadCurrency('', ''), 'trimp');
+test('resolveLoadCurrency: defaults to tss when nothing is set (live cutover)', () => {
+  assert.equal(DEFAULT_LOAD_CURRENCY, 'tss');
+  assert.equal(resolveLoadCurrency(undefined, undefined), 'tss');
+  assert.equal(resolveLoadCurrency(null, null), 'tss');
+  assert.equal(resolveLoadCurrency('', ''), 'tss');
+  // The env escape hatch still forces the legacy proxy.
+  assert.equal(resolveLoadCurrency('trimp', undefined), 'trimp');
 });
 
 test('resolveLoadCurrency: setting is used when env is unset/invalid', () => {

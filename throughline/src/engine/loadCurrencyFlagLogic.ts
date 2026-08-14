@@ -22,8 +22,9 @@
 
 export type LoadCurrency = 'trimp' | 'tss';
 
-/** The default currency — legacy TRIMP. Flag OFF ⇒ behavior unchanged. */
-export const DEFAULT_LOAD_CURRENCY: LoadCurrency = 'trimp';
+/** The default currency — intensity-aware TSS (owner-approved cutover).
+ *  Set env LOAD_CURRENCY=trimp to fall back to the legacy volume proxy. */
+export const DEFAULT_LOAD_CURRENCY: LoadCurrency = 'tss';
 
 /** Parse a raw string into a currency, or null if it isn't a recognized value. */
 export function parseLoadCurrency(value: string | null | undefined): LoadCurrency | null {
