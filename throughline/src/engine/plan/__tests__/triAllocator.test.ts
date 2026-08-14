@@ -153,6 +153,42 @@ test('buildTriPlan composes a full week with all three sports and a bike→run b
   assert.ok(brickDay!.sessions.bike && brickDay!.sessions.run, 'brick day has both bike and run');
 });
 
+// --- G7a: goal-time + feasibility layer on buildTriPlan ----------------------
+
+test('no goal finish time → the plan is volume-only (goalTime/feasibility absent, unchanged)', () => {
+  const plan = buildTriPlan(base);
+  assert.equal(plan.goalTime, undefined);
+  assert.equal(plan.feasibility, undefined);
+});
+
+test('goal finish + all three anchors → per-leg targets AND a binding-leg verdict', () => {
+  const plan = buildTriPlan({
+    ...base,
+    anchors: { run: 50, bike: 250, swim: 1.25 },
+    riderMassKg: 74,
+    goalFinishSeconds: 5 * 3600 + 15 * 60, // sub-5:15
+  });
+  assert.ok(plan.goalTime, 'decomposition present');
+  assert.equal(plan.goalTime!.strategy, 'strength_relative');
+  // legs + transitions reconstruct the finish.
+  const legSum = plan.goalTime!.legs.swim.targetSeconds + plan.goalTime!.legs.bike.targetSeconds + plan.goalTime!.legs.run.targetSeconds;
+  assert.ok(Math.abs(legSum + plan.goalTime!.transitionSeconds - plan.goalTime!.targetFinishSeconds) < 1);
+  assert.ok(plan.feasibility, 'feasibility present when all anchors known');
+  assert.ok(['ahead', 'on_track', 'stretch', 'unrealistic'].includes(plan.feasibility!.verdict));
+  assert.ok(['swim', 'bike', 'run'].includes(plan.feasibility!.bindingLeg));
+});
+
+test('goal finish but a missing anchor → decomposition only (typical split), no feasibility', () => {
+  const plan = buildTriPlan({
+    ...base,
+    anchors: { run: 50, swim: 1.25 }, // no FTP
+    goalFinishSeconds: 5 * 3600 + 15 * 60,
+  });
+  assert.ok(plan.goalTime);
+  assert.equal(plan.goalTime!.strategy, 'typical_split');
+  assert.equal(plan.feasibility, undefined);
+});
+
 test('composed week load conserves each sport’s periodized weekly TSS', () => {
   const plan = buildTriPlan(base);
   const composed = composeTriWeeks(plan.perSport);

@@ -34,6 +34,20 @@ import {
   type TriAllocationInput,
   type TriDistance,
 } from './triAllocatorLogic';
+import { decomposeGoalTime, type GoalDecomposition, type TriAnchors } from './triGoalTimeLogic';
+import { assessTriFeasibility, type TriFeasibility } from './triFeasibilityLogic';
+
+/** Default rider mass (kg) for the bike watts↔speed model when the caller
+ * hasn't supplied one. Only used when a goal finish time is being decomposed. */
+const DEFAULT_RIDER_MASS_KG = 75;
+
+/** Whole training weeks between two 'YYYY-MM-DD' days (min 1). */
+function weeksBetween(startDay: string, endDay: string): number {
+  const [sy, sm, sd] = startDay.split('-').map(Number);
+  const [ey, em, ed] = endDay.split('-').map(Number);
+  const days = Math.round((Date.UTC(ey, em - 1, ed) - Date.UTC(sy, sm - 1, sd)) / 86400000);
+  return Math.max(1, Math.round(days / 7));
+}
 
 /** Start-of-ramp fraction of the peak (allocated) volume the periodizer ramps up from. */
 const START_FRACTION = 0.55;
@@ -98,6 +112,15 @@ export interface TriPlanInput {
   zones: Record<Discipline, TrainingZones>;
   /** Fitness anchors (VDOT/FTP/CSS), carried into the allocation for the record. */
   anchors?: Partial<Record<Discipline, number>>;
+  /**
+   * Optional TARGET FINISH time (seconds). When set, the plan additionally
+   * decomposes it into per-leg race targets + required anchors (§1–§2) and, if
+   * all three anchors are present, an honest binding-leg feasibility verdict
+   * (§3). Absent → today's volume-only plan, unchanged.
+   */
+  goalFinishSeconds?: number;
+  /** Rider mass (kg) for the bike goal-time model. Defaults to {@link DEFAULT_RIDER_MASS_KG}. */
+  riderMassKg?: number;
   /** Override tunables passed straight to {@link allocateTriBudget}. */
   allocationOverrides?: Partial<Omit<TriAllocationInput, 'weeklyHours' | 'distance' | 'limiter' | 'anchors'>>;
   /** Per-discipline template overrides (defaults to the coach sets). */
@@ -110,6 +133,10 @@ export interface TriPlan {
   perSport: Record<Discipline, PlannedWeek[]>;
   /** The merged multi-sport weeks (one per calendar week), with bricks tagged. */
   weeks: TriWeek[];
+  /** Per-leg race targets from the target finish (only when `goalFinishSeconds` was set). */
+  goalTime?: GoalDecomposition;
+  /** Honest binding-leg verdict + realistic finish (only with a finish target AND all 3 anchors). */
+  feasibility?: TriFeasibility;
 }
 
 /** A brick session: two disciplines back-to-back on one calendar day (§6). */
@@ -185,7 +212,36 @@ export function buildTriPlan(input: TriPlanInput): TriPlan {
   }
 
   const weeks = composeTriWeeks(perSport);
-  return { allocation, perSport, weeks };
+
+  // Optional goal-time layer: decompose the target finish into per-leg targets,
+  // and (when all three anchors are known) an honest binding-leg feasibility.
+  // Additive — absent target → the volume-only plan above, unchanged.
+  let goalTime: GoalDecomposition | undefined;
+  let feasibility: TriFeasibility | undefined;
+  if (input.goalFinishSeconds != null) {
+    const riderMassKg = input.riderMassKg ?? DEFAULT_RIDER_MASS_KG;
+    const anchors: TriAnchors = {
+      run: input.anchors?.run ?? 0,
+      bike: input.anchors?.bike ?? 0,
+      swim: input.anchors?.swim ?? 0,
+    };
+    goalTime = decomposeGoalTime({
+      distance: input.distance,
+      targetFinishSeconds: input.goalFinishSeconds,
+      anchors,
+      riderMassKg,
+    });
+    if (anchors.run > 0 && anchors.bike > 0 && anchors.swim > 0) {
+      feasibility = assessTriFeasibility({
+        decomposition: goalTime,
+        currentAnchors: anchors,
+        weeksToRace: weeksBetween(input.startDay, input.goalRaceDay),
+        riderMassKg,
+      });
+    }
+  }
+
+  return { allocation, perSport, weeks, goalTime, feasibility };
 }
 
 /**
