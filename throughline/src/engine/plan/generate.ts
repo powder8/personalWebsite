@@ -30,6 +30,7 @@ import type { DisciplineStrategy } from './strategy';
 import { runStrategy } from './runStrategy';
 import { isPaceZones } from './powerZonesLogic';
 import { generateBikeWeek } from './bikeGenerate';
+import { generateSwimWeek } from './swimGenerate';
 
 const LONG_RUN_CAP_MILES = 22;
 
@@ -134,6 +135,11 @@ export function generateWeek(
   // power-side generator. Running falls through unchanged (byte-identical).
   if (strategy.discipline === 'bike') {
     return generateBikeWeek(week, template, zones, rationale, strategy);
+  }
+  // Swimming is a third currency (sTSS/metres @ CSS pace) — hand off to the
+  // swim generator. Running still falls through unchanged (byte-identical).
+  if (strategy.discipline === 'swim') {
+    return generateSwimWeek(week, template, zones, rationale, strategy);
   }
   // Run path: zones must be pace-shaped (bike handed off above; swim doesn't
   // generate here yet). Asserting pace narrows out both the power and swim arms.

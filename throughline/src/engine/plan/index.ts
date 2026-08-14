@@ -14,6 +14,8 @@ export * from './periodize';
 export * from './generate';
 export * from './bikeGenerate';
 export * from './bikeTemplates';
+export * from './swimGenerate';
+export * from './swimTemplates';
 export * from './adapt';
 export * from './diff';
 export * from './vdot';
@@ -39,6 +41,7 @@ import { periodize, type PeriodizationInput } from './periodize';
 import { generateWeek } from './generate';
 import { COACH_TEMPLATE_SET } from './templates';
 import { COACH_BIKE_TEMPLATE_SET } from './bikeTemplates';
+import { COACH_SWIM_TEMPLATE_SET } from './swimTemplates';
 import { selectStrategy } from './strategy';
 
 /**
@@ -50,9 +53,11 @@ import { selectStrategy } from './strategy';
  * existing behaviour is byte-identical):
  *   - RUN  → pace zones, distributes MILES, distance @ pace, `COACH_TEMPLATE_SET`.
  *   - BIKE → power zones, distributes TSS, duration @ power, `COACH_BIKE_TEMPLATE_SET`.
+ *   - SWIM → CSS zones, distributes sTSS, metres @ CSS pace, `COACH_SWIM_TEMPLATE_SET`.
  *
- * `zones` must match the discipline (`PaceZones` for run, `PowerZones` for bike);
- * `startVolumeMiles`/`peakVolumeMiles` are read as weekly TSS on the bike.
+ * `zones` must match the discipline (`PaceZones` for run, `PowerZones` for bike,
+ * `SwimZones` for swim); `startVolumeMiles`/`peakVolumeMiles` are read as weekly
+ * TSS/sTSS on the bike and swim.
  */
 export function generatePlan(
   input: PeriodizationInput & { goalClass?: GoalClass; discipline?: Discipline },
@@ -61,10 +66,17 @@ export function generatePlan(
 ): PlannedWeek[] {
   const discipline = input.discipline ?? 'run';
   const strategy = selectStrategy(discipline);
-  const bike = discipline === 'bike';
-  const templateSet = templates ?? (bike ? COACH_BIKE_TEMPLATE_SET : COACH_TEMPLATE_SET);
-  // Cycling periodizes on weekly TSS, running on miles→meters (spec §4.3).
-  const periodized = periodize({ ...input, volumeUnit: bike ? 'tss' : 'meters' });
+  // Cycling and swimming periodize on a weekly TSS-equivalent load; running on
+  // miles→meters (spec §4.3). The default TemplateSet is selected per discipline.
+  const loadIsTss = discipline === 'bike' || discipline === 'swim';
+  const defaultTemplateSet =
+    discipline === 'bike'
+      ? COACH_BIKE_TEMPLATE_SET
+      : discipline === 'swim'
+        ? COACH_SWIM_TEMPLATE_SET
+        : COACH_TEMPLATE_SET;
+  const templateSet = templates ?? defaultTemplateSet;
+  const periodized = periodize({ ...input, volumeUnit: loadIsTss ? 'tss' : 'meters' });
   return periodized.map((w) =>
     generateWeek(w, templateSet[w.phase], zones, '', input.goalClass, strategy),
   );

@@ -11,7 +11,7 @@ import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import { plans, plannedSessions } from './schema';
 import * as schema from './schema';
 import { addDays } from '@/engine/dates';
-import { midpoint, dowMon0, isPowerZones, isPaceZones } from '@/engine/plan';
+import { midpoint, dowMon0, isPowerZones, isPaceZones, isSwimZones } from '@/engine/plan';
 import type {
   PlannedWeek,
   PlannedDay,
@@ -19,6 +19,8 @@ import type {
   TrainingZones,
   PowerZones,
   PowerZoneKey,
+  SwimZones,
+  SwimZoneKey,
   RunType,
   ZoneKey,
 } from '@/engine/plan';
@@ -86,9 +88,15 @@ function toRunType(sessionType: SessionType): RunType {
 /**
  * Persist generated weeks as DRAFT plans (one plans row + its planned_sessions
  * per week). `zones` resolves the numeric bounds from each day's zone key —
- * pace bounds on the RUN discipline, watt bounds on the BIKE (duration @ power).
- * The discipline is inferred from the `zones` arm, so running callers are
- * unchanged and cycling callers just pass `PowerZones`.
+ * pace bounds on the RUN discipline, watt bounds on the BIKE (duration @ power),
+ * CSS-relative metres on the SWIM (distance @ CSS pace). The discipline is
+ * inferred from the `zones` arm, so running callers are unchanged and cycling /
+ * swimming callers just pass `PowerZones` / `SwimZones`.
+ *
+ * The bike and swim arms share the TSS-equivalent load currency: both store the
+ * weekly load in `weekly_target_tss` and leave `weekly_target_meters` null. Swim
+ * additionally carries per-session METRES (reusing `target_distance_meters`) and
+ * duration (`target_duration_seconds`) — additive, no new columns.
  */
 export async function persistPlanDraft(
   db: DB,
@@ -100,6 +108,11 @@ export async function persistPlanDraft(
 ): Promise<{ planId: string; weekStart: string }[]> {
   const out: { planId: string; weekStart: string }[] = [];
   const bike = isPowerZones(zones);
+  const swim = isSwimZones(zones);
+  const discipline = swim ? ('swim' as const) : bike ? ('bike' as const) : ('run' as const);
+  // Bike and swim both denominate the weekly load in TSS-equivalent; only run
+  // carries a meters target.
+  const loadIsTss = bike || swim;
 
   for (const week of weeks) {
     const [planRow] = await db
@@ -107,13 +120,13 @@ export async function persistPlanDraft(
       .values({
         athleteId,
         status: opts.status ?? 'draft',
-        discipline: bike ? 'bike' : 'run',
+        discipline,
         weekStart: week.weekStart,
         weekEnd: addDays(week.weekStart, 6),
         phase: week.phase,
         cycle: week.cycle,
-        weeklyTargetMeters: bike ? null : week.targetVolumeMeters,
-        weeklyTargetTss: bike ? week.targetLoadTss ?? null : null,
+        weeklyTargetMeters: loadIsTss ? null : week.targetVolumeMeters,
+        weeklyTargetTss: loadIsTss ? week.targetLoadTss ?? null : null,
         rationale: week.rationale,
         generatedFrom: (generatedFrom ?? null) as object | null,
         publishedAt: opts.status === 'published' ? new Date() : null,
@@ -122,12 +135,12 @@ export async function persistPlanDraft(
 
     const planId = planRow.id;
 
-    // Narrow per-arm so each row builder gets its exact zone shape. Swim plans
-    // aren't persisted through here yet (swim generate is a later story).
+    // Narrow per-arm so each row builder gets its exact zone shape.
     const rows = week.days.map((d) => {
       if (isPowerZones(zones)) return bikeSessionRow(planId, athleteId, d, zones);
+      if (isSwimZones(zones)) return swimSessionRow(planId, athleteId, d, zones);
       if (isPaceZones(zones)) return runSessionRow(planId, athleteId, d, zones);
-      throw new Error('persistPlanDraft: swim plans are not persisted yet');
+      throw new Error('persistPlanDraft: unknown training-zone discipline');
     });
     if (rows.length) await db.insert(plannedSessions).values(rows);
 
@@ -175,6 +188,75 @@ function bikeSessionRow(planId: string, athleteId: string, d: PlannedDay, zones:
     targetDurationSeconds: d.durationSeconds ?? null,
     targetPowerLowWatts: band?.loWatts ?? null,
     targetPowerHighWatts: band?.hiWatts ?? null,
+    warmup: d.warmup ?? null,
+    cooldown: d.cooldown ?? null,
+    segments: (d.segments ?? null) as object | null,
+    description: d.description,
+    pinned: d.pinned,
+  };
+}
+
+/**
+ * Swim runType (+ CSS zone for quality) → the schema's session_type enum. Swim's
+ * five CSS-relative zones map onto the existing intensity enum (no new enum
+ * values); the full swim detail (metres, sec/100 m pace targets) rides in the
+ * `zone`, `segments` and metre/duration columns. Technique days (zone 'recovery')
+ * land as `recovery` — a low-intensity skill swim — with the drills in segments.
+ */
+export function toSwimSessionType(runType: RunType, zone: SwimZoneKey | null): SessionType {
+  switch (runType) {
+    case 'recovery':
+      return 'recovery';
+    case 'easy':
+    case 'maintenance':
+      return 'easy';
+    case 'long':
+      return 'long';
+    case 'race':
+      return 'race';
+    case 'rest':
+      return 'rest';
+    case 'cross_train':
+      return 'cross_train';
+    case 'quality':
+      switch (zone) {
+        case 'threshold':
+          return 'threshold';
+        case 'vo2max':
+          return 'intervals';
+        case 'sprint':
+          return 'tempo';
+        case 'recovery': // technique / drill session
+          return 'recovery';
+        default:
+          return 'threshold';
+      }
+  }
+}
+
+/**
+ * A swimming planned-session row: distance-at-CSS-pace in METRES (reusing
+ * `target_distance_meters`) + duration + the day's sTSS (reusing `target_load`).
+ * Swim pace is sec/100 m and has no dedicated column, so the numeric pace targets
+ * live in the `segments` jsonb (per-segment `targetFast/SlowSecPer100`); the
+ * primary-zone key is stored in `zone` for reconstruction and querying.
+ */
+function swimSessionRow(planId: string, athleteId: string, d: PlannedDay, zones: SwimZones) {
+  void zones; // pace bands ride in `segments` (sec/100 m has no column), not here.
+  const zone = (d.zone as SwimZoneKey | null) ?? null;
+  return {
+    planId,
+    athleteId,
+    discipline: 'swim' as const,
+    day: d.day,
+    sessionType: toSwimSessionType(d.runType, zone),
+    zone: d.zone,
+    targetLoad: d.targetLoadTss ?? null,
+    targetDistanceMeters: d.distanceMeters,
+    targetDurationSeconds: d.durationSeconds ?? null,
+    // Swim pace (sec/100 m) has no dedicated column, so the numeric pace targets
+    // live in `segments` (per-segment targetFast/SlowSecPer100) rather than the
+    // run's sec/km pace columns, which would mislead.
     warmup: d.warmup ?? null,
     cooldown: d.cooldown ?? null,
     segments: (d.segments ?? null) as object | null,

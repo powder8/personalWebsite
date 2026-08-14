@@ -27,6 +27,7 @@ import {
   diffWeek,
   adaptWeek,
   resolvePowerZones,
+  buildSwimZones,
 } from '@/engine/plan';
 
 let client: PGlite;
@@ -163,6 +164,44 @@ test('a cycling plan persists as duration-at-power (additive TSS/watt columns)',
   assert.ok((thr.targetPowerLowWatts ?? 0) > 0 && (thr.targetPowerHighWatts ?? 0) > 0, 'watt band persisted');
   assert.equal(thr.targetPaceSecPerKm, null, 'no pace on a bike session');
   assert.equal(thr.targetDistanceMeters, null, 'no distance on a bike session');
+});
+
+test('a swim plan persists as distance-at-CSS-pace (reused metre/duration/load columns)', async () => {
+  const swim = buildSwimZones(1.25); // CSS 1.25 m/s → CSS pace 80 s/100 m
+  const swimWeeks = generatePlan(
+    { startDay: '2026-01-05', goalRaceDay: '2026-06-14', startVolumeMiles: 180, peakVolumeMiles: 320, discipline: 'swim' },
+    swim,
+  );
+  const build = swimWeeks.find((w) => w.phase === 'build')!;
+  await persistPlanDraft(db, athleteId, [build], swim, { discipline: 'swim' });
+
+  const [planRow] = await db
+    .select()
+    .from(plans)
+    .where(and(eq(plans.weekStart, build.weekStart), eq(plans.discipline, 'swim')))
+    .limit(1);
+  assert.equal(planRow.discipline, 'swim');
+  assert.equal(planRow.weeklyTargetMeters, null, 'no ramp-meters on a swim plan');
+  assert.ok((planRow.weeklyTargetTss ?? 0) > 0, 'weekly sTSS persisted');
+
+  // Sessions round-trip with metres + duration + sTSS, no run pace columns.
+  const rows = await db
+    .select()
+    .from(schema.plannedSessions)
+    .where(eq(schema.plannedSessions.planId, planRow.id));
+  const swimmingRows = rows.filter((r) => r.sessionType !== 'rest');
+  assert.ok(swimmingRows.length >= 1, 'has swim sessions');
+  for (const r of swimmingRows) {
+    assert.equal(r.discipline, 'swim');
+    assert.ok((r.targetDistanceMeters ?? 0) > 0, 'metres persisted');
+    assert.ok((r.targetDurationSeconds ?? 0) > 0, 'duration persisted');
+    assert.ok((r.targetLoad ?? 0) > 0, 'sTSS persisted');
+    assert.equal(r.targetPaceSecPerKm, null, 'no run pace on a swim session');
+    assert.equal(r.targetPowerLowWatts, null, 'no watts on a swim session');
+  }
+  // The technique session is present (recovery session type with drill segments).
+  const technique = rows.find((r) => r.sessionType === 'recovery' && !!r.segments);
+  assert.ok(technique, 'a technique/drill session persisted');
 });
 
 test('diff highlights what an adaptation changes vs the published week', async () => {

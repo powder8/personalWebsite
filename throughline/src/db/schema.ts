@@ -70,10 +70,10 @@ export const sportEnum = pgEnum('sport', [
 /**
  * The sport a coaching plan is built for. Distinct from `sport` (which tags
  * ingested activities across many modalities): `discipline` is the narrower set
- * the coaching engine actually periodizes for. 'run' is the original; 'bike' is
- * being added behind the engine's discipline strategy seam.
+ * the coaching engine actually periodizes for. 'run' is the original; 'bike'
+ * and 'swim' are added behind the engine's discipline strategy seam.
  */
-export const disciplineEnum = pgEnum('discipline', ['run', 'bike']);
+export const disciplineEnum = pgEnum('discipline', ['run', 'bike', 'swim']);
 
 export const sessionTypeEnum = pgEnum('session_type', [
   'recovery',
