@@ -150,7 +150,8 @@ test('buildTriPlan composes a full week with all three sports and a bike→run b
   assert.ok(wk.hasBrick, 'week has a brick');
   const brickDay = wk.days.find((d) => d.brick);
   assert.ok(brickDay, 'a day is tagged as a brick');
-  assert.deepEqual(brickDay!.brick, { from: 'bike', to: 'run' });
+  assert.equal(brickDay!.brick!.from, 'bike');
+  assert.equal(brickDay!.brick!.to, 'run');
   assert.ok(brickDay!.sessions.bike && brickDay!.sessions.run, 'brick day has both bike and run');
 });
 
@@ -188,6 +189,21 @@ test('goal finish but a missing anchor → decomposition only (typical split), n
   assert.ok(plan.goalTime);
   assert.equal(plan.goalTime!.strategy, 'typical_split');
   assert.equal(plan.feasibility, undefined);
+});
+
+// --- G6: brick transitions surfaced on the persisted run session --------------
+
+test('brick carries the T2 transition and its run session is annotated "off the bike"', () => {
+  const plan = buildTriPlan(base);
+  const wk = plan.weeks.find((w) => w.hasBrick);
+  assert.ok(wk, 'a week has a brick');
+  const brickDay = wk!.days.find((d) => d.brick)!;
+  assert.ok((brickDay.brick!.t2Seconds ?? 0) > 0, 'brick carries a T2 budget');
+  // The PERSISTED run session on the brick day is annotated (athlete-visible).
+  const runWeek = plan.perSport.run.find((w) => w.weekStart === wk!.weekStart)!;
+  const runDay = runWeek.days.find((d) => d.day === brickDay.day && d.runType !== 'rest');
+  assert.ok(runDay, 'a run session lands on the brick day');
+  assert.match(runDay!.description, /off the bike/i);
 });
 
 // --- G7b: schedule relay bakes the real-world layout into the persisted plan --

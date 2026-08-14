@@ -34,7 +34,7 @@ import {
   type TriAllocationInput,
   type TriDistance,
 } from './triAllocatorLogic';
-import { decomposeGoalTime, type GoalDecomposition, type TriAnchors } from './triGoalTimeLogic';
+import { decomposeGoalTime, DEFAULT_TRANSITIONS, type GoalDecomposition, type TriAnchors } from './triGoalTimeLogic';
 import { assessTriFeasibility, type TriFeasibility } from './triFeasibilityLogic';
 import { relayTriPlanToSchedule, type WeekSchedule } from './triScheduleLogic';
 
@@ -154,6 +154,8 @@ export interface TriPlan {
 export interface TriBrick {
   from: Discipline;
   to: Discipline;
+  /** The T2 (bike→run) transition to rehearse, seconds — from DEFAULT_TRANSITIONS. */
+  t2Seconds?: number;
 }
 
 /** One calendar day of the composed triathlon week: the sport sessions that land on it. */
@@ -227,6 +229,23 @@ export function buildTriPlan(input: TriPlanInput): TriPlan {
   // just the composed view. No schedule → the generators' native placement.
   const laidPerSport = input.schedule ? relayTriPlanToSchedule(perSport, input.schedule) : perSport;
   const weeks = composeTriWeeks(laidPerSport);
+
+  // Brick transitions (§6): on each brick day, carry the T2 budget to rehearse
+  // and annotate the PERSISTED run session so the athlete sees "run off the
+  // bike" — the race-specific durability rep, not just two sessions that happen
+  // to share a day. Additive to the description; the run's own pace is unchanged.
+  const t2 = DEFAULT_TRANSITIONS[input.distance].t2Seconds;
+  for (const wk of weeks) {
+    const brickDay = wk.days.find((d) => d.brick);
+    if (!brickDay?.brick) continue;
+    brickDay.brick.t2Seconds = t2;
+    const runDay = laidPerSport.run
+      .find((w) => w.weekStart === wk.weekStart)
+      ?.days.find((d) => d.day === brickDay.day && d.runType !== 'rest');
+    if (runDay && !/off the bike/i.test(runDay.description)) {
+      runDay.description = `${runDay.description} 🔗 Brick: run straight off the bike — rehearse T2 (~${Math.round(t2)}s).`.trim();
+    }
+  }
 
   // Optional goal-time layer: decompose the target finish into per-leg targets,
   // and (when all three anchors are known) an honest binding-leg feasibility.
