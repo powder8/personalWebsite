@@ -15,6 +15,46 @@ cohort MVP within ~1 month._
   3. **G1 test** — set up the 4 real athletes, generate, fix on live data.
 - **Tuning (with cohort data):** hours→TSS `TYPICAL_WEEKLY_IF`, `RUN_TRAINING_PACE_RATIO`, 70.3 `RACE_DEMAND_WEIGHT`, `DEFAULT_LIMITER_BOOST`, floors — all in `triAllocatorLogic.ts`, flagged as tunable.
 
+## Goal-time + schedule + ceiling + onboarding — DONE on `feat/tri-goal-time`
+The full "target finish → per-sport targets → is it realistic → which leg binds →
+lay it on my real week" arc, plus self-service onboarding. Spec:
+`docs/multisport/triathlon-goal-time-and-schedule-spec.md`. All pure logic tested
+(~110 new tests), run byte-identical, additive (each layer degrades to today's
+behaviour when its input is absent). Stories:
+- **G1/G2** `triGoalTimeLogic.ts` — leg-time predictors (swim CSS·frac; bike
+  Martin-1998 power model watts↔speed; run Daniels×brick) + `decomposeGoalTime`
+  (finish − transitions → moving budget → strength-relative split → per-leg
+  race targets + required anchors; scaleFactor k = headline feasibility signal).
+- **G3/G4** `triFeasibilityLogic.ts` — unit-agnostic `assessAnchorFeasibility`
+  core (reuses run's model; run untouched) + FTP/CSS gain curves +
+  `assessTriFeasibility` (binding-leg verdict, realistic finish = Σ projected
+  legs + transitions).
+- **Attainability ceiling** `attainabilityLogic.ts` — separates HARD from
+  IMPOSSIBLE: age-grade decline (bounding box) + current + recency-discounted
+  PBs (proven level) + age-damped headroom → ceiling. Above ceiling =
+  `beyond_reach` verdict (new). Gain rate also scales by weekly HOURS. Three
+  honest tiers: on-track / a longer game / beyond reach. Prose is kind (frames
+  the TIME as elite, never the athlete).
+- **G5 + G7b** `triScheduleLogic.ts` — `DayBudget`/`WeekSchedule` +
+  `layoutTriWeek` (pool-only-on-pool-days, long/brick on the long day, no
+  hard-stack, graceful drop) + `relayTriPlanToSchedule` (rewrites the PERSISTED
+  per-sport days, not just the view).
+- **G6** brick T2 transition surfaced on the persisted run session ("run off
+  the bike").
+- **G7/G7a** `buildTriPlan` + `setupTriSeason` thread goalFinishSeconds +
+  schedule + age (DOB) + hours; persist the timed goal (`races.targetTimeSeconds`,
+  `goalType:'time'` — no migration).
+- **G8** portal tracker `server/triGoalTracker.ts` + `components/TriGoalTrackerHero.tsx`
+  (per-leg bars, binding-leg = limiter, target vs realistic finish).
+- **G9** onboarding: `/me/[id]/tri-setup` (`TriGoalSetup` + `athleteTriGoal.ts` +
+  `POST /api/athletes/[id]/tri-goal`) — collects 3 anchors, target, hours,
+  limiter, DOB, weekly schedule → builds + publishes → shows the verdict inline.
+
+**Still open:** PB collection in onboarding (ceiling runs on age+current today);
+cohort/Heather calibration of the ceiling constants (masters decline rates,
+elite bounding-box refs, headroom) + the FTP/CSS gain curves; this branch and
+PR #1 both touch `me/[id]/page.tsx` (small merge reconciliation).
+
 ## How to pick up
 Read this + `docs/multisport/` (cycling-engine-spec, load-currency-transfer-spec,
 triathlon-time-optimization-spec, **triathlon-program-plan**, **swim-foundation-spec**),
