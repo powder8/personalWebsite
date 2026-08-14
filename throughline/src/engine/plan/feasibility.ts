@@ -30,7 +30,7 @@ export interface GoalFeasibility {
   note: string;
 }
 
-const SEASON_GAIN_CAP = 8; // most a single season realistically adds (VDOT)
+export const SEASON_GAIN_CAP = 8; // most a single season realistically adds (VDOT)
 
 /** Typical VDOT gain per focused training week — diminishes with fitness. */
 export function typicalWeeklyVdotGain(vdot: number): number {
@@ -38,10 +38,32 @@ export function typicalWeeklyVdotGain(vdot: number): number {
   return Math.max(0.12, Math.min(0.45, 0.5 - (vdot - 40) / 100));
 }
 
-function taperWeeksFor(distanceMeters: number): number {
+export function taperWeeksFor(distanceMeters: number): number {
   if (distanceMeters >= 35000) return 3; // marathon
   if (distanceMeters >= 18000) return 2; // half
   return 1;
+}
+
+/**
+ * Verdict from a gap vs. what a normal / optimistic build yields — UNIT-AGNOSTIC
+ * (gap, achievableGain, optimisticGain are all in the same anchor's units, be
+ * that VDOT, watts, or m/s), so the multi-sport engine classifies each leg the
+ * same way. The run guardrails keep their own VDOT-tuned absolute buffers inline
+ * (byte-identical); this is the shared bounds-only version for the tri aggregate.
+ */
+export function classifyFeasibility(
+  gap: number,
+  achievableGain: number,
+  optimisticGain: number,
+): FeasibilityVerdict {
+  if (gap <= 0) return 'ahead';
+  if (gap <= achievableGain) return 'on_track';
+  if (gap <= optimisticGain) return 'stretch';
+  return 'unrealistic';
+}
+
+export function fmtDuration(s: number): string {
+  return fmt(s);
 }
 
 function fmt(s: number): string {

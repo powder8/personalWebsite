@@ -1,0 +1,115 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  assessAnchorFeasibility,
+  assessTriFeasibility,
+  typicalWeeklyFtpGain,
+  typicalWeeklyCssGain,
+} from '../triFeasibilityLogic';
+import { decomposeGoalTime, legReferenceTimes, type TriAnchors } from '../triGoalTimeLogic';
+
+const ANCHORS: TriAnchors = { run: 48, bike: 240, swim: 1.3 };
+const MASS = 75;
+
+// ── Gain curves ──────────────────────────────────────────────────────────────
+test('FTP gain diminishes as FTP rises', () => {
+  assert.ok(typicalWeeklyFtpGain(200) > typicalWeeklyFtpGain(320));
+  assert.ok(typicalWeeklyFtpGain(240) > 0.5 && typicalWeeklyFtpGain(240) < 5);
+});
+test('CSS gain diminishes as CSS rises and stays positive', () => {
+  assert.ok(typicalWeeklyCssGain(1.0) > typicalWeeklyCssGain(1.5));
+  assert.ok(typicalWeeklyCssGain(1.8) >= 0.004);
+});
+
+// ── Generic anchor core ──────────────────────────────────────────────────────
+test('anchor core: goal at or below current → ahead, projected time ≈ current-fitness time', () => {
+  const project = (a: number) => Math.round(100000 / a); // toy monotone projector
+  const af = assessAnchorFeasibility({
+    currentAnchor: 240,
+    goalAnchor: 220,
+    weeksToRace: 20,
+    taperWeeks: 2,
+    weeklyGain: 2,
+    seasonGainCap: 36,
+    projectTime: project,
+  });
+  assert.equal(af.verdict, 'ahead');
+  assert.ok(af.gap < 0);
+});
+test('anchor core: reachable gap → on_track; far gap → unrealistic', () => {
+  const project = (a: number) => Math.round(100000 / a);
+  const base = { currentAnchor: 240, weeksToRace: 20, taperWeeks: 2, weeklyGain: 2, seasonGainCap: 36, projectTime: project };
+  // 18 trainable weeks × 2 = 36 achievable.
+  assert.equal(assessAnchorFeasibility({ ...base, goalAnchor: 270 }).verdict, 'on_track'); // gap 30 ≤ 36
+  assert.equal(assessAnchorFeasibility({ ...base, goalAnchor: 285 }).verdict, 'stretch'); // gap 45 ≤ 46.8
+  assert.equal(assessAnchorFeasibility({ ...base, goalAnchor: 400 }).verdict, 'unrealistic');
+});
+test('anchor core: projectedAnchor = current + achievable, capped by the season', () => {
+  const af = assessAnchorFeasibility({
+    currentAnchor: 240, goalAnchor: 999, weeksToRace: 100, taperWeeks: 2,
+    weeklyGain: 2, seasonGainCap: 20, projectTime: (a) => a,
+  });
+  assert.equal(af.achievableGain, 20); // capped
+  assert.equal(af.projectedAnchor, 260);
+});
+
+// ── Tri aggregate (G4) ───────────────────────────────────────────────────────
+function decompFor(finishSeconds: number) {
+  return decomposeGoalTime({ distance: '70.3', targetFinishSeconds: finishSeconds, anchors: ANCHORS, riderMassKg: MASS });
+}
+
+test('aggregate: an easy finish (slower than race-today) → all legs ahead, realistic ≤ target', () => {
+  const ref = legReferenceTimes('70.3', ANCHORS, MASS);
+  const easy = ref.totalSeconds + 3600; // an hour slower than current fitness
+  const f = assessTriFeasibility({ decomposition: decompFor(easy + 300), currentAnchors: ANCHORS, weeksToRace: 20, riderMassKg: MASS });
+  assert.equal(f.verdict, 'ahead');
+  for (const d of ['swim', 'bike', 'run'] as const) assert.equal(f.legs[d].verdict, 'ahead');
+  assert.ok(f.realisticFinishSeconds <= f.targetFinishSeconds);
+});
+
+test('aggregate: realistic finish = Σ projected legs + transitions', () => {
+  const f = assessTriFeasibility({ decomposition: decompFor(5 * 3600), currentAnchors: ANCHORS, weeksToRace: 16, riderMassKg: MASS });
+  const sum = f.legs.swim.projectedTimeSeconds + f.legs.bike.projectedTimeSeconds + f.legs.run.projectedTimeSeconds + f.transitionSeconds;
+  assert.equal(f.realisticFinishSeconds, sum);
+});
+
+test('aggregate: binding leg is the one demanding the biggest fitness jump', () => {
+  // A very fast target forces every leg to improve; the binding leg is whichever
+  // is furthest from what a normal build yields. Assert it is a real leg and its
+  // verdict is the overall verdict.
+  const ref = legReferenceTimes('70.3', ANCHORS, MASS);
+  const hard = Math.round(ref.totalSeconds * 0.8); // 20% faster everywhere — aggressive
+  const f = assessTriFeasibility({ decomposition: decompFor(hard), currentAnchors: ANCHORS, weeksToRace: 12, riderMassKg: MASS });
+  assert.ok(['swim', 'bike', 'run'].includes(f.bindingLeg));
+  assert.equal(f.verdict, f.legs[f.bindingLeg].verdict);
+  // The binding leg should not be "ahead" when the overall target is aggressive.
+  assert.notEqual(f.verdict, 'ahead');
+});
+
+test('strength-relative split accommodates a weakness: a weak swimmer gets a bigger swim-time share', () => {
+  // Same target + bike/run; only the swim anchor differs. The weaker swimmer's
+  // reference swim is slower, so the split gives them MORE of the clock for the
+  // swim — the plan meets them where they are, rather than demanding they swim
+  // like a strong swimmer. (This is why a weak leg isn't automatically binding.)
+  const target = 5 * 3600 + 30 * 60;
+  const weak = decomposeGoalTime({ distance: '70.3', targetFinishSeconds: target, anchors: { run: 50, bike: 260, swim: 0.95 }, riderMassKg: MASS });
+  const strong = decomposeGoalTime({ distance: '70.3', targetFinishSeconds: target, anchors: { run: 50, bike: 260, swim: 1.55 }, riderMassKg: MASS });
+  assert.ok(weak.legs.swim.targetSeconds > strong.legs.swim.targetSeconds, 'weak swimmer should get more swim time');
+});
+
+test('aggregate: chasing more speed everywhere, the bike tends to bind (aero cost of speed)', () => {
+  // A uniformly aggressive target forces every leg ~faster; going faster on the
+  // bike costs cubically (aero), so the required FTP jump is the fitness-expensive
+  // one. Assert the binding leg is not the swim here.
+  const ref = legReferenceTimes('70.3', ANCHORS, MASS);
+  const f = assessTriFeasibility({ decomposition: decompFor(Math.round(ref.totalSeconds * 0.85)), currentAnchors: ANCHORS, weeksToRace: 12, riderMassKg: MASS });
+  assert.notEqual(f.verdict, 'ahead');
+  assert.ok(f.bindingLeg === 'bike' || f.bindingLeg === 'run', `expected bike/run to bind, got ${f.bindingLeg}`);
+});
+
+test('aggregate: prose names the binding leg and both clocks', () => {
+  const ref = legReferenceTimes('70.3', ANCHORS, MASS);
+  const f = assessTriFeasibility({ decomposition: decompFor(Math.round(ref.totalSeconds * 0.82)), currentAnchors: ANCHORS, weeksToRace: 12, riderMassKg: MASS });
+  assert.match(f.note, new RegExp(f.bindingLeg));
+  assert.ok(f.headline.length > 0);
+});

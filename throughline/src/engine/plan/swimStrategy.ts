@@ -56,6 +56,10 @@ export const swimStrategy: DisciplineStrategy = {
   },
 
   assessGoalFeasibility() {
-    throw new Error(NOT_IMPLEMENTED);
+    // Swim feasibility runs through the multi-sport aggregate, not this seam:
+    // the run-shaped GoalFeasibilityInput can't carry the swim race distance /
+    // CSS-fraction the CSS→time projection needs. See triFeasibilityLogic.ts
+    // `assessTriFeasibility` (fills the CSS-gain curve).
+    throw new Error(`${NOT_IMPLEMENTED}: use assessTriFeasibility (triFeasibilityLogic.ts)`);
   },
 };
