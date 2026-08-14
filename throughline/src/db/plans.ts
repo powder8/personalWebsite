@@ -11,11 +11,14 @@ import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import { plans, plannedSessions } from './schema';
 import * as schema from './schema';
 import { addDays } from '@/engine/dates';
-import { midpoint, dowMon0 } from '@/engine/plan';
+import { midpoint, dowMon0, isPowerZones } from '@/engine/plan';
 import type {
   PlannedWeek,
   PlannedDay,
   PaceZones,
+  TrainingZones,
+  PowerZones,
+  PowerZoneKey,
   RunType,
   ZoneKey,
 } from '@/engine/plan';
@@ -82,17 +85,21 @@ function toRunType(sessionType: SessionType): RunType {
 
 /**
  * Persist generated weeks as DRAFT plans (one plans row + its planned_sessions
- * per week). `zones` resolves numeric pace bounds from each day's zone key.
+ * per week). `zones` resolves the numeric bounds from each day's zone key —
+ * pace bounds on the RUN discipline, watt bounds on the BIKE (duration @ power).
+ * The discipline is inferred from the `zones` arm, so running callers are
+ * unchanged and cycling callers just pass `PowerZones`.
  */
 export async function persistPlanDraft(
   db: DB,
   athleteId: string,
   weeks: PlannedWeek[],
-  zones: PaceZones,
+  zones: TrainingZones,
   generatedFrom?: unknown,
   opts: { status?: 'draft' | 'published' } = {},
 ): Promise<{ planId: string; weekStart: string }[]> {
   const out: { planId: string; weekStart: string }[] = [];
+  const bike = isPowerZones(zones);
 
   for (const week of weeks) {
     const [planRow] = await db
@@ -100,11 +107,13 @@ export async function persistPlanDraft(
       .values({
         athleteId,
         status: opts.status ?? 'draft',
+        discipline: bike ? 'bike' : 'run',
         weekStart: week.weekStart,
         weekEnd: addDays(week.weekStart, 6),
         phase: week.phase,
         cycle: week.cycle,
-        weeklyTargetMeters: week.targetVolumeMeters,
+        weeklyTargetMeters: bike ? null : week.targetVolumeMeters,
+        weeklyTargetTss: bike ? week.targetLoadTss ?? null : null,
         rationale: week.rationale,
         generatedFrom: (generatedFrom ?? null) as object | null,
         publishedAt: opts.status === 'published' ? new Date() : null,
@@ -113,31 +122,61 @@ export async function persistPlanDraft(
 
     const planId = planRow.id;
 
-    const rows = week.days.map((d) => {
-      const range = d.zone ? zones.zones[d.zone] : null;
-      return {
-        planId,
-        athleteId,
-        day: d.day,
-        sessionType: toSessionType(d.runType, d.zone),
-        zone: d.zone,
-        targetDistanceMeters: d.distanceMeters,
-        targetPaceSecPerKm: range ? midpoint(range) : null,
-        targetPaceFastSecPerKm: range?.fastSecPerKm ?? null,
-        targetPaceSlowSecPerKm: range?.slowSecPerKm ?? null,
-        warmup: d.warmup ?? null,
-        cooldown: d.cooldown ?? null,
-        segments: (d.segments ?? null) as object | null,
-        description: d.description,
-        pinned: d.pinned,
-      };
-    });
+    const rows = week.days.map((d) =>
+      bike ? bikeSessionRow(planId, athleteId, d, zones) : runSessionRow(planId, athleteId, d, zones),
+    );
     if (rows.length) await db.insert(plannedSessions).values(rows);
 
     out.push({ planId, weekStart: week.weekStart });
   }
 
   return out;
+}
+
+/** A running planned-session row: distance @ pace (byte-identical to the legacy shape). */
+function runSessionRow(planId: string, athleteId: string, d: PlannedDay, zones: PaceZones) {
+  const zone = (d.zone as ZoneKey | null) ?? null;
+  const range = zone ? zones.zones[zone] : null;
+  return {
+    planId,
+    athleteId,
+    discipline: 'run' as const,
+    day: d.day,
+    sessionType: toSessionType(d.runType, zone),
+    zone: d.zone,
+    targetDistanceMeters: d.distanceMeters,
+    targetPaceSecPerKm: range ? midpoint(range) : null,
+    targetPaceFastSecPerKm: range?.fastSecPerKm ?? null,
+    targetPaceSlowSecPerKm: range?.slowSecPerKm ?? null,
+    warmup: d.warmup ?? null,
+    cooldown: d.cooldown ?? null,
+    segments: (d.segments ?? null) as object | null,
+    description: d.description,
+    pinned: d.pinned,
+  };
+}
+
+/** A cycling planned-session row: duration @ power (the distance/pace analog). */
+function bikeSessionRow(planId: string, athleteId: string, d: PlannedDay, zones: PowerZones) {
+  const zone = (d.zone as PowerZoneKey | null) ?? null;
+  const band = zone ? zones.zones?.[zone] ?? null : null;
+  return {
+    planId,
+    athleteId,
+    discipline: 'bike' as const,
+    day: d.day,
+    sessionType: toSessionType(d.runType, null),
+    zone: d.zone,
+    targetLoad: d.targetLoadTss ?? null,
+    targetDurationSeconds: d.durationSeconds ?? null,
+    targetPowerLowWatts: band?.loWatts ?? null,
+    targetPowerHighWatts: band?.hiWatts ?? null,
+    warmup: d.warmup ?? null,
+    cooldown: d.cooldown ?? null,
+    segments: (d.segments ?? null) as object | null,
+    description: d.description,
+    pinned: d.pinned,
+  };
 }
 
 export interface LoadedPlan {

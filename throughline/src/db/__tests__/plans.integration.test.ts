@@ -10,7 +10,7 @@ import { join } from 'node:path';
 
 import { PGlite } from '@electric-sql/pglite';
 import { drizzle } from 'drizzle-orm/pglite';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 import * as schema from '../schema';
 import { plans } from '../schema';
@@ -26,6 +26,7 @@ import {
   generatePlan,
   diffWeek,
   adaptWeek,
+  resolvePowerZones,
 } from '@/engine/plan';
 
 let client: PGlite;
@@ -131,6 +132,37 @@ test('publish flips draft → published and supersedes a prior published week', 
 
   const [firstRow] = await db.select().from(plans).where(eq(plans.id, first[0].planId));
   assert.equal(firstRow.status, 'superseded', 'prior published is superseded');
+});
+
+test('a cycling plan persists as duration-at-power (additive TSS/watt columns)', async () => {
+  const power = resolvePowerZones({ ftpWatts: 250 });
+  const bikeWeeks = generatePlan(
+    { startDay: '2026-01-05', goalRaceDay: '2026-06-14', startVolumeMiles: 350, peakVolumeMiles: 620, discipline: 'bike' },
+    power,
+  );
+  const build = bikeWeeks.find((w) => w.phase === 'build')!;
+  await persistPlanDraft(db, athleteId, [build], power, { discipline: 'bike' });
+
+  const [planRow] = await db
+    .select()
+    .from(plans)
+    .where(and(eq(plans.weekStart, build.weekStart), eq(plans.discipline, 'bike')))
+    .limit(1);
+  assert.equal(planRow.discipline, 'bike');
+  assert.equal(planRow.weeklyTargetMeters, null, 'no meters on a bike plan');
+  assert.ok((planRow.weeklyTargetTss ?? 0) > 0, 'weekly TSS persisted');
+
+  // A quality session round-trips with duration + watt band, no pace.
+  const rows = await db
+    .select()
+    .from(schema.plannedSessions)
+    .where(eq(schema.plannedSessions.planId, planRow.id));
+  const thr = rows.find((r) => r.zone === 'threshold')!;
+  assert.equal(thr.discipline, 'bike');
+  assert.ok((thr.targetDurationSeconds ?? 0) > 0, 'duration persisted');
+  assert.ok((thr.targetPowerLowWatts ?? 0) > 0 && (thr.targetPowerHighWatts ?? 0) > 0, 'watt band persisted');
+  assert.equal(thr.targetPaceSecPerKm, null, 'no pace on a bike session');
+  assert.equal(thr.targetDistanceMeters, null, 'no distance on a bike session');
 });
 
 test('diff highlights what an adaptation changes vs the published week', async () => {

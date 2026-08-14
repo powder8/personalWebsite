@@ -152,8 +152,18 @@ export interface PlannedDay {
   day: string; // 'YYYY-MM-DD'
   dow: number; // 0=Mon … 6=Sun
   runType: RunType;
-  zone: ZoneKey | null; // primary zone (null for rest)
-  distanceMeters: number; // total incl. warmup/cooldown
+  /**
+   * Primary zone (null for rest). Pace-shaped (`ZoneKey`) on the run discipline,
+   * power-shaped (`PowerZoneKey`) on the bike — widened additively so the running
+   * arm's values are unchanged.
+   */
+  zone: ZoneKey | PowerZoneKey | null;
+  distanceMeters: number; // total incl. warmup/cooldown (running currency; 0 on the bike)
+  // --- cycling: duration-at-power prescription (the distance/pace analog) ---
+  /** Total session duration incl. warm-up/cool-down (bike currency). */
+  durationSeconds?: number;
+  /** The day's planned TSS-equivalent load (bike; the miles analog on the run). */
+  targetLoadTss?: number;
   warmup?: string;
   cooldown?: string;
   segments?: WorkoutSegment[];
@@ -166,7 +176,9 @@ export interface PlannedWeek {
   weekStart: string; // Monday 'YYYY-MM-DD'
   phase: TrainingPhase;
   cycle: number; // 1-based mesocycle index
-  targetVolumeMeters: number;
+  targetVolumeMeters: number; // running weekly-volume currency (0 on the bike)
+  /** Weekly TSS-equivalent target — the discipline-generic load (bike currency). */
+  targetLoadTss?: number;
   days: PlannedDay[];
   rationale: string; // the "Things to think about" note
 }
@@ -174,7 +186,8 @@ export interface PlannedWeek {
 // --- template model (the coach's microcycle, as config) ---
 
 export interface QualitySpec {
-  zone: ZoneKey;
+  /** Pace zone on the run, power zone on the bike (widened additively). */
+  zone: ZoneKey | PowerZoneKey;
   /** Fraction of the day's distance that is quality work (rest are wu/cd). */
   workFraction: number;
   segments?: Omit<WorkoutSegment, 'distanceMeters'>[]; // optional explicit reps

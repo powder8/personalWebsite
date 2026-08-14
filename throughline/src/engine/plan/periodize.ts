@@ -16,14 +16,26 @@ export interface KeyRace {
   label?: string;
 }
 
+/**
+ * The unit the weekly-volume ramp is denominated in. Running periodizes on
+ * MILES → meters (`weeklyTargetMeters`); cycling periodizes identically but on
+ * weekly TSS (`weeklyTargetTss`, cycling-engine-spec §4.3). The ramp math —
+ * backward layout, phase allocation, lerp, down weeks, taper fractions — is
+ * unit-agnostic and shared; only the scalar's meaning and the output field change.
+ */
+export type VolumeUnit = 'meters' | 'tss';
+
 export interface PeriodizationInput {
   startDay: string; // any day; normalized to the Monday on/after it
   goalRaceDay: string;
+  /** Start/peak weekly volume, in the discipline's currency (miles, or TSS when volumeUnit='tss'). */
   startVolumeMiles: number;
   peakVolumeMiles: number;
   downWeekEvery?: number; // default 4
   /** Interim races between start and the goal. Goal race may be included or not. */
   keyRaces?: KeyRace[];
+  /** Volume currency for the ramp. Default 'meters' (running); 'tss' for cycling. */
+  volumeUnit?: VolumeUnit;
 }
 
 export interface WeekPlan {
@@ -32,7 +44,13 @@ export interface WeekPlan {
   weeksToRace: number; // to the goal race
   phase: TrainingPhase;
   cycle: number; // 1-based mesocycle
-  targetVolumeMeters: number;
+  targetVolumeMeters: number; // running currency (0 when volumeUnit='tss')
+  /**
+   * The week's discipline-generic load target: meters on the run, TSS on the
+   * bike. `loadUnit` says which; `targetVolumeMeters` mirrors it for running.
+   */
+  targetLoad: number;
+  loadUnit: VolumeUnit;
   /** The next key race on/after this week — the race this block builds toward. */
   targetRaceDate: string | null;
   targetRaceLabel: string | null;
@@ -56,6 +74,7 @@ function lerp(a: number, b: number, t: number): number {
 
 export function periodize(input: PeriodizationInput): WeekPlan[] {
   const downEvery = input.downWeekEvery ?? 4;
+  const unit: VolumeUnit = input.volumeUnit ?? 'meters';
   // The week CONTAINING startDay: an athlete who sets a goal mid-week starts
   // base-building today, not after dead days waiting for Monday.
   const firstMonday = mondayOnOrBefore(input.startDay);
@@ -98,13 +117,18 @@ export function periodize(input: PeriodizationInput): WeekPlan[] {
       volMiles = input.peakVolumeMiles * (fracs[taperIdx] ?? 0.4);
     }
 
+    // `volMiles` is the raw ramped scalar in the input's currency (miles or TSS).
+    const volScalar = Math.round(volMiles * 10) / 10;
+    const targetVolumeMeters = unit === 'meters' ? milesToMeters(volScalar) : 0;
     weeks.push({
       weekStart,
       index: i,
       weeksToRace: totalWeeks - i,
       phase,
       cycle: Math.floor(i / downEvery) + 1,
-      targetVolumeMeters: milesToMeters(Math.round(volMiles * 10) / 10),
+      targetVolumeMeters,
+      targetLoad: unit === 'meters' ? targetVolumeMeters : volScalar,
+      loadUnit: unit,
       targetRaceDate: null,
       targetRaceLabel: null,
       raceThisWeek: null,
@@ -117,6 +141,17 @@ export function periodize(input: PeriodizationInput): WeekPlan[] {
 
 const MINI_TAPER = 0.72; // tune-up race week volume multiplier
 const POST_RACE_RECOVERY = 0.85; // the week after a tune-up race
+
+/**
+ * Scale a week's load by a factor, keeping the running (`targetVolumeMeters`) and
+ * generic (`targetLoad`) currencies in lock-step. For running both move together
+ * (byte-identical to the old single-field scaling); for TSS only `targetLoad`
+ * carries a value (`targetVolumeMeters` is 0 and stays 0).
+ */
+function scaleWeekLoad(w: WeekPlan, factor: number): void {
+  w.targetVolumeMeters = Math.round(w.targetVolumeMeters * factor);
+  w.targetLoad = w.loadUnit === 'meters' ? w.targetVolumeMeters : Math.round(w.targetLoad * factor);
+}
 
 /**
  * Tag each week with the race it builds toward and apply mini-tapers around
@@ -152,11 +187,9 @@ function applyKeyRaces(weeks: WeekPlan[], keyRaces: KeyRace[], goalRaceDay: stri
     if (r.priority === 'tune_up') {
       // Don't fight the goal taper if we're already inside it.
       if (weeks[idx].phase !== 'taper') {
-        weeks[idx].targetVolumeMeters = Math.round(weeks[idx].targetVolumeMeters * MINI_TAPER);
+        scaleWeekLoad(weeks[idx], MINI_TAPER);
         if (idx + 1 < weeks.length && weeks[idx + 1].phase !== 'taper') {
-          weeks[idx + 1].targetVolumeMeters = Math.round(
-            weeks[idx + 1].targetVolumeMeters * POST_RACE_RECOVERY,
-          );
+          scaleWeekLoad(weeks[idx + 1], POST_RACE_RECOVERY);
         }
       }
     }
