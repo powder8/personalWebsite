@@ -30,6 +30,7 @@ import {
   type TriDistance,
   type GoalDecomposition,
   type TriFeasibility,
+  type WeekSchedule,
 } from '@/engine/plan';
 
 export interface TriSeasonSetupInput {
@@ -45,6 +46,8 @@ export interface TriSeasonSetupInput {
    * is persisted on the goal race (`goalType: 'time'`, `targetTimeSeconds`).
    */
   goalFinishSeconds?: number;
+  /** Real-world weekly schedule — re-lays the persisted plan onto actual windows. */
+  schedule?: WeekSchedule;
   /** Publish immediately (athlete self-service) instead of leaving drafts. */
   publish?: boolean;
 }
@@ -120,6 +123,7 @@ export async function setupTriSeason(
     goalFinishSeconds: input.goalFinishSeconds,
     riderMassKg: weightKg ?? DEFAULT_RIDER_MASS_KG,
     ageYears,
+    schedule: input.schedule,
   });
 
   // Athlete goal summary (for the roster).
@@ -154,7 +158,7 @@ export async function setupTriSeason(
       athleteId,
       plan.perSport[d],
       zones[d],
-      { setupAt: input.startDay, tri: true, discipline: d, weeklyHours: input.weeklyHours },
+      { setupAt: input.startDay, tri: true, discipline: d, weeklyHours: input.weeklyHours, schedule: input.schedule ?? null },
       { status },
     );
   }

@@ -12,7 +12,7 @@ import { drizzle } from 'drizzle-orm/pglite';
 import { eq } from 'drizzle-orm';
 
 import * as schema from '@/db/schema';
-import { athletes, races, plans } from '@/db/schema';
+import { athletes, races, plans, plannedSessions } from '@/db/schema';
 import { setupAthleteTriGoal } from '../athleteTriGoal';
 import { getTriGoalTracker } from '../triGoalTracker';
 import { getAthleteFtp, getAthleteWeightKg } from '@/db/powerConfig';
@@ -82,6 +82,37 @@ test('onboarding sets all three anchors + DOB and builds a published timed plan'
   const tracker = await getTriGoalTracker(db, A, '2026-08-17');
   assert.ok(tracker);
   assert.equal(tracker!.feasibility.verdict, res.feasibility!.verdict);
+});
+
+test('onboarding honors the weekly schedule: persisted swim sessions land on pool days', async () => {
+  const B = '66666666-6666-4666-8666-66666666abcd';
+  await db.insert(athletes).values({ id: B, fullName: 'Sched Tri', email: 'sched-tri@example.com', timezone: 'UTC' });
+  await setupAthleteTriGoal(db, B, '2026-08-17', {
+    distance: '70.3',
+    date: '2027-06-13',
+    weeklyHours: 8,
+    limiter: 'swim',
+    run: { race: { distanceMeters: 10000, timeSeconds: 44 * 60 } },
+    bike: { ftpWatts: 240, weightKg: 74 },
+    swim: { test: { t400Sec: 400, t200Sec: 190 } },
+    schedule: { availableDays: [0, 1, 2, 3, 4, 5], poolDays: [1, 3], longDay: 5 }, // pool Tue/Thu
+  });
+
+  // Every persisted SWIM session sits on a pool day (Tue=1 / Thu=3).
+  const swimPlanIds = (await db.select().from(plans).where(eq(plans.athleteId, B)))
+    .filter((p) => p.discipline === 'swim')
+    .map((p) => p.id);
+  const mondayZeroDow = (iso: string) => (new Date(iso + 'T00:00:00Z').getUTCDay() + 6) % 7;
+  let swimSessions = 0;
+  for (const pid of swimPlanIds) {
+    const rows = await db.select().from(plannedSessions).where(eq(plannedSessions.planId, pid));
+    for (const r of rows) {
+      if (r.sessionType === 'rest') continue;
+      swimSessions++;
+      assert.ok([1, 3].includes(mondayZeroDow(r.day)), `swim on ${r.day} (dow ${mondayZeroDow(r.day)}) — not a pool day`);
+    }
+  }
+  assert.ok(swimSessions > 0, 'there are real swim sessions to check');
 });
 
 test('onboarding rejects a race date in the past', async () => {

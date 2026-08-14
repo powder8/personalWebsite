@@ -12,7 +12,7 @@ import { setupTriSeason, type TriSeasonSetupResult } from '@/server/triSeason';
 import { setAthletePaceConfig } from '@/db/paceConfig';
 import { setAthletePowerConfig } from '@/db/powerConfig';
 import { setAthleteSwimConfig } from '@/db/swimConfig';
-import { vdotFromRace, cssFrom400_200, TRI_DISTANCE_METERS, type Discipline, type TriDistance } from '@/engine/plan';
+import { vdotFromRace, cssFrom400_200, buildWeekSchedule, TRI_DISTANCE_METERS, type Discipline, type TriDistance } from '@/engine/plan';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -37,6 +37,12 @@ export interface TriGoalInput {
   swim: { cssMetersPerSec?: number; test?: { t400Sec: number; t200Sec: number } };
   /** DOB drives the attainability ceiling; set here if not already on file. */
   dateOfBirth?: string;
+  /**
+   * Real-world weekly availability (day-of-week: 0=Mon…6=Sun). When given, the
+   * plan is laid onto these windows — swims only on pool days, long/brick on the
+   * long day. Absent → the generators' native placement.
+   */
+  schedule?: { availableDays: number[]; poolDays: number[]; longDay?: number };
 }
 
 export async function setupAthleteTriGoal(
@@ -92,6 +98,14 @@ export async function setupAthleteTriGoal(
     weeklyHours: input.weeklyHours,
     limiter: input.limiter,
     goalFinishSeconds: input.targetFinishSeconds,
+    schedule:
+      input.schedule && input.schedule.availableDays.length > 0
+        ? buildWeekSchedule({
+            availableDays: input.schedule.availableDays,
+            poolDays: input.schedule.poolDays,
+            longDay: input.schedule.longDay,
+          })
+        : undefined,
     publish: true,
   });
 

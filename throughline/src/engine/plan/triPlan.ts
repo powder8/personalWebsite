@@ -36,6 +36,7 @@ import {
 } from './triAllocatorLogic';
 import { decomposeGoalTime, type GoalDecomposition, type TriAnchors } from './triGoalTimeLogic';
 import { assessTriFeasibility, type TriFeasibility } from './triFeasibilityLogic';
+import { relayTriPlanToSchedule, type WeekSchedule } from './triScheduleLogic';
 
 /** Default rider mass (kg) for the bike watts↔speed model when the caller
  * hasn't supplied one. Only used when a goal finish time is being decomposed. */
@@ -125,6 +126,12 @@ export interface TriPlanInput {
   ageYears?: number;
   /** Optional per-sport personal bests (raise the ceiling, recency-discounted). */
   personalBests?: Partial<Record<Discipline, { anchor: number; ageAtPB: number }>>;
+  /**
+   * Real-world weekly schedule (pool days, the long day, per-day minutes). When
+   * given, each sport's days are re-laid onto the athlete's actual windows
+   * BEFORE persistence. Absent → the generators' naive day-of-week placement.
+   */
+  schedule?: WeekSchedule;
   /** Override tunables passed straight to {@link allocateTriBudget}. */
   allocationOverrides?: Partial<Omit<TriAllocationInput, 'weeklyHours' | 'distance' | 'limiter' | 'anchors'>>;
   /** Per-discipline template overrides (defaults to the coach sets). */
@@ -215,7 +222,11 @@ export function buildTriPlan(input: TriPlanInput): TriPlan {
     perSport[d] = weeks;
   }
 
-  const weeks = composeTriWeeks(perSport);
+  // Real-world schedule: re-lay each sport's days onto the athlete's actual
+  // windows (pool days, the long day) so the PERSISTED plan honors them, not
+  // just the composed view. No schedule → the generators' native placement.
+  const laidPerSport = input.schedule ? relayTriPlanToSchedule(perSport, input.schedule) : perSport;
+  const weeks = composeTriWeeks(laidPerSport);
 
   // Optional goal-time layer: decompose the target finish into per-leg targets,
   // and (when all three anchors are known) an honest binding-leg feasibility.
@@ -248,7 +259,7 @@ export function buildTriPlan(input: TriPlanInput): TriPlan {
     }
   }
 
-  return { allocation, perSport, weeks, goalTime, feasibility };
+  return { allocation, perSport: laidPerSport, weeks, goalTime, feasibility };
 }
 
 /**

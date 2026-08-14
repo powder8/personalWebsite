@@ -27,6 +27,26 @@ function parseClock(s: string): number | null {
 const field = 'w-full rounded-xl bg-white/5 px-3 py-2 text-sm text-white ring-1 ring-inset ring-white/10 focus:outline-none focus:ring-lime-400/40';
 const label = 'block text-xs font-medium text-slate-400 mb-1';
 
+const DOW = [0, 1, 2, 3, 4, 5, 6];
+const DOW_LABEL = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/** A compact 7-day toggle row (checkboxes named `${prefix}-${dow}`). */
+function DayToggles({ prefix, defaults }: { prefix: string; defaults: number[] }) {
+  return (
+    <div className="flex gap-1">
+      {DOW.map((i) => (
+        <label
+          key={i}
+          className="flex-1 cursor-pointer select-none rounded-lg bg-white/5 py-1.5 text-center text-[11px] font-medium text-slate-300 ring-1 ring-inset ring-white/10 has-[:checked]:bg-lime-300/20 has-[:checked]:text-lime-200 has-[:checked]:ring-lime-400/40"
+        >
+          <input type="checkbox" name={`${prefix}-${i}`} defaultChecked={defaults.includes(i)} className="sr-only" />
+          {DOW_LABEL[i]}
+        </label>
+      ))}
+    </div>
+  );
+}
+
 /**
  * Athlete-facing triathlon onboarding. Collects the three anchors, a target
  * finish, weekly hours + limiter, then builds a published multi-sport plan and
@@ -62,6 +82,13 @@ export function TriGoalSetup({
     const targetRaw = String(fd.get('targetFinish') || '').trim();
     const targetFinishSeconds = targetRaw ? parseClock(targetRaw) ?? undefined : undefined;
 
+    const availableDays = DOW.filter((i) => fd.get(`avail-${i}`) === 'on');
+    const poolDays = DOW.filter((i) => fd.get(`pool-${i}`) === 'on');
+    const longDayRaw = fd.get('longDay');
+    const schedule = availableDays.length
+      ? { availableDays, poolDays, longDay: longDayRaw != null && longDayRaw !== '' ? Number(longDayRaw) : undefined }
+      : undefined;
+
     const body = {
       distance: String(fd.get('distance')) as TriDistance,
       date: String(fd.get('date') || ''),
@@ -72,6 +99,7 @@ export function TriGoalSetup({
       bike: { ftpWatts: ftp, weightKg: Number(fd.get('weightKg') || 0) || undefined },
       swim: { test: { t400Sec: t400, t200Sec: t200 } },
       dateOfBirth: String(fd.get('dob') || '') || undefined,
+      schedule,
     };
 
     setPending(true);
@@ -205,6 +233,33 @@ export function TriGoalSetup({
         <p className="mt-2 text-[11px] text-slate-500">
           The 400 &amp; 200 swims set your CSS (critical swim speed). Best effort, fully rested between.
         </p>
+      </div>
+
+      {/* Real-world schedule */}
+      <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-inset ring-white/10">
+        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Your week (optional)</div>
+        <p className="mt-1 mb-3 text-[11px] text-slate-500">
+          I&apos;ll lay swim/bike/run onto the days you can actually train — swims only on pool days, the long ride+run on your long day.
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className={label}>Days I can train</label>
+            <DayToggles prefix="avail" defaults={[0, 1, 2, 3, 4, 5]} />
+          </div>
+          <div>
+            <label className={label}>🏊 Pool-access days</label>
+            <DayToggles prefix="pool" defaults={[1, 3]} />
+          </div>
+          <div>
+            <label className={label}>Long day (big ride + run)</label>
+            <select name="longDay" defaultValue="5" className={field}>
+              <option value="">— none —</option>
+              {DOW.map((i) => (
+                <option key={i} value={i}>{DOW_LABEL[i]}</option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
       {err && <p className="text-sm text-rose-300">{err}</p>}

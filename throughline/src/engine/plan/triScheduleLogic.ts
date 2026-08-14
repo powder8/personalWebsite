@@ -424,3 +424,64 @@ function dayAccepts(
   if (s.isQuality && placed.sessions.some((p) => p.isQuality)) return false; // no double-hard
   return true;
 }
+
+// ---------------------------------------------------------------------------
+// Applying the layout to the PERSISTED plan (G7b)
+// ---------------------------------------------------------------------------
+
+/** The date `dow` days after a Monday weekStart ('YYYY-MM-DD'). */
+function dateForDow(weekStart: string, dow: number): string {
+  const [y, m, d] = weekStart.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + dow)).toISOString().slice(0, 10);
+}
+
+/** A rest PlannedDay — matches what the generators emit for a rest day. */
+function restDay(day: string, dow: number): PlannedDay {
+  return { day, dow, runType: 'rest', zone: null, distanceMeters: 0, description: 'Rest day.', pinned: false };
+}
+
+/**
+ * Rewrite each sport's `PlannedWeek` days onto the schedule-chosen days, so the
+ * PERSISTED plan honors pool days / the long day / no hard-stacking — not just
+ * the composed view. `composeTriWeek` builds a view; persistence stores these
+ * per-sport weeks directly, so the layout has to move the days HERE, before they
+ * are saved. Sessions the week can't fit are dropped (their day becomes rest).
+ * No schedule → identity (callers simply skip this).
+ */
+export function relayTriPlanToSchedule(
+  perSport: Record<Discipline, PlannedWeek[]>,
+  schedule: WeekSchedule,
+): Record<Discipline, PlannedWeek[]> {
+  // Align the three sports' weeks by weekStart (they periodize off the same start).
+  const byStart = new Map<string, Partial<Record<Discipline, PlannedWeek>>>();
+  for (const d of TRI_DISCIPLINES) {
+    for (const w of perSport[d]) {
+      let slot = byStart.get(w.weekStart);
+      if (!slot) {
+        slot = {};
+        byStart.set(w.weekStart, slot);
+      }
+      slot[d] = w;
+    }
+  }
+
+  const out: Record<Discipline, PlannedWeek[]> = { swim: [], bike: [], run: [] };
+  for (const [weekStart, sportWeeks] of byStart) {
+    const layout = layoutTriWeek(sessionsFromPlannedWeeks(sportWeeks), schedule);
+    for (const d of TRI_DISCIPLINES) {
+      const wk = sportWeeks[d];
+      if (!wk) continue;
+      const days: PlannedDay[] = [];
+      for (let dow = 0; dow < 7; dow++) days.push(restDay(dateForDow(weekStart, dow), dow));
+      for (const placed of layout.days) {
+        for (const s of placed.sessions) {
+          if (s.discipline !== d || !s.source) continue;
+          days[placed.dow] = { ...s.source, dow: placed.dow, day: dateForDow(weekStart, placed.dow) };
+        }
+      }
+      out[d].push({ ...wk, days });
+    }
+  }
+  for (const d of TRI_DISCIPLINES) out[d].sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+  return out;
+}

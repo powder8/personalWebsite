@@ -5,6 +5,7 @@ import {
   allocateTriBudget,
   buildTriPlan,
   composeTriWeeks,
+  buildWeekSchedule,
   tssFromHours,
   TRI_DISCIPLINES,
   DEFAULT_FLOORS,
@@ -187,6 +188,38 @@ test('goal finish but a missing anchor → decomposition only (typical split), n
   assert.ok(plan.goalTime);
   assert.equal(plan.goalTime!.strategy, 'typical_split');
   assert.equal(plan.feasibility, undefined);
+});
+
+// --- G7b: schedule relay bakes the real-world layout into the persisted plan --
+
+test('no schedule → placement is the generators’ native day-of-week (identity)', () => {
+  const plan = buildTriPlan(base);
+  const withNoSchedule = buildTriPlan({ ...base });
+  // Same swim day-of-week set both times (nothing re-laid).
+  const dows = (p: typeof plan) => p.perSport.swim.flatMap((w) => w.days.filter((d) => d.runType !== 'rest').map((d) => d.dow));
+  assert.deepEqual(dows(plan), dows(withNoSchedule));
+});
+
+test('schedule relay: swims land ONLY on pool days in the PERSISTED plan', () => {
+  const schedule = buildWeekSchedule({ availableDays: [0, 1, 2, 3, 4, 5], poolDays: [1, 3], longDay: 5, defaultMinutes: 100, longDayMinutes: 260 });
+  const plan = buildTriPlan({ ...base, schedule });
+  for (const wk of plan.perSport.swim) {
+    for (const d of wk.days) {
+      if (d.runType !== 'rest') assert.ok([1, 3].includes(d.dow), `swim landed on dow ${d.dow}, not a pool day`);
+    }
+  }
+});
+
+test('schedule relay: nothing lands on an unavailable rest day (Sunday)', () => {
+  const schedule = buildWeekSchedule({ availableDays: [0, 1, 2, 3, 4, 5], poolDays: [1, 3], longDay: 5 });
+  const plan = buildTriPlan({ ...base, schedule });
+  for (const d of TRI_DISCIPLINES) {
+    for (const wk of plan.perSport[d]) {
+      for (const day of wk.days) {
+        if (day.runType !== 'rest') assert.notEqual(day.dow, 6, `${d} landed on the protected Sunday`);
+      }
+    }
+  }
 });
 
 test('composed week load conserves each sport’s periodized weekly TSS', () => {
