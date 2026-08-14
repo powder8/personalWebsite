@@ -14,6 +14,8 @@ import {
   assessGoalFeasibility,
   resolveFtp,
   resolvePowerZones,
+  buildBikeQualitySegments,
+  buildBikeQualityDescription,
 } from '../index';
 
 const zones = buildZones(222.5); // elite threshold, matches plan.test.ts fixture
@@ -72,10 +74,29 @@ test('bikeStrategy anchor + zones are implemented and delegate to ftpLogic', () 
   assert.throws(() => bikeStrategy.resolveZones({}), /no fitness anchor/);
 });
 
-test('bikeStrategy prescription + feasibility remain "not yet implemented" stubs', () => {
-  const msg = /bike strategy not yet implemented/;
-  assert.throws(() => bikeStrategy.buildQualitySegments(6, 'threshold', zones, 3, 1.5, 0), msg);
-  assert.throws(() => bikeStrategy.buildQualityDescription(6, 'threshold', zones, 3, 1.5, 0), msg);
+test('bikeStrategy prescription is implemented (Story 4) and delegates to bikeWorkoutsLogic', () => {
+  const pz = resolvePowerZones({ ftpWatts: 250 }); // power zones, in watts
+  // Bike seam speaks MINUTES: 60 min day, ~40 min work, 10 min warm-up/cool-down.
+  assert.deepEqual(
+    bikeStrategy.buildQualitySegments(60, 'threshold', pz, 40, 10, 0),
+    buildBikeQualitySegments(60, 'threshold', pz, 40, 10, 0),
+  );
+  assert.equal(
+    bikeStrategy.buildQualityDescription(60, 'threshold', pz, 40, 10, 0),
+    buildBikeQualityDescription(60, 'threshold', pz, 40, 10, 0),
+  );
+  // A real structured session: warm-up → work → cool-down, watt targets attached.
+  const segs = bikeStrategy.buildQualitySegments(60, 'threshold', pz, 40, 10, 0);
+  assert.deepEqual(segs.map((s) => s.role), ['warmup', 'work', 'cooldown']);
+  assert.ok((segs[1].targetLoWatts ?? 0) > 0);
+});
+
+test('bikeStrategy prescription rejects pace zones (the wrong discipline arm)', () => {
+  // `zones` here is PaceZones; the bike arm must not be fed the run zones.
+  assert.throws(() => bikeStrategy.buildQualitySegments(60, 'threshold', zones, 40, 10, 0), /power zones/);
+});
+
+test('bikeStrategy feasibility remains a "not yet implemented" stub (Story 6)', () => {
   assert.throws(
     () =>
       bikeStrategy.assessGoalFeasibility({
@@ -84,13 +105,12 @@ test('bikeStrategy prescription + feasibility remain "not yet implemented" stubs
         weeksToRace: 16,
         goalDistanceMeters: 42195,
       }),
-    msg,
+    /bike strategy not yet implemented/,
   );
 });
 
-test('generatePlan with discipline="bike" throws (stub not implemented)', () => {
-  assert.throws(
-    () => generatePlan({ ...planInput, discipline: 'bike' }, zones),
-    /bike strategy not yet implemented/,
-  );
+test('generatePlan with discipline="bike" is not yet wired (Story 5) — it takes pace zones', () => {
+  // generatePlan still threads a PaceZones fixture; the bike prescription needs
+  // power zones, so the cycling path isn't reachable until Story 5 supplies them.
+  assert.throws(() => generatePlan({ ...planInput, discipline: 'bike' }, zones), /power zones/);
 });

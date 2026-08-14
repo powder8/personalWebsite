@@ -15,9 +15,11 @@
  */
 import type { DisciplineStrategy } from './strategy';
 import type { AthletePaceConfig, GlobalPaceModel } from './paceConfig';
+import type { ZoneKey, TrainingZones } from './types';
 import { resolvePaceZones, vdotFromThreshold } from './paceConfig';
 import { vdotFromRace } from './vdot';
 import { buildQualitySegments, buildQualityDescription } from './workouts';
+import { isPaceZones } from './powerZonesLogic';
 import { assessGoalFeasibility } from './feasibility';
 
 /**
@@ -42,8 +44,24 @@ export const runStrategy: DisciplineStrategy = {
     return resolvePaceZones(config, global);
   },
 
-  buildQualitySegments,
-  buildQualityDescription,
+  // Thin adapters: narrow the generalized seam back to the pace-shaped path the
+  // running library already speaks. The OUTPUT is byte-identical to calling
+  // workouts.ts directly — these just re-assert `TrainingZones` is `PaceZones`
+  // (always true on the run arm) so the existing PaceZones/ZoneKey code runs
+  // unchanged. `zone`/`zones` are pace-shaped whenever the run strategy is used.
+  buildQualitySegments(dayMiles, zone, zones, workMiles, wuCd, seed) {
+    return buildQualitySegments(dayMiles, zone as ZoneKey, asPaceZones(zones), workMiles, wuCd, seed);
+  },
+  buildQualityDescription(dayMiles, zone, zones, workMiles, wuCd, seed) {
+    return buildQualityDescription(dayMiles, zone as ZoneKey, asPaceZones(zones), workMiles, wuCd, seed);
+  },
 
   assessGoalFeasibility,
 };
+
+function asPaceZones(zones: TrainingZones) {
+  if (!isPaceZones(zones)) {
+    throw new Error('runStrategy: expected pace zones on the running discipline');
+  }
+  return zones;
+}

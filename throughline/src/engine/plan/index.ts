@@ -17,6 +17,7 @@ export * from './diff';
 export * from './vdot';
 export * from './powerZonesLogic';
 export * from './ftpLogic';
+export * from './bikeWorkoutsLogic';
 export * from './gap';
 export * from './bestEffort';
 export * from './feasibility';

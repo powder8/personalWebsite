@@ -117,14 +117,32 @@ export interface PowerZones {
  */
 export type TrainingZones = PaceZones | PowerZones;
 
-/** A structured segment within a quality session (e.g. "6×1k @ threshold"). */
+/**
+ * A structured segment within a quality session (e.g. "6×1k @ threshold" for
+ * running, "4×8min @ threshold" for cycling).
+ *
+ * The type is discipline-generalized: the RUNNING fields (distance-at-pace) are
+ * unchanged, and the CYCLING fields (duration-at-power) are added alongside as
+ * optional. A given segment uses one family or the other — running sets
+ * `repMeters`/`distanceMeters`, cycling sets `repSeconds`/`durationSeconds` +
+ * watt targets — so running output stays byte-identical (it never sets the new
+ * optional keys, and the widened `role`/`zone` unions don't change its values).
+ */
 export interface WorkoutSegment {
-  role: 'warmup' | 'work' | 'recovery_jog' | 'cooldown';
-  zone: ZoneKey;
-  /** repeats × repMeters describes intervals; distanceMeters for continuous. */
+  role: 'warmup' | 'work' | 'recovery_jog' | 'recovery_spin' | 'cooldown';
+  zone: ZoneKey | PowerZoneKey;
   reps?: number;
+  // --- running: distance-at-pace ---
+  /** repeats × repMeters describes running intervals; distanceMeters continuous. */
   repMeters?: number;
   distanceMeters?: number;
+  // --- cycling: duration-at-power ---
+  /** repeats × repSeconds describes cycling intervals; durationSeconds continuous. */
+  repSeconds?: number;
+  durationSeconds?: number;
+  /** Power target for the block, filled from the athlete's %FTP zones at build. */
+  targetLoWatts?: number;
+  targetHiWatts?: number;
   restSeconds?: number;
   note?: string;
 }
