@@ -6,21 +6,37 @@
  * exact power-side mirror of `runStrategy` (VDOT + pace zones). The remaining
  * methods stay throwing stubs until their stories land:
  *
- *   - resolveFitnessAnchor : DONE — FTP (watts) from powerConfig (ftpLogic.ts).
- *   - resolveZones         : DONE — %FTP power zones, or %LTHR HR zones with no
- *                            power meter (powerZonesLogic.ts / ftpLogic.ts).
- *   - buildQuality*        : STUB (Story 4) — power-based interval prescription.
+ *   - resolveFitnessAnchor : DONE (Story 1) — FTP (watts) from powerConfig.
+ *   - resolveZones         : DONE (Story 1) — %FTP power zones, or %LTHR HR zones
+ *                            with no power meter (powerZonesLogic.ts / ftpLogic.ts).
+ *   - buildQuality*        : DONE (Story 4) — duration×%FTP interval prescription
+ *                            (bikeWorkoutsLogic.ts).
  *   - assessGoalFeasibility: STUB (Story 6) — an FTP/CTL improvement model.
  *
- * The pure logic lives in ftpLogic.ts (anchor) and powerZonesLogic.ts (zones);
- * this file is just the wiring that puts them behind the seam — same as
- * runStrategy delegates to paceConfig/vdot/workouts.
+ * The pure logic lives in ftpLogic.ts (anchor), powerZonesLogic.ts (zones), and
+ * bikeWorkoutsLogic.ts (prescription); this file is just the wiring that puts
+ * them behind the seam — same as runStrategy delegates to paceConfig/vdot/workouts.
  */
 import type { DisciplineStrategy } from './strategy';
 import type { AthletePowerConfig, GlobalPowerModel } from './ftpLogic';
+import type { PowerZoneKey, TrainingZones } from './types';
 import { resolveFtp, resolvePowerZones } from './ftpLogic';
+import { isPowerZones } from './powerZonesLogic';
+import { buildBikeQualitySegments, buildBikeQualityDescription } from './bikeWorkoutsLogic';
 
 const NOT_IMPLEMENTED = 'bike strategy not yet implemented';
+
+/**
+ * Narrow the generalized seam to the power-shaped path the cycling library
+ * speaks. The seam's volume scalars are MINUTES on the bike (duration-at-power),
+ * versus miles on the run — see the `DisciplineStrategy` doc.
+ */
+function asPowerZones(zones: TrainingZones) {
+  if (!isPowerZones(zones)) {
+    throw new Error('bikeStrategy: expected power zones on the cycling discipline');
+  }
+  return zones;
+}
 
 export const bikeStrategy: DisciplineStrategy = {
   discipline: 'bike',
@@ -33,12 +49,12 @@ export const bikeStrategy: DisciplineStrategy = {
     return resolvePowerZones(config as AthletePowerConfig, global as GlobalPowerModel | undefined);
   },
 
-  buildQualitySegments() {
-    throw new Error(NOT_IMPLEMENTED);
+  buildQualitySegments(dayMinutes, zone, zones, workMinutes, wuCd, seed) {
+    return buildBikeQualitySegments(dayMinutes, zone as PowerZoneKey, asPowerZones(zones), workMinutes, wuCd, seed);
   },
 
-  buildQualityDescription() {
-    throw new Error(NOT_IMPLEMENTED);
+  buildQualityDescription(dayMinutes, zone, zones, workMinutes, wuCd, seed) {
+    return buildBikeQualityDescription(dayMinutes, zone as PowerZoneKey, asPowerZones(zones), workMinutes, wuCd, seed);
   },
 
   assessGoalFeasibility() {

@@ -23,7 +23,7 @@
  * both satisfy this interface; `selectStrategy(discipline)` picks one. The
  * engine defaults to `runStrategy`, so existing running behaviour is unchanged.
  */
-import type { PaceZones, WorkoutSegment, ZoneKey, Discipline, TrainingZones } from './types';
+import type { WorkoutSegment, ZoneKey, PowerZoneKey, Discipline, TrainingZones } from './types';
 import type { AthletePaceConfig, GlobalPaceModel } from './paceConfig';
 import type { AthletePowerConfig, GlobalPowerModel } from './ftpLogic';
 import type { GoalFeasibility, GoalFeasibilityInput } from './feasibility';
@@ -62,24 +62,30 @@ export interface DisciplineStrategy {
 
   /**
    * Structured segments for one quality day — warm-up, the main set scaled to
-   * ~`workMiles` at the athlete's own paces/power, then cool-down. `seed` picks
+   * ~`workVolume` at the athlete's own paces/power, then cool-down. `seed` picks
    * a template variant so weeks vary deterministically.
+   *
+   * The volume scalars are in the discipline's native unit: RUNNING passes
+   * MILES (distance-at-pace), CYCLING passes MINUTES (duration-at-power). The
+   * `zone`/`zones` are correspondingly pace-shaped (`ZoneKey` + `PaceZones`) or
+   * power-shaped (`PowerZoneKey` + `PowerZones`); each strategy narrows the
+   * generalized `TrainingZones` to its own arm (isPaceZones/isPowerZones).
    */
   buildQualitySegments(
-    dayMiles: number,
-    zone: ZoneKey,
-    zones: PaceZones,
-    workMiles: number,
+    dayVolume: number,
+    zone: ZoneKey | PowerZoneKey,
+    zones: TrainingZones,
+    workVolume: number,
     wuCd: number,
     seed: number,
   ): WorkoutSegment[];
 
   /** One-line prose mirror of the same quality session, in the coach's format. */
   buildQualityDescription(
-    dayMiles: number,
-    zone: ZoneKey,
-    zones: PaceZones,
-    workMiles: number,
+    dayVolume: number,
+    zone: ZoneKey | PowerZoneKey,
+    zones: TrainingZones,
+    workVolume: number,
     wuCd: number,
     seed: number,
   ): string;
