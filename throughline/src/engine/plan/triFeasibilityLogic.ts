@@ -33,6 +33,15 @@ import {
   predictBikeSeconds,
   predictRunSeconds,
 } from './triGoalTimeLogic';
+import { assessAttainability } from './attainabilityLogic';
+
+/** Reference weekly training hours a 70.3 gain curve assumes. Fewer hours (a
+ * demanding job, a young family) → slower gains; more → faster, to a cap. */
+const REFERENCE_WEEKLY_HOURS = 10;
+function hoursGainScale(weeklyHours: number | undefined): number {
+  if (weeklyHours == null || weeklyHours <= 0) return 1;
+  return Math.max(0.5, Math.min(1.15, Math.sqrt(weeklyHours / REFERENCE_WEEKLY_HOURS)));
+}
 
 // ── Discipline improvement curves (weekly anchor gain from a focused block) ──
 
@@ -121,6 +130,16 @@ export interface TriFeasibilityInput {
   currentAnchors: TriAnchors;
   weeksToRace: number;
   riderMassKg: number;
+  /**
+   * Age at race day. When provided, each leg also gets an ATTAINABILITY ceiling
+   * (the "is it possible at all?" check) — a required anchor above the ceiling is
+   * 'beyond_reach' regardless of runway. Absent → trajectory-only (as before).
+   */
+  ageYears?: number;
+  /** Total weekly training hours — scales the gain rate (life constraints). */
+  weeklyHours?: number;
+  /** Optional per-sport personal bests (raise the ceiling, recency-discounted). */
+  personalBests?: Partial<Record<Discipline, { anchor: number; ageAtPB: number }>>;
   intensities?: TriRaceIntensities;
   course?: BikeCourseProfile;
 }
@@ -128,6 +147,10 @@ export interface TriFeasibilityInput {
 export interface TriLegFeasibility extends AnchorFeasibility {
   discipline: Discipline;
   requiredWeeklyGainLabel: string; // human, unit-aware (e.g. "2.1 W/wk", "0.31 VDOT/wk")
+  /** Best anchor realistically reachable by race day (only when ageYears given). */
+  ceiling?: number;
+  /** True when the goal for this leg sits above that ceiling (not attainable). */
+  aboveCeiling?: boolean;
 }
 
 export interface TriFeasibility {
@@ -144,6 +167,7 @@ export interface TriFeasibility {
 }
 
 const VERDICT_RANK: Record<FeasibilityVerdict, number> = {
+  beyond_reach: 4,
   unrealistic: 3,
   stretch: 2,
   on_track: 1,
@@ -167,6 +191,7 @@ export function assessTriFeasibility(input: TriFeasibilityInput): TriFeasibility
   const I = input.intensities ?? DEFAULT_RACE_INTENSITY[g.distance];
   const course = input.course ?? DEFAULT_BIKE_COURSE;
   const taper = taperWeeksFor(d.runMeters); // race-day taper keyed off the run leg (the longest single effort)
+  const hoursScale = hoursGainScale(input.weeklyHours); // fewer training hours → slower gains
 
   const legOf = (discipline: Discipline): TriLegFeasibility => {
     const goalAnchor = g.legs[discipline].requiredAnchor;
@@ -192,16 +217,39 @@ export function assessTriFeasibility(input: TriFeasibilityInput): TriFeasibility
       goalAnchor,
       weeksToRace,
       taperWeeks: taper,
-      weeklyGain,
+      weeklyGain: weeklyGain * hoursScale,
       seasonGainCap,
       projectTime,
     });
     const rwg = Number.isFinite(af.requiredWeeklyGain) ? af.requiredWeeklyGain : 0;
     const precision = discipline === 'swim' ? 3 : discipline === 'bike' ? 1 : 2;
+
+    // Attainability ceiling: is this even POSSIBLE by race day, ignoring the
+    // clock? A required anchor above the ceiling is beyond_reach — more weeks
+    // won't fix it. Only when age is known (else trajectory verdict stands).
+    let ceiling: number | undefined;
+    let aboveCeiling: boolean | undefined;
+    let verdict = af.verdict;
+    if (input.ageYears != null) {
+      const att = assessAttainability({
+        discipline,
+        currentAnchor: current,
+        ageYears: input.ageYears,
+        massKg: riderMassKg,
+        personalBest: input.personalBests?.[discipline],
+      });
+      ceiling = att.ceiling;
+      aboveCeiling = goalAnchor > att.ceiling;
+      if (aboveCeiling) verdict = 'beyond_reach';
+    }
+
     return {
       ...af,
+      verdict,
       discipline,
       requiredWeeklyGainLabel: `${rwg.toFixed(precision)} ${UNIT_LABEL[discipline]}/wk`,
+      ceiling,
+      aboveCeiling,
     };
   };
 
@@ -284,15 +332,24 @@ function triProse(
         headline: `${target} is a stretch — the ${name} is the constraint`,
         note: `The ${name} needs about ${b.requiredWeeklyGainLabel} for ${b.trainableWeeks} weeks — the top of what typically happens, not the expectation. It's the leg that decides your day. Realistic finish on a normal build: ~${realistic}; treat that as success and ${target} as the reach.`,
       };
-    default: {
-      // The gap exceeds what even an optimistic block yields. Be honest about
-      // WHY: usually the per-season fitness ceiling, not the runway — citing a
-      // "weeks needed" figure here is misleading when the season cap is the wall.
+    case 'unrealistic': {
+      // POSSIBLE but not in these weeks — the gap is under the athlete's ceiling
+      // (or ceiling unknown), just beyond what this build's runway/hours yield.
       const gapLabel = absLabel(bindingLeg, b.gap);
       const addsLabel = absLabel(bindingLeg, b.achievableGain);
       return {
-        headline: `${target} isn't this race — the ${name} is too far`,
-        note: `The ${name} is the constraint: these ${b.trainableWeeks} training weeks realistically add ~${addsLabel} at your level, but ${target} needs about ${gapLabel} more (${absLabel(bindingLeg, b.currentAnchor)} → ${absLabel(bindingLeg, b.goalAnchor)}). That's beyond one build — so ~${realistic} is the honest target for this race, with ${target} a goal for a later season once the ${name} catches up.`,
+        headline: `${target} is a longer game — the ${name} needs more time`,
+        note: `${target} is reachable for you, but not in this build: these ${b.trainableWeeks} training weeks realistically add ~${addsLabel} on the ${name}, and it needs about ${gapLabel} more (${absLabel(bindingLeg, b.currentAnchor)} → ${absLabel(bindingLeg, b.goalAnchor)}). Give the ${name} another season or two of consistent work and it comes in range — for THIS race, ~${realistic} is a strong, honest target.`,
+      };
+    }
+    default: {
+      // beyond_reach: the goal for the binding leg sits above the athlete's
+      // age-graded ceiling — more time or hours won't get there. Be honest AND
+      // kind: it's an elite time for the profile, not a personal failing.
+      const ceilingLabel = b.ceiling != null ? absLabel(bindingLeg, b.ceiling) : null;
+      return {
+        headline: `${target} is faster than this race can be for you`,
+        note: `${target} is an elite time — on the ${name} it would need ${absLabel(bindingLeg, b.goalAnchor)}, past what's realistically attainable for your profile${ceilingLabel ? ` (a best-case ceiling around ${ceilingLabel})` : ''}, even with unlimited time. That's no knock on you — it's simply a very fast number. The honest, motivating target for this race is ~${realistic}, and it's a genuinely strong day. Let's chase that.`,
       };
     }
   }

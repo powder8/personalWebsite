@@ -121,6 +121,10 @@ export interface TriPlanInput {
   goalFinishSeconds?: number;
   /** Rider mass (kg) for the bike goal-time model. Defaults to {@link DEFAULT_RIDER_MASS_KG}. */
   riderMassKg?: number;
+  /** Athlete age at race day — enables the attainability ceiling in feasibility. */
+  ageYears?: number;
+  /** Optional per-sport personal bests (raise the ceiling, recency-discounted). */
+  personalBests?: Partial<Record<Discipline, { anchor: number; ageAtPB: number }>>;
   /** Override tunables passed straight to {@link allocateTriBudget}. */
   allocationOverrides?: Partial<Omit<TriAllocationInput, 'weeklyHours' | 'distance' | 'limiter' | 'anchors'>>;
   /** Per-discipline template overrides (defaults to the coach sets). */
@@ -237,6 +241,9 @@ export function buildTriPlan(input: TriPlanInput): TriPlan {
         currentAnchors: anchors,
         weeksToRace: weeksBetween(input.startDay, input.goalRaceDay),
         riderMassKg,
+        ageYears: input.ageYears,
+        weeklyHours: input.weeklyHours,
+        personalBests: input.personalBests,
       });
     }
   }

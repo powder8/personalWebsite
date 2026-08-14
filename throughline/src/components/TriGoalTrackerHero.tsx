@@ -18,13 +18,15 @@ const VERDICT_TONE: Record<FeasibilityVerdict, keyof typeof TONE> = {
   ahead: 'positive',
   on_track: 'positive',
   stretch: 'caution',
-  unrealistic: 'risk',
+  unrealistic: 'caution', // possible, but a longer game
+  beyond_reach: 'risk',
 };
 const VERDICT_LABEL: Record<FeasibilityVerdict, string> = {
   ahead: 'within reach',
   on_track: 'on track',
   stretch: 'a stretch',
-  unrealistic: 'a big reach',
+  unrealistic: 'a longer game',
+  beyond_reach: 'beyond reach',
 };
 
 const EMOJI: Record<Discipline, string> = { swim: '🏊', bike: '🚴', run: '🏃' };
@@ -102,6 +104,10 @@ export function TriGoalTrackerHero({ tracker }: { tracker: TriGoalTracker }) {
                 <div className="text-xs text-slate-400 tabular-nums">
                   {leg.gap <= 0 ? (
                     <>at {anchor(d, leg.currentAnchor)} — already fast enough</>
+                  ) : leg.aboveCeiling && leg.ceiling != null ? (
+                    <>
+                      {anchor(d, leg.currentAnchor)} → {anchor(d, leg.goalAnchor)} · above your ~{anchor(d, leg.ceiling)} ceiling
+                    </>
                   ) : (
                     <>
                       {anchor(d, leg.currentAnchor)} → {anchor(d, leg.goalAnchor)} · {leg.requiredWeeklyGainLabel}

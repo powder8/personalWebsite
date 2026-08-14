@@ -63,6 +63,15 @@ export interface TriSeasonSetupResult {
  * Resolve the athlete's three sets of training zones. Throws if any anchor is
  * missing — a triathlon plan needs all three (mirrors `setupSeason`'s contract).
  */
+/** Whole years old at `onDay` given a 'YYYY-MM-DD' date of birth. */
+function ageAt(dob: string, onDay: string): number {
+  const [by, bm, bd] = dob.split('-').map(Number);
+  const [oy, om, od] = onDay.split('-').map(Number);
+  let age = oy - by;
+  if (om < bm || (om === bm && od < bd)) age -= 1;
+  return age;
+}
+
 async function resolveTriZones(db: DB, athleteId: string): Promise<Record<Discipline, TrainingZones>> {
   const [run, bike, swim] = await Promise.all([
     getAthleteZones(db, athleteId),
@@ -95,6 +104,11 @@ export async function setupTriSeason(
     getAthleteWeightKg(db, athleteId),
   ]);
 
+  // Age at race day (from DOB) drives the attainability ceiling — the honest
+  // "is this even possible for you?" check, distinct from the trajectory.
+  const [athlete] = await db.select().from(athletes).where(eq(athletes.id, athleteId)).limit(1);
+  const ageYears = athlete?.dateOfBirth ? ageAt(athlete.dateOfBirth, input.goalRace.date) : undefined;
+
   const plan = buildTriPlan({
     startDay: input.startDay,
     goalRaceDay: input.goalRace.date,
@@ -105,6 +119,7 @@ export async function setupTriSeason(
     anchors: { run: vdot ?? undefined, bike: ftp ?? undefined, swim: css ?? undefined },
     goalFinishSeconds: input.goalFinishSeconds,
     riderMassKg: weightKg ?? DEFAULT_RIDER_MASS_KG,
+    ageYears,
   });
 
   // Athlete goal summary (for the roster).

@@ -12,7 +12,9 @@
  */
 import { predictRaceTimeSeconds } from './vdot';
 
-export type FeasibilityVerdict = 'ahead' | 'on_track' | 'stretch' | 'unrealistic';
+// 'beyond_reach' is emitted only by the multi-sport attainability layer (a goal
+// above the athlete's age-graded ceiling); the run guardrails never produce it.
+export type FeasibilityVerdict = 'ahead' | 'on_track' | 'stretch' | 'unrealistic' | 'beyond_reach';
 
 export interface GoalFeasibility {
   verdict: FeasibilityVerdict;

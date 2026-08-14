@@ -19,6 +19,7 @@ async function main() {
     email: 'pat-tri@example.com',
     timezone: 'UTC',
     coachingMode: 'autonomous',
+    dateOfBirth: '1975-01-01', // ~52 at race day — engages the attainability ceiling
     paceConfig: { vdot: 48 },
     powerConfig: { ftpWatts: 240, weightKg: 74 },
     swimConfig: { cssMetersPerSec: 1.3 },

@@ -107,6 +107,33 @@ test('aggregate: chasing more speed everywhere, the bike tends to bind (aero cos
   assert.ok(f.bindingLeg === 'bike' || f.bindingLeg === 'run', `expected bike/run to bind, got ${f.bindingLeg}`);
 });
 
+// ── Attainability ceiling (age) + hours scaling ──────────────────────────────
+
+test('ceiling: a 52yo chasing sub-4:30 → bike is beyond_reach (above the age ceiling)', () => {
+  const g = decompFor(4 * 3600 + 30 * 60); // sub-4:30 → bike needs ~+33%
+  const withAge = assessTriFeasibility({ decomposition: g, currentAnchors: ANCHORS, weeksToRace: 44, riderMassKg: MASS, ageYears: 52, weeklyHours: 8 });
+  assert.equal(withAge.bindingLeg, 'bike');
+  assert.equal(withAge.verdict, 'beyond_reach');
+  assert.equal(withAge.legs.bike.aboveCeiling, true);
+  assert.ok(withAge.legs.bike.ceiling! < g.legs.bike.requiredAnchor, 'ceiling below the required FTP');
+  assert.match(withAge.note, /elite|attainable|beyond/i);
+});
+
+test('ceiling: WITHOUT age, the same target is trajectory-only (no beyond_reach)', () => {
+  const g = decompFor(4 * 3600 + 30 * 60);
+  const noAge = assessTriFeasibility({ decomposition: g, currentAnchors: ANCHORS, weeksToRace: 44, riderMassKg: MASS });
+  assert.notEqual(noAge.verdict, 'beyond_reach');
+  assert.equal(noAge.legs.bike.ceiling, undefined);
+});
+
+test('hours scaling: fewer training hours never makes a goal look easier', () => {
+  const g = decompFor(4 * 3600 + 50 * 60);
+  const rank = { ahead: 0, on_track: 1, stretch: 2, unrealistic: 3, beyond_reach: 4 } as const;
+  const many = assessTriFeasibility({ decomposition: g, currentAnchors: ANCHORS, weeksToRace: 30, riderMassKg: MASS, weeklyHours: 14 });
+  const few = assessTriFeasibility({ decomposition: g, currentAnchors: ANCHORS, weeksToRace: 30, riderMassKg: MASS, weeklyHours: 5 });
+  assert.ok(rank[few.legs.bike.verdict] >= rank[many.legs.bike.verdict], 'fewer hours ⇒ same-or-harder bike verdict');
+});
+
 test('aggregate: prose names the binding leg and both clocks', () => {
   const ref = legReferenceTimes('70.3', ANCHORS, MASS);
   const f = assessTriFeasibility({ decomposition: decompFor(Math.round(ref.totalSeconds * 0.82)), currentAnchors: ANCHORS, weeksToRace: 12, riderMassKg: MASS });
