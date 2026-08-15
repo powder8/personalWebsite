@@ -11,6 +11,11 @@ import type { AthleteDisciplines } from '@/server/disciplines';
 const EMOJI = { run: '🏃', bike: '🚴', swim: '🏊' } as const;
 const NAME = { run: 'Run', bike: 'Bike', swim: 'Swim' } as const;
 
+/** Where "Add" goes per discipline. Cycling is a first-class standalone setup;
+ * swim/run add through the multi-sport setup (no standalone swim path yet). */
+const addHref = (athleteId: string, discipline: 'run' | 'bike' | 'swim') =>
+  discipline === 'bike' ? `/me/${athleteId}/bike-setup` : `/me/${athleteId}/tri-setup`;
+
 export function YourSports({
   athleteId,
   disciplines,
@@ -37,7 +42,7 @@ export function YourSports({
             {s.anchorSet ? (
               <span className="tabular-nums text-xs text-slate-500">{s.anchorLabel}</span>
             ) : (
-              <Link href={`/me/${athleteId}/tri-setup`} className="text-xs font-semibold text-lime-600 hover:underline">
+              <Link href={addHref(athleteId, s.discipline)} className="text-xs font-semibold text-lime-600 hover:underline">
                 Add →
               </Link>
             )}
