@@ -11,7 +11,7 @@ const base: NextStepInput = {
   easeBackAvailable: false,
   easeBackApplied: false,
   ranToday: false,
-  today: { sessionType: 'easy', miles: 5, paceLabel: '8:30/mi', eased: false },
+  today: { discipline: 'run', sessionType: 'easy', miles: 5, targetLabel: '8:30/mi', eased: false },
 };
 
 test('no anchor wins over everything', () => {
@@ -42,12 +42,12 @@ test('ran today → done_today with view-run CTA', () => {
 });
 
 test('rest day → rest_today, no CTA', () => {
-  assert.equal(decideNextStep({ ...base, today: { sessionType: 'rest', miles: 0, eased: false } }).kind, 'rest_today');
+  assert.equal(decideNextStep({ ...base, today: { discipline: 'run', sessionType: 'rest', miles: 0, eased: false } }).kind, 'rest_today');
   assert.equal(decideNextStep({ ...base, today: null }).kind, 'rest_today');
 });
 
 test('eased + session today → eased_today announce names the session', () => {
-  const s = decideNextStep({ ...base, easeBackApplied: true, today: { sessionType: 'intervals', miles: 5.8, paceLabel: '6:00/mi', eased: true } });
+  const s = decideNextStep({ ...base, easeBackApplied: true, today: { discipline: 'run', sessionType: 'intervals', miles: 5.8, targetLabel: '6:00/mi', eased: true } });
   assert.equal(s.kind, 'eased_today');
   assert.match(s.detail, /Intervals 5.8 mi/);
   assert.match(s.detail, /eased/i);
@@ -68,7 +68,7 @@ test('done_today beats eased_today (the run is logged)', () => {
 
 const qualityDay: NextStepInput = {
   ...base,
-  today: { sessionType: 'intervals', miles: 6, paceLabel: '6:00/mi', eased: false },
+  today: { discipline: 'run', sessionType: 'intervals', miles: 6, targetLabel: '6:00/mi', eased: false },
 };
 
 test('low readiness on a quality day → caution note (does not change the plan)', () => {
@@ -107,7 +107,36 @@ test('readiness note rides along on an eased-back session day', () => {
 });
 
 test('rest day never carries a readiness note', () => {
-  const s = decideNextStep({ ...base, today: { sessionType: 'rest', miles: 0, eased: false }, readinessBand: 'easy' });
+  const s = decideNextStep({ ...base, today: { discipline: 'run', sessionType: 'rest', miles: 0, eased: false }, readinessBand: 'easy' });
   assert.equal(s.kind, 'rest_today');
   assert.equal(s.readinessNote, undefined);
+});
+
+// --- multi-sport: bike/swim days must not be hidden as rest (the portal bug) ---
+
+test('bike day (miles=0, real minutes) is NOT rest — renders in minutes + watts', () => {
+  const s = decideNextStep({
+    ...base,
+    today: { discipline: 'bike', sessionType: 'threshold', miles: 0, durationMinutes: 45, targetLabel: '228–263 W', eased: false },
+  });
+  assert.equal(s.kind, 'today');
+  assert.match(s.headline, /Threshold 45 min/);
+  assert.match(s.detail, /228–263 W/);
+});
+
+test('swim day renders in metres, not miles', () => {
+  const s = decideNextStep({
+    ...base,
+    today: { discipline: 'swim', sessionType: 'threshold', miles: 0, meters: 2000, eased: false },
+  });
+  assert.equal(s.kind, 'today');
+  assert.match(s.headline, /Threshold 2000 m/);
+});
+
+test('a genuinely empty bike day (0 minutes) still reads as rest', () => {
+  const s = decideNextStep({
+    ...base,
+    today: { discipline: 'bike', sessionType: 'threshold', miles: 0, durationMinutes: 0, eased: false },
+  });
+  assert.equal(s.kind, 'rest_today');
 });

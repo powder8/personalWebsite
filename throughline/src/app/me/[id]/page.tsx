@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getAthletePortal } from '@/server/portal';
+import { getAthletePortal, type PortalSession } from '@/server/portal';
 import { Card } from '@/components/ui';
 import { secPerKmToMinPerMile } from '@/engine/plan';
 import { CheckInForm } from '@/components/CheckInForm';
@@ -12,6 +12,7 @@ import { getAthleteVdot } from '@/db/paceConfig';
 import { TrainingCalendar } from '@/components/TrainingCalendar';
 import { getTrainingCalendar } from '@/server/trainingCalendar';
 import { NextStepBanner } from '@/components/NextStepBanner';
+import { TodayStack } from '@/components/TodayStack';
 import { getAdaptationState, easeBackDirectives } from '@/server/adaptation';
 import { decideNextStep } from '@/server/nextStepLogic';
 import { ConsistencyStrip } from '@/components/ConsistencyStrip';
@@ -44,6 +45,38 @@ export const dynamic = 'force-dynamic';
 
 function pace(sec: number | null): string {
   return sec == null ? '' : `${secPerKmToMinPerMile(sec)}/mi`;
+}
+
+/** A session is "rest" if it's typed rest or has zero volume in ITS OWN unit —
+ * bike days carry duration (miles=0), swim/run carry distance. */
+function isRestSession(s: PortalSession | null): boolean {
+  if (!s || s.sessionType === 'rest') return true;
+  if (s.discipline === 'bike') return (s.durationSeconds ?? 0) <= 0;
+  return (s.distanceMeters ?? 0) <= 0; // run + swim volume live in distanceMeters
+}
+
+/** Headline target label per discipline: run pace / bike watt band / (swim detail in segments). */
+function sessionTargetLabel(s: PortalSession): string | null {
+  if (s.discipline === 'bike') {
+    return s.targetPowerLoWatts != null && s.targetPowerHiWatts != null
+      ? `${Math.round(s.targetPowerLoWatts)}–${Math.round(s.targetPowerHiWatts)} W`
+      : null;
+  }
+  if (s.discipline === 'swim') return null; // per-100m pace lives in the segments
+  return s.paceFastSecPerKm != null ? `${pace(s.paceFastSecPerKm)}–${pace(s.paceSlowSecPerKm)}` : null;
+}
+
+/** Build the discipline-aware "today" lite for the next-step decision. */
+function todayLite(s: PortalSession) {
+  return {
+    sessionType: s.sessionType,
+    discipline: s.discipline,
+    miles: s.distanceMeters != null ? s.distanceMeters / 1609.344 : 0,
+    durationMinutes: s.durationSeconds != null ? Math.round(s.durationSeconds / 60) : undefined,
+    meters: s.discipline === 'swim' ? s.distanceMeters ?? undefined : undefined,
+    targetLabel: sessionTargetLabel(s),
+    eased: s.adjustments.length > 0,
+  };
 }
 
 export default async function PortalPage({
@@ -95,6 +128,7 @@ export default async function PortalPage({
     athlete,
     today,
     todaySession,
+    todaySessions,
     goalRace,
     checkedInToday,
     recentCheckIns,
@@ -124,17 +158,7 @@ export default async function PortalPage({
     easeBackAvailable: !!adaptation?.easeBack,
     easeBackApplied: !!adaptation?.easeBackApplied,
     ranToday,
-    today: todaySession
-      ? {
-          sessionType: todaySession.sessionType,
-          miles: todaySession.distanceMeters != null ? todaySession.distanceMeters / 1609.344 : 0,
-          paceLabel:
-            todaySession.paceFastSecPerKm != null
-              ? `${pace(todaySession.paceFastSecPerKm)}–${pace(todaySession.paceSlowSecPerKm)}`
-              : null,
-          eased: todaySession.adjustments.length > 0,
-        }
-      : null,
+    today: todaySession ? todayLite(todaySession) : null,
     readinessBand: recovery.readiness?.band ?? null,
     coachingMode: athlete.coachingMode,
   });
@@ -147,7 +171,7 @@ export default async function PortalPage({
     band: recovery.readiness?.band ?? null,
     sessionType: todaySession?.sessionType ?? null,
     ranToday,
-    isRestDay: !todaySession || todaySession.sessionType === 'rest' || (todaySession.distanceMeters ?? 0) <= 0,
+    isRestDay: isRestSession(todaySession),
     checkedInToday,
     energy: todayCheckIn?.energy ?? null,
     soreness: todayCheckIn?.soreness ?? null,
@@ -155,14 +179,11 @@ export default async function PortalPage({
 
   // The specific workout to render inline in the next-step card on a training
   // day (segments carry the reps/paces so "threshold" reads as a real session).
-  const isRestToday = !todaySession || todaySession.sessionType === 'rest' || (todaySession.distanceMeters ?? 0) <= 0;
+  const isRestToday = isRestSession(todaySession);
   const sessionDetail =
     todaySession && !ranToday && !isRestToday
       ? {
-          paceLabel:
-            todaySession.paceFastSecPerKm != null
-              ? `${pace(todaySession.paceFastSecPerKm)}–${pace(todaySession.paceSlowSecPerKm)}`
-              : null,
+          paceLabel: sessionTargetLabel(todaySession),
           segments: todaySession.segments ?? [],
           description: todaySession.description ?? null,
           terrain: SESSION_TERRAIN[todaySession.sessionType] ?? null,
@@ -171,6 +192,14 @@ export default async function PortalPage({
       : null;
   const loggedToday =
     ranToday && latestRun?.day === today ? { miles: latestRun.dayMiles, runCount: latestRun.runCount } : null;
+
+  // Multi-sport day: more than one real (non-rest) session to do today. A
+  // triathlete gets the stacked view; a single-sport athlete keeps the focal
+  // NextStepBanner untouched. Only stack on an actual training day — the
+  // lifecycle states (done/rest/ease-back) stay with the banner.
+  const trainingSessionsToday = todaySessions.filter((s) => !isRestSession(s));
+  const showTodayStack =
+    !ranToday && trainingSessionsToday.length > 1 && (nextStep.kind === 'today' || nextStep.kind === 'eased_today');
 
   // ── SETUP STAGE — no live goal. One job: pick the goal (plus connect the
   // watch). Everything else stays out of the way until training starts.
@@ -241,15 +270,21 @@ export default async function PortalPage({
         goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} />
       )}
 
-      {/* Today — the one thing to do now, with the specific workout */}
-      <NextStepBanner
-        step={nextStep}
-        athleteId={athlete.id}
-        easeDirectives={easeDirectives}
-        latestActivityId={latestRun?.activityId ?? null}
-        session={sessionDetail}
-        loggedToday={loggedToday}
-      />
+      {/* Today — the one thing to do now, with the specific workout. A
+          triathlete with several sessions today gets the stacked multi-sport
+          view; everyone else gets the single-focal next-step banner. */}
+      {showTodayStack ? (
+        <TodayStack sessions={trainingSessionsToday} />
+      ) : (
+        <NextStepBanner
+          step={nextStep}
+          athleteId={athlete.id}
+          easeDirectives={easeDirectives}
+          latestActivityId={latestRun?.activityId ?? null}
+          session={sessionDetail}
+          loggedToday={loggedToday}
+        />
+      )}
 
       {/* Autonomous readiness gate: ask before easing, then recommend. */}
       {readinessGate.kind === 'ask' && (

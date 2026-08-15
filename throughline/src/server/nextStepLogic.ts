@@ -41,10 +41,15 @@ export interface NextStep {
 
 export type ReadinessBand = 'easy' | 'normal' | 'go';
 
+export type SessionDiscipline = 'run' | 'bike' | 'swim';
+
 export interface TodaySessionLite {
   sessionType: string;
-  miles: number;
-  paceLabel?: string | null;
+  discipline: SessionDiscipline;
+  miles: number; // run volume
+  durationMinutes?: number; // bike volume
+  meters?: number; // swim volume
+  targetLabel?: string | null; // run pace / bike watts / swim pace-per-100m
   eased: boolean;
 }
 
@@ -71,7 +76,20 @@ export interface NextStepInput {
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const mi = (m: number) => (m % 1 === 0 ? `${m}` : m.toFixed(1));
-const isRest = (t: TodaySessionLite | null) => !t || t.sessionType === 'rest' || t.miles <= 0;
+
+/** A session's volume in its OWN native unit (run miles / bike minutes / swim metres). */
+function sessionVolume(t: TodaySessionLite): number {
+  return t.discipline === 'bike' ? t.durationMinutes ?? 0 : t.discipline === 'swim' ? t.meters ?? 0 : t.miles;
+}
+/** Discipline-native volume label for a headline: "5 mi" · "45 min" · "2000 m". */
+function volumeLabel(t: TodaySessionLite): string {
+  if (t.discipline === 'bike') return `${Math.round(t.durationMinutes ?? 0)} min`;
+  if (t.discipline === 'swim') return `${Math.round(t.meters ?? 0)} m`;
+  return `${mi(t.miles)} mi`;
+}
+// Rest = no session, typed rest, or zero volume in the session's OWN unit (a bike
+// day has miles 0 but real minutes — the old miles-only gate wrongly hid it).
+const isRest = (t: TodaySessionLite | null) => !t || t.sessionType === 'rest' || sessionVolume(t) <= 0;
 
 // Intensity/volume sessions where low recovery matters most.
 const QUALITY_SESSIONS = new Set(['intervals', 'tempo', 'threshold', 'marathon', 'race', 'long']);
@@ -177,14 +195,14 @@ export function decideNextStep(input: NextStepInput): NextStep {
 
   // 6) There's a session today.
   const t = input.today!;
-  const paceTail = t.paceLabel ? ` @ ${t.paceLabel}` : '';
+  const paceTail = t.targetLabel ? ` @ ${t.targetLabel}` : '';
   const readinessNote = readinessNoteFor(t, input.readinessBand, input.coachingMode ?? 'assisted');
   if (input.easeBackApplied) {
     return {
       kind: 'eased_today',
       emoji: '✓',
       headline: 'You’re eased back in',
-      detail: `Your next few days are trimmed so the return feels good. Today: ${cap(t.sessionType)} ${mi(t.miles)} mi${paceTail} — already eased for you. Start there, momentum first.`,
+      detail: `Your next few days are trimmed so the return feels good. Today: ${cap(t.sessionType)} ${volumeLabel(t)}${paceTail} — already eased for you. Start there, momentum first.`,
       cta: { type: 'none' },
       tone: 'positive',
       readinessNote,
@@ -192,8 +210,8 @@ export function decideNextStep(input: NextStepInput): NextStep {
   }
   return {
     kind: 'today',
-    emoji: '🏃',
-    headline: `Today: ${cap(t.sessionType)} ${mi(t.miles)} mi`,
+    emoji: t.discipline === 'bike' ? '🚴' : t.discipline === 'swim' ? '🏊' : '🏃',
+    headline: `Today: ${cap(t.sessionType)} ${volumeLabel(t)}`,
     detail: `${paceTail ? `Target${paceTail}. ` : ''}${t.eased ? 'Eased for where you are right now. ' : ''}That’s the one thing today — go get it.`,
     cta: { type: 'none' },
     tone: 'action',
