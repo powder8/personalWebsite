@@ -100,7 +100,7 @@ export default async function PortalPage({
   const portal = await getAthletePortal(id);
   if (!portal) notFound();
 
-  const [hasAnchorRaw, adaptation, consistency, latestRun, calendar, crossTraining, recovery, injury] = await Promise.all([
+  const [hasAnchorRaw, adaptation, consistency, latestRun, calendar, crossTraining, recovery, injury, disciplines] = await Promise.all([
     getAthleteVdot(db, id),
     getAdaptationState(id, portal.today),
     getConsistency(id, portal.today),
@@ -109,6 +109,7 @@ export default async function PortalPage({
     getRecentCrossTraining(db, id, portal.today),
     getRecoveryInsights(db, id, portal.today),
     getActiveInjury(db, id, portal.today),
+    getAthleteDisciplines(db, id),
   ]);
 
   // Live readiness computed from wearable data takes precedence over any stored
@@ -121,7 +122,10 @@ export default async function PortalPage({
     }
   }
 
-  const hasAnchor = hasAnchorRaw != null;
+  // Discipline-aware: a cyclist with an FTP anchor (or a swimmer with CSS) has a
+  // fitness starting point even without a run VDOT — don't nag them to "set your
+  // fitness." hasAnchorRaw (VDOT) still drives run-specific copy in GoalSetup.
+  const hasAnchor = hasAnchorRaw != null || disciplines.count > 0;
   const latestDebrief = latestRun ? await getRunDebrief(id, latestRun.activityId, { narrate: false }) : null;
 
   const {
@@ -136,7 +140,6 @@ export default async function PortalPage({
   } = portal;
 
   const firstName = athlete.fullName.split(' ')[0];
-  const disciplines = await getAthleteDisciplines(db, id);
   const todayCheckIn = recentCheckIns.find((c) => c.day === today) ?? null;
   const goalDone = !!goalRace.name && goalRace.daysAway != null && goalRace.daysAway < 0;
   const needsGoal = !goalRace.name || goalDone;
