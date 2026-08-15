@@ -27,6 +27,8 @@ import { decideReadinessGate } from '@/server/readinessGate';
 import { GoalTrackerHero } from '@/components/GoalTrackerHero';
 import { TriGoalTrackerHero } from '@/components/TriGoalTrackerHero';
 import { getTriGoalTracker } from '@/server/triGoalTracker';
+import { YourSports } from '@/components/YourSports';
+import { getAthleteDisciplines } from '@/server/disciplines';
 import { ConnectStrava } from '@/components/ConnectStrava';
 import { getGoalTracker } from '@/server/goalTracker';
 import { BottomNav } from '@/components/BottomNav';
@@ -100,6 +102,7 @@ export default async function PortalPage({
   } = portal;
 
   const firstName = athlete.fullName.split(' ')[0];
+  const disciplines = await getAthleteDisciplines(db, id);
   const todayCheckIn = recentCheckIns.find((c) => c.day === today) ?? null;
   const goalDone = !!goalRace.name && goalRace.daysAway != null && goalRace.daysAway < 0;
   const needsGoal = !goalRace.name || goalDone;
@@ -201,17 +204,7 @@ export default async function PortalPage({
           <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal={!!goalRace.name} startOpen />
         </Card>
 
-        <Link href={`/me/${athlete.id}/tri-setup`} className="block">
-          <Card className="transition hover:ring-1 hover:ring-inset hover:ring-indigo-400/40">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-white">Training for a triathlon? 🏊 🚴 🏃</div>
-                <p className="mt-0.5 text-xs text-slate-400">Set up a coordinated swim/bike/run plan with an honest read on your target.</p>
-              </div>
-              <span aria-hidden className="text-slate-500">→</span>
-            </div>
-          </Card>
-        </Link>
+        <YourSports athleteId={athlete.id} disciplines={disciplines} />
 
         {!strava.connected && (
           <Card title="Connect your watch">
@@ -341,6 +334,9 @@ export default async function PortalPage({
         </p>
         <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal />
       </Card>
+
+      {/* Your sports — a quiet, always-present path to add a discipline. */}
+      <YourSports athleteId={athlete.id} disciplines={disciplines} hasTriGoal={!!triGoalTracker} />
 
       {/* ── ASK YOUR COACH ───────────────────────────────────────────────── */}
       <SectionHeader>Ask your coach</SectionHeader>
