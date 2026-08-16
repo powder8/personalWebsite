@@ -38,22 +38,48 @@ export function BikeGoalSetup({
   const [done, setDone] = useState(false);
   const [distKm, setDistKm] = useState('');
   const [elevM, setElevM] = useState('');
-  const [gpxNote, setGpxNote] = useState<string | null>(null);
+  const [routeNote, setRouteNote] = useState<string | null>(null);
+  const [routeUrl, setRouteUrl] = useState('');
+  const [lookingUp, setLookingUp] = useState(false);
+
+  function applyRoute(name: string | null, distanceMeters: number, elevationGainMeters: number) {
+    setDistKm((distanceMeters / 1000).toFixed(1));
+    setElevM(String(Math.round(elevationGainMeters)));
+    setRouteNote(
+      `Loaded ${name ?? 'route'} — ${(distanceMeters / 1000).toFixed(1)} km · ${Math.round(elevationGainMeters).toLocaleString()} m climbing.`,
+    );
+  }
 
   async function onGpx(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.currentTarget.files?.[0];
     if (!file) return;
-    setGpxNote(null);
+    setRouteNote(null);
     try {
       const stats = parseGpxRoute(await file.text());
-      if (!stats) return setGpxNote("Couldn't read that GPX — enter distance & climbing by hand.");
-      setDistKm((stats.distanceMeters / 1000).toFixed(1));
-      setElevM(String(stats.elevationGainMeters));
-      setGpxNote(
-        `Loaded ${stats.name ?? 'route'} — ${(stats.distanceMeters / 1000).toFixed(1)} km · ${stats.elevationGainMeters.toLocaleString()} m climbing.`,
-      );
+      if (!stats) return setRouteNote("Couldn't read that GPX — enter distance & climbing by hand.");
+      applyRoute(stats.name, stats.distanceMeters, stats.elevationGainMeters);
     } catch {
-      setGpxNote("Couldn't read that file — enter distance & climbing by hand.");
+      setRouteNote("Couldn't read that file — enter distance & climbing by hand.");
+    }
+  }
+
+  async function onStravaLookup() {
+    if (!routeUrl.trim()) return;
+    setLookingUp(true);
+    setRouteNote(null);
+    try {
+      const res = await fetch(`/api/athletes/${athleteId}/route-lookup`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ url: routeUrl }),
+      });
+      const j = await res.json();
+      if (j.ok) applyRoute(j.name, j.distanceMeters, j.elevationGainMeters);
+      else setRouteNote(j.error ?? 'Lookup failed — enter distance & climbing by hand.');
+    } catch {
+      setRouteNote('Network error — enter distance & climbing by hand.');
+    } finally {
+      setLookingUp(false);
     }
   }
 
@@ -152,10 +178,29 @@ export function BikeGoalSetup({
         <div className="flex items-center justify-between gap-2">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Your race (optional)</div>
           <label className="cursor-pointer rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:bg-white/15">
-            ⬆ Import route (GPX)
+            ⬆ Import GPX
             <input type="file" accept=".gpx,application/gpx+xml,text/xml" onChange={onGpx} className="sr-only" />
           </label>
         </div>
+
+        {/* Paste a Strava route link → auto-fill distance + climbing (via your token). */}
+        <div className="mt-3 flex gap-2">
+          <input
+            value={routeUrl}
+            onChange={(e) => setRouteUrl(e.target.value)}
+            placeholder="Paste a Strava route link (strava.com/routes/…)"
+            className={field}
+          />
+          <button
+            type="button"
+            onClick={onStravaLookup}
+            disabled={lookingUp || !routeUrl.trim()}
+            className="shrink-0 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:bg-white/15 disabled:opacity-40"
+          >
+            {lookingUp ? 'Looking up…' : 'Look up'}
+          </button>
+        </div>
+
         <div className="mt-3 grid grid-cols-3 gap-3">
           <div>
             <label className={label}>Distance (km)</label>
@@ -170,11 +215,11 @@ export function BikeGoalSetup({
             <input name="targetTime" placeholder="5:30:00" className={field} />
           </div>
         </div>
-        {gpxNote ? (
-          <p className="mt-2 text-[11px] font-medium text-lime-300">{gpxNote}</p>
+        {routeNote ? (
+          <p className={`mt-2 text-[11px] font-medium ${/couldn|failed|error|denied|connect|find|rate/i.test(routeNote) ? 'text-amber-300' : 'text-lime-300'}`}>{routeNote}</p>
         ) : (
           <p className="mt-2 text-[11px] text-slate-500">
-            Import a GPX (export it from Strava / RideWithGPS / Komoot), or type distance &amp; total climbing from the race page.
+            Paste a Strava route link or import a GPX (Strava / RideWithGPS / Komoot / Garmin), or just type distance &amp; total climbing from the race page.
           </p>
         )}
       </div>
