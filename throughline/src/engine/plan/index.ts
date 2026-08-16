@@ -35,7 +35,11 @@ export * from './guardrails';
 export * from './directives';
 export * from './strategy';
 export * from './triAllocatorLogic';
+export * from './triGoalTimeLogic';
+export * from './attainabilityLogic';
+export * from './triFeasibilityLogic';
 export * from './triPlan';
+export * from './triScheduleLogic';
 
 import type { Discipline, TrainingZones, PlannedWeek, TemplateSet } from './types';
 import type { GoalClass } from './raceWindows';

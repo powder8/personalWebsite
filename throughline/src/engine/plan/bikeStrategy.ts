@@ -58,6 +58,10 @@ export const bikeStrategy: DisciplineStrategy = {
   },
 
   assessGoalFeasibility() {
-    throw new Error(NOT_IMPLEMENTED);
+    // Bike feasibility runs through the multi-sport aggregate, not this seam:
+    // the run-shaped GoalFeasibilityInput (VDOT + distance) can't carry rider
+    // mass / race IF / course, which the FTP→time projection needs. See
+    // triFeasibilityLogic.ts `assessTriFeasibility` (fills the FTP-gain curve).
+    throw new Error(`${NOT_IMPLEMENTED}: use assessTriFeasibility (triFeasibilityLogic.ts)`);
   },
 };

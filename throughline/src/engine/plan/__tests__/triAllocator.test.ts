@@ -5,6 +5,7 @@ import {
   allocateTriBudget,
   buildTriPlan,
   composeTriWeeks,
+  buildWeekSchedule,
   tssFromHours,
   TRI_DISCIPLINES,
   DEFAULT_FLOORS,
@@ -149,8 +150,92 @@ test('buildTriPlan composes a full week with all three sports and a bike→run b
   assert.ok(wk.hasBrick, 'week has a brick');
   const brickDay = wk.days.find((d) => d.brick);
   assert.ok(brickDay, 'a day is tagged as a brick');
-  assert.deepEqual(brickDay!.brick, { from: 'bike', to: 'run' });
+  assert.equal(brickDay!.brick!.from, 'bike');
+  assert.equal(brickDay!.brick!.to, 'run');
   assert.ok(brickDay!.sessions.bike && brickDay!.sessions.run, 'brick day has both bike and run');
+});
+
+// --- G7a: goal-time + feasibility layer on buildTriPlan ----------------------
+
+test('no goal finish time → the plan is volume-only (goalTime/feasibility absent, unchanged)', () => {
+  const plan = buildTriPlan(base);
+  assert.equal(plan.goalTime, undefined);
+  assert.equal(plan.feasibility, undefined);
+});
+
+test('goal finish + all three anchors → per-leg targets AND a binding-leg verdict', () => {
+  const plan = buildTriPlan({
+    ...base,
+    anchors: { run: 50, bike: 250, swim: 1.25 },
+    riderMassKg: 74,
+    goalFinishSeconds: 5 * 3600 + 15 * 60, // sub-5:15
+  });
+  assert.ok(plan.goalTime, 'decomposition present');
+  assert.equal(plan.goalTime!.strategy, 'strength_relative');
+  // legs + transitions reconstruct the finish.
+  const legSum = plan.goalTime!.legs.swim.targetSeconds + plan.goalTime!.legs.bike.targetSeconds + plan.goalTime!.legs.run.targetSeconds;
+  assert.ok(Math.abs(legSum + plan.goalTime!.transitionSeconds - plan.goalTime!.targetFinishSeconds) < 1);
+  assert.ok(plan.feasibility, 'feasibility present when all anchors known');
+  assert.ok(['ahead', 'on_track', 'stretch', 'unrealistic'].includes(plan.feasibility!.verdict));
+  assert.ok(['swim', 'bike', 'run'].includes(plan.feasibility!.bindingLeg));
+});
+
+test('goal finish but a missing anchor → decomposition only (typical split), no feasibility', () => {
+  const plan = buildTriPlan({
+    ...base,
+    anchors: { run: 50, swim: 1.25 }, // no FTP
+    goalFinishSeconds: 5 * 3600 + 15 * 60,
+  });
+  assert.ok(plan.goalTime);
+  assert.equal(plan.goalTime!.strategy, 'typical_split');
+  assert.equal(plan.feasibility, undefined);
+});
+
+// --- G6: brick transitions surfaced on the persisted run session --------------
+
+test('brick carries the T2 transition and its run session is annotated "off the bike"', () => {
+  const plan = buildTriPlan(base);
+  const wk = plan.weeks.find((w) => w.hasBrick);
+  assert.ok(wk, 'a week has a brick');
+  const brickDay = wk!.days.find((d) => d.brick)!;
+  assert.ok((brickDay.brick!.t2Seconds ?? 0) > 0, 'brick carries a T2 budget');
+  // The PERSISTED run session on the brick day is annotated (athlete-visible).
+  const runWeek = plan.perSport.run.find((w) => w.weekStart === wk!.weekStart)!;
+  const runDay = runWeek.days.find((d) => d.day === brickDay.day && d.runType !== 'rest');
+  assert.ok(runDay, 'a run session lands on the brick day');
+  assert.match(runDay!.description, /off the bike/i);
+});
+
+// --- G7b: schedule relay bakes the real-world layout into the persisted plan --
+
+test('no schedule → placement is the generators’ native day-of-week (identity)', () => {
+  const plan = buildTriPlan(base);
+  const withNoSchedule = buildTriPlan({ ...base });
+  // Same swim day-of-week set both times (nothing re-laid).
+  const dows = (p: typeof plan) => p.perSport.swim.flatMap((w) => w.days.filter((d) => d.runType !== 'rest').map((d) => d.dow));
+  assert.deepEqual(dows(plan), dows(withNoSchedule));
+});
+
+test('schedule relay: swims land ONLY on pool days in the PERSISTED plan', () => {
+  const schedule = buildWeekSchedule({ availableDays: [0, 1, 2, 3, 4, 5], poolDays: [1, 3], longDay: 5, defaultMinutes: 100, longDayMinutes: 260 });
+  const plan = buildTriPlan({ ...base, schedule });
+  for (const wk of plan.perSport.swim) {
+    for (const d of wk.days) {
+      if (d.runType !== 'rest') assert.ok([1, 3].includes(d.dow), `swim landed on dow ${d.dow}, not a pool day`);
+    }
+  }
+});
+
+test('schedule relay: nothing lands on an unavailable rest day (Sunday)', () => {
+  const schedule = buildWeekSchedule({ availableDays: [0, 1, 2, 3, 4, 5], poolDays: [1, 3], longDay: 5 });
+  const plan = buildTriPlan({ ...base, schedule });
+  for (const d of TRI_DISCIPLINES) {
+    for (const wk of plan.perSport[d]) {
+      for (const day of wk.days) {
+        if (day.runType !== 'rest') assert.notEqual(day.dow, 6, `${d} landed on the protected Sunday`);
+      }
+    }
+  }
 });
 
 test('composed week load conserves each sport’s periodized weekly TSS', () => {

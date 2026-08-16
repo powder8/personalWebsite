@@ -34,6 +34,21 @@ import {
   type TriAllocationInput,
   type TriDistance,
 } from './triAllocatorLogic';
+import { decomposeGoalTime, DEFAULT_TRANSITIONS, type GoalDecomposition, type TriAnchors } from './triGoalTimeLogic';
+import { assessTriFeasibility, type TriFeasibility } from './triFeasibilityLogic';
+import { relayTriPlanToSchedule, type WeekSchedule } from './triScheduleLogic';
+
+/** Default rider mass (kg) for the bike watts↔speed model when the caller
+ * hasn't supplied one. Only used when a goal finish time is being decomposed. */
+export const DEFAULT_RIDER_MASS_KG = 75;
+
+/** Whole training weeks between two 'YYYY-MM-DD' days (min 1). */
+function weeksBetween(startDay: string, endDay: string): number {
+  const [sy, sm, sd] = startDay.split('-').map(Number);
+  const [ey, em, ed] = endDay.split('-').map(Number);
+  const days = Math.round((Date.UTC(ey, em - 1, ed) - Date.UTC(sy, sm - 1, sd)) / 86400000);
+  return Math.max(1, Math.round(days / 7));
+}
 
 /** Start-of-ramp fraction of the peak (allocated) volume the periodizer ramps up from. */
 const START_FRACTION = 0.55;
@@ -98,6 +113,25 @@ export interface TriPlanInput {
   zones: Record<Discipline, TrainingZones>;
   /** Fitness anchors (VDOT/FTP/CSS), carried into the allocation for the record. */
   anchors?: Partial<Record<Discipline, number>>;
+  /**
+   * Optional TARGET FINISH time (seconds). When set, the plan additionally
+   * decomposes it into per-leg race targets + required anchors (§1–§2) and, if
+   * all three anchors are present, an honest binding-leg feasibility verdict
+   * (§3). Absent → today's volume-only plan, unchanged.
+   */
+  goalFinishSeconds?: number;
+  /** Rider mass (kg) for the bike goal-time model. Defaults to {@link DEFAULT_RIDER_MASS_KG}. */
+  riderMassKg?: number;
+  /** Athlete age at race day — enables the attainability ceiling in feasibility. */
+  ageYears?: number;
+  /** Optional per-sport personal bests (raise the ceiling, recency-discounted). */
+  personalBests?: Partial<Record<Discipline, { anchor: number; ageAtPB: number }>>;
+  /**
+   * Real-world weekly schedule (pool days, the long day, per-day minutes). When
+   * given, each sport's days are re-laid onto the athlete's actual windows
+   * BEFORE persistence. Absent → the generators' naive day-of-week placement.
+   */
+  schedule?: WeekSchedule;
   /** Override tunables passed straight to {@link allocateTriBudget}. */
   allocationOverrides?: Partial<Omit<TriAllocationInput, 'weeklyHours' | 'distance' | 'limiter' | 'anchors'>>;
   /** Per-discipline template overrides (defaults to the coach sets). */
@@ -110,12 +144,18 @@ export interface TriPlan {
   perSport: Record<Discipline, PlannedWeek[]>;
   /** The merged multi-sport weeks (one per calendar week), with bricks tagged. */
   weeks: TriWeek[];
+  /** Per-leg race targets from the target finish (only when `goalFinishSeconds` was set). */
+  goalTime?: GoalDecomposition;
+  /** Honest binding-leg verdict + realistic finish (only with a finish target AND all 3 anchors). */
+  feasibility?: TriFeasibility;
 }
 
 /** A brick session: two disciplines back-to-back on one calendar day (§6). */
 export interface TriBrick {
   from: Discipline;
   to: Discipline;
+  /** The T2 (bike→run) transition to rehearse, seconds — from DEFAULT_TRANSITIONS. */
+  t2Seconds?: number;
 }
 
 /** One calendar day of the composed triathlon week: the sport sessions that land on it. */
@@ -184,8 +224,61 @@ export function buildTriPlan(input: TriPlanInput): TriPlan {
     perSport[d] = weeks;
   }
 
-  const weeks = composeTriWeeks(perSport);
-  return { allocation, perSport, weeks };
+  // Real-world schedule: re-lay each sport's days onto the athlete's actual
+  // windows (pool days, the long day) so the PERSISTED plan honors them, not
+  // just the composed view. No schedule → the generators' native placement.
+  const laidPerSport = input.schedule ? relayTriPlanToSchedule(perSport, input.schedule) : perSport;
+  const weeks = composeTriWeeks(laidPerSport);
+
+  // Brick transitions (§6): on each brick day, carry the T2 budget to rehearse
+  // and annotate the PERSISTED run session so the athlete sees "run off the
+  // bike" — the race-specific durability rep, not just two sessions that happen
+  // to share a day. Additive to the description; the run's own pace is unchanged.
+  const t2 = DEFAULT_TRANSITIONS[input.distance].t2Seconds;
+  for (const wk of weeks) {
+    const brickDay = wk.days.find((d) => d.brick);
+    if (!brickDay?.brick) continue;
+    brickDay.brick.t2Seconds = t2;
+    const runDay = laidPerSport.run
+      .find((w) => w.weekStart === wk.weekStart)
+      ?.days.find((d) => d.day === brickDay.day && d.runType !== 'rest');
+    if (runDay && !/off the bike/i.test(runDay.description)) {
+      runDay.description = `${runDay.description} 🔗 Brick: run straight off the bike — rehearse T2 (~${Math.round(t2)}s).`.trim();
+    }
+  }
+
+  // Optional goal-time layer: decompose the target finish into per-leg targets,
+  // and (when all three anchors are known) an honest binding-leg feasibility.
+  // Additive — absent target → the volume-only plan above, unchanged.
+  let goalTime: GoalDecomposition | undefined;
+  let feasibility: TriFeasibility | undefined;
+  if (input.goalFinishSeconds != null) {
+    const riderMassKg = input.riderMassKg ?? DEFAULT_RIDER_MASS_KG;
+    const anchors: TriAnchors = {
+      run: input.anchors?.run ?? 0,
+      bike: input.anchors?.bike ?? 0,
+      swim: input.anchors?.swim ?? 0,
+    };
+    goalTime = decomposeGoalTime({
+      distance: input.distance,
+      targetFinishSeconds: input.goalFinishSeconds,
+      anchors,
+      riderMassKg,
+    });
+    if (anchors.run > 0 && anchors.bike > 0 && anchors.swim > 0) {
+      feasibility = assessTriFeasibility({
+        decomposition: goalTime,
+        currentAnchors: anchors,
+        weeksToRace: weeksBetween(input.startDay, input.goalRaceDay),
+        riderMassKg,
+        ageYears: input.ageYears,
+        weeklyHours: input.weeklyHours,
+        personalBests: input.personalBests,
+      });
+    }
+  }
+
+  return { allocation, perSport: laidPerSport, weeks, goalTime, feasibility };
 }
 
 /**
