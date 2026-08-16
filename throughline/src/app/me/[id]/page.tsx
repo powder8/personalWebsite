@@ -313,6 +313,10 @@ export default async function PortalPage({
         </div>
       )}
 
+      {/* Your sports — always-present path to add a discipline (nav target #sports). */}
+      <div id="sports" className="scroll-mt-4" />
+      <YourSports athleteId={athlete.id} disciplines={disciplines} hasTriGoal={!!triGoalTracker} />
+
       {/* ── YOUR BODY ────────────────────────────────────────────────────── */}
       {(recovery.hasData || injury) && (
         <SectionHeader>How your body is responding</SectionHeader>
@@ -372,9 +376,6 @@ export default async function PortalPage({
         </p>
         <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal />
       </Card>
-
-      {/* Your sports — a quiet, always-present path to add a discipline. */}
-      <YourSports athleteId={athlete.id} disciplines={disciplines} hasTriGoal={!!triGoalTracker} />
 
       {/* ── ASK YOUR COACH ───────────────────────────────────────────────── */}
       <SectionHeader>Ask your coach</SectionHeader>
