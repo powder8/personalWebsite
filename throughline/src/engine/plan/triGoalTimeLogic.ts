@@ -137,6 +137,73 @@ export function predictBikeSeconds(
   return v > 0 ? Math.round(meters / v) : 0;
 }
 
+/**
+ * Average grade a course's CLIMBING is done at. The elevation-aware time model
+ * assumes total climb `E` happens at this grade over `E/grade` metres (the rest
+ * of the course is ridden ~flat). Tunable — steeper ⇒ slower climbing ⇒ a bigger
+ * elevation penalty. 6% is a fair average for real climbs.
+ */
+export const DEFAULT_AVG_CLIMB_GRADE = 0.06;
+
+/** Bike race intensity (IF) from the target duration — shorter efforts hold a
+ * higher fraction of threshold. Tunable. */
+export function bikeRaceIntensity(targetSeconds: number): number {
+  const h = targetSeconds / 3600;
+  if (h <= 1) return 0.9; // ~40k TT
+  if (h <= 2.5) return 0.82;
+  if (h <= 4.5) return 0.75;
+  return 0.7; // long fondo / ultra
+}
+
+/**
+ * Predict a bike course finish time (seconds) accounting for TOTAL CLIMBING, not
+ * just net grade — a hilly loop is slower than a flat one at the same net grade,
+ * because time lost climbing isn't recovered on the descents. Splits the course:
+ * `E/avgClimbGrade` metres are ridden at that climbing grade (slow), the rest
+ * ~flat, both at the same race power.
+ */
+export function predictBikeTimeOnCourse(
+  ftpWatts: number,
+  riderMassKg: number,
+  distanceMeters: number,
+  elevationGainMeters: number,
+  intensityFactor: number,
+  profile: BikeCourseProfile = DEFAULT_BIKE_COURSE,
+  avgClimbGrade: number = DEFAULT_AVG_CLIMB_GRADE,
+): number {
+  if (ftpWatts <= 0 || distanceMeters <= 0) return 0;
+  const raceWatts = ftpWatts * intensityFactor;
+  const climbDist = Math.min(distanceMeters, Math.max(0, elevationGainMeters) / avgClimbGrade);
+  const flatDist = distanceMeters - climbDist;
+  const vFlat = bikeSpeedForPower(raceWatts, riderMassKg, { ...profile, gradeFraction: 0 });
+  const vClimb = bikeSpeedForPower(raceWatts, riderMassKg, { ...profile, gradeFraction: avgClimbGrade });
+  const t = (vFlat > 0 ? flatDist / vFlat : 0) + (vClimb > 0 ? climbDist / vClimb : 0);
+  return Math.round(t);
+}
+
+/** Invert the course model: the FTP required to finish in `targetSeconds`. */
+export function requiredFtpForBikeTime(
+  targetSeconds: number,
+  riderMassKg: number,
+  distanceMeters: number,
+  elevationGainMeters: number,
+  intensityFactor: number,
+  profile: BikeCourseProfile = DEFAULT_BIKE_COURSE,
+  avgClimbGrade: number = DEFAULT_AVG_CLIMB_GRADE,
+): number {
+  if (targetSeconds <= 0 || distanceMeters <= 0) return 0;
+  let lo = 40; // watts
+  let hi = 700;
+  // More FTP → less time (monotonic), so search for the FTP that hits the target.
+  for (let i = 0; i < 70; i++) {
+    const mid = (lo + hi) / 2;
+    const t = predictBikeTimeOnCourse(mid, riderMassKg, distanceMeters, elevationGainMeters, intensityFactor, profile, avgClimbGrade);
+    if (t > targetSeconds) lo = mid; // too slow → need more power
+    else hi = mid;
+  }
+  return Math.round((lo + hi) / 2);
+}
+
 // ── Run (Daniels equivalent-performance, slowed for the brick) ───────────────
 
 /** Predict run leg seconds off the bike: Daniels equivalent time × brick factor. */

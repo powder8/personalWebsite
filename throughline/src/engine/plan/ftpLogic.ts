@@ -75,6 +75,7 @@ export interface AthletePowerConfig {
   lthrBpm?: number; // lactate-threshold HR — enables the HR fallback
   weightKg?: number; // for W/kg display + climbing feasibility
   targetFtpWatts?: number; // a goal FTP to train toward (drives the bike goal tracker)
+  goalElevationGainMeters?: number; // the goal race's total climbing (with distance → time feasibility)
   // --- provenance (identical semantics to paceConfig.anchorSource) ---
   anchorSource?: 'auto' | 'manual';
   // --- per-athlete overrides layered on the global model ---

@@ -14,12 +14,15 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export interface BikeGoalInput {
   eventName?: string;
   date: string; // goal event day, YYYY-MM-DD
-  targetTimeSeconds?: number;
   weeklyHours: number;
   ftpWatts: number;
   weightKg?: number;
   /** Optional goal FTP to train toward — powers the honest bike goal tracker. */
   targetFtpWatts?: number;
+  /** Race-time goal: distance + total climbing + a target finish time. */
+  distanceMeters?: number;
+  elevationGainMeters?: number;
+  targetTimeSeconds?: number;
   dateOfBirth?: string;
 }
 
@@ -37,6 +40,8 @@ export async function setupAthleteBikeGoal(
     ftpWatts: Math.round(input.ftpWatts),
     weightKg: input.weightKg && input.weightKg > 0 ? input.weightKg : undefined,
     targetFtpWatts: input.targetFtpWatts && input.targetFtpWatts > 0 ? Math.round(input.targetFtpWatts) : undefined,
+    goalElevationGainMeters:
+      input.elevationGainMeters && input.elevationGainMeters > 0 ? Math.round(input.elevationGainMeters) : undefined,
   });
 
   if (input.dateOfBirth && DATE_RE.test(input.dateOfBirth)) {
@@ -45,7 +50,12 @@ export async function setupAthleteBikeGoal(
 
   const result = await setupBikeSeason(db, athleteId, {
     startDay: today,
-    goalRace: { name: input.eventName?.trim() || 'Cycling goal', date: input.date, targetTimeSeconds: input.targetTimeSeconds },
+    goalRace: {
+      name: input.eventName?.trim() || 'Cycling goal',
+      date: input.date,
+      distanceMeters: input.distanceMeters && input.distanceMeters > 0 ? input.distanceMeters : undefined,
+      targetTimeSeconds: input.targetTimeSeconds,
+    },
     weeklyHours: input.weeklyHours,
     publish: true,
   });

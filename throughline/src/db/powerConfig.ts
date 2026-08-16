@@ -52,6 +52,14 @@ export async function getAthleteTargetFtp(db: DB, athleteId: string): Promise<nu
   return cfg.targetFtpWatts ?? null;
 }
 
+/** The goal race's total climbing (m), if set — with distance → time feasibility. */
+export async function getAthleteGoalElevation(db: DB, athleteId: string): Promise<number | null> {
+  const [athlete] = await db.select().from(athletes).where(eq(athletes.id, athleteId)).limit(1);
+  if (!athlete) return null;
+  const cfg = (athlete.powerConfig as AthletePowerConfig | null) ?? {};
+  return cfg.goalElevationGainMeters ?? null;
+}
+
 export async function getGlobalPowerModel(db: DB): Promise<GlobalPowerModel> {
   const [row] = await db.select().from(engineSettings).where(eq(engineSettings.id, 'global')).limit(1);
   return (row?.powerModel as GlobalPowerModel | null) ?? DEFAULT_GLOBAL_POWER_MODEL;

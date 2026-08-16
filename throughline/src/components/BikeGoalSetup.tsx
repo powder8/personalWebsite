@@ -43,11 +43,18 @@ export function BikeGoalSetup({
     const ftp = Number(fd.get('ftp') || 0);
     if (!(ftp > 0)) return setErr('Enter your cycling FTP in watts.');
     const targetRaw = String(fd.get('targetTime') || '').trim();
+    const targetTimeSeconds = targetRaw ? parseClock(targetRaw) ?? undefined : undefined;
+    const distKm = Number(fd.get('distanceKm') || 0);
+    if (targetTimeSeconds && !(distKm > 0)) {
+      return setErr('Add the race distance so a target time means something.');
+    }
 
     const body = {
       eventName: String(fd.get('eventName') || '') || undefined,
       date: String(fd.get('date') || ''),
-      targetTimeSeconds: targetRaw ? parseClock(targetRaw) ?? undefined : undefined,
+      distanceMeters: distKm > 0 ? distKm * 1000 : undefined,
+      elevationGainMeters: Number(fd.get('elevationM') || 0) || undefined,
+      targetTimeSeconds,
       weeklyHours: Number(fd.get('weeklyHours') || 0),
       ftpWatts: ftp,
       weightKg: Number(fd.get('weightKg') || 0) || undefined,
@@ -117,6 +124,28 @@ export function BikeGoalSetup({
           <label className={label}>Goal FTP — watts (optional)</label>
           <input type="number" name="targetFtp" min="60" max="500" placeholder="265" className={field} />
         </div>
+      </div>
+
+      {/* Race goal — distance + climbing make a target time mean something. */}
+      <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-inset ring-white/10">
+        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Your race (optional)</div>
+        <div className="mt-3 grid grid-cols-3 gap-3">
+          <div>
+            <label className={label}>Distance (km)</label>
+            <input type="number" name="distanceKm" min="5" max="400" step="1" placeholder="160" className={field} />
+          </div>
+          <div>
+            <label className={label}>Climbing (m)</label>
+            <input type="number" name="elevationM" min="0" max="8000" step="10" placeholder="1850" className={field} />
+          </div>
+          <div>
+            <label className={label}>Target time</label>
+            <input name="targetTime" placeholder="5:30:00" className={field} />
+          </div>
+        </div>
+        <p className="mt-2 text-[11px] text-slate-500">
+          From the race page — distance &amp; total elevation. I&apos;ll tell you honestly whether your target time is on.
+        </p>
       </div>
 
       <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-inset ring-white/10">

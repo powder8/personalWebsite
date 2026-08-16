@@ -15,6 +15,7 @@ import * as schema from '@/db/schema';
 import { athletes, races, plans } from '@/db/schema';
 import { setupAthleteBikeGoal } from '../athleteBikeGoal';
 import { getAthleteFtp, getAthleteWeightKg } from '@/db/powerConfig';
+import { getBikeGoalTracker } from '../bikeGoalTracker';
 
 let client: PGlite;
 let db: ReturnType<typeof drizzle<typeof schema>>;
@@ -80,4 +81,29 @@ test('cycling onboarding rejects a past event date and a missing FTP', async () 
     setupAthleteBikeGoal(db, A, '2026-08-17', { date: '2027-05-01', weeklyHours: 6, ftpWatts: 0 }),
     /FTP/,
   );
+});
+
+test('a race-time goal (distance + elevation) round-trips to a race-goal verdict', async () => {
+  const B = '88888888-8888-4888-8888-8888888888bb';
+  await db.insert(athletes).values({ id: B, fullName: 'Race Cyclist', email: 'race@example.com', timezone: 'UTC' });
+  await setupAthleteBikeGoal(db, B, '2026-08-17', {
+    eventName: 'Alpine Fondo',
+    date: '2027-06-01',
+    weeklyHours: 8,
+    ftpWatts: 240,
+    weightKg: 74,
+    dateOfBirth: '1985-05-05',
+    distanceMeters: 120000,
+    elevationGainMeters: 2200,
+    targetTimeSeconds: 5 * 3600, // sub-5h on a hilly 120 km
+  });
+
+  const tracker = await getBikeGoalTracker(db, B, '2026-08-17');
+  assert.ok(tracker, 'bike tracker present');
+  assert.ok(tracker!.raceGoal, 'a RACE-time goal (not just FTP) was assessed');
+  assert.equal(tracker!.distanceMeters, 120000);
+  assert.equal(tracker!.elevationGainMeters, 2200);
+  assert.equal(tracker!.raceGoal!.targetTimeSeconds, 5 * 3600);
+  assert.ok(tracker!.raceGoal!.requiredFtp > 0);
+  assert.ok(['ahead', 'on_track', 'stretch', 'unrealistic', 'beyond_reach'].includes(tracker!.raceGoal!.verdict));
 });

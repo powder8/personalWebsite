@@ -32,6 +32,9 @@ import {
   predictSwimSeconds,
   predictBikeSeconds,
   predictRunSeconds,
+  predictBikeTimeOnCourse,
+  requiredFtpForBikeTime,
+  bikeRaceIntensity,
 } from './triGoalTimeLogic';
 import { assessAttainability } from './attainabilityLogic';
 
@@ -416,6 +419,91 @@ export function assessFtpGoal(input: FtpGoalInput): FtpGoalAssessment {
     targetFtp: input.targetFtp,
     projectedFtp: Math.round(af.projectedAnchor),
     gapWatts: Math.round(input.targetFtp - input.currentFtp),
+    requiredWeeklyGain: Number.isFinite(af.requiredWeeklyGain) ? Number(af.requiredWeeklyGain.toFixed(1)) : 0,
+    ceiling: ceiling != null ? Math.round(ceiling) : undefined,
+    aboveCeiling,
+  };
+}
+
+// ── Standalone cycling: RACE finish-time feasibility (distance + elevation) ──
+
+export interface BikeRaceGoalInput {
+  currentFtp: number;
+  targetTimeSeconds: number;
+  distanceMeters: number;
+  elevationGainMeters: number;
+  riderMassKg: number;
+  weeksToRace: number;
+  ageYears?: number;
+  weeklyHours?: number;
+  /** Race intensity (IF); defaults from the target duration. */
+  intensityFactor?: number;
+}
+
+export interface BikeRaceGoalAssessment {
+  verdict: FeasibilityVerdict;
+  currentFtp: number;
+  requiredFtp: number; // FTP the target time demands ON THIS COURSE
+  projectedFtp: number; // realistic FTP by race day
+  projectedTimeSeconds: number; // realistic finish on a normal build
+  targetTimeSeconds: number;
+  gapWatts: number;
+  requiredWeeklyGain: number;
+  ceiling?: number;
+  aboveCeiling: boolean;
+}
+
+/**
+ * Is a target FINISH TIME plausible on a specific course? Inverts the elevation-
+ * aware course model to the FTP the time demands, then runs the shared
+ * feasibility core (FTP gain + hours) + attainability ceiling — so the projector
+ * returns a real finish TIME and the verdict is honest about a hilly course.
+ */
+export function assessBikeRaceGoal(input: BikeRaceGoalInput): BikeRaceGoalAssessment {
+  const IF = input.intensityFactor ?? bikeRaceIntensity(input.targetTimeSeconds);
+  const requiredFtp = requiredFtpForBikeTime(
+    input.targetTimeSeconds,
+    input.riderMassKg,
+    input.distanceMeters,
+    input.elevationGainMeters,
+    IF,
+  );
+  const projectTime = (ftp: number) =>
+    predictBikeTimeOnCourse(ftp, input.riderMassKg, input.distanceMeters, input.elevationGainMeters, IF);
+
+  const af = assessAnchorFeasibility({
+    currentAnchor: input.currentFtp,
+    goalAnchor: requiredFtp,
+    weeksToRace: input.weeksToRace,
+    taperWeeks: 2,
+    weeklyGain: typicalWeeklyFtpGain(input.currentFtp) * hoursGainScale(input.weeklyHours),
+    seasonGainCap: input.currentFtp * FTP_SEASON_GAIN_CAP_PCT,
+    projectTime,
+  });
+
+  let verdict = af.verdict;
+  let ceiling: number | undefined;
+  let aboveCeiling = false;
+  if (input.ageYears != null) {
+    const att = assessAttainability({
+      discipline: 'bike',
+      currentAnchor: input.currentFtp,
+      ageYears: input.ageYears,
+      massKg: input.riderMassKg,
+    });
+    ceiling = att.ceiling;
+    aboveCeiling = requiredFtp > att.ceiling;
+    if (aboveCeiling) verdict = 'beyond_reach';
+  }
+
+  return {
+    verdict,
+    currentFtp: input.currentFtp,
+    requiredFtp,
+    projectedFtp: Math.round(af.projectedAnchor),
+    projectedTimeSeconds: af.projectedTimeSeconds,
+    targetTimeSeconds: input.targetTimeSeconds,
+    gapWatts: Math.round(requiredFtp - input.currentFtp),
     requiredWeeklyGain: Number.isFinite(af.requiredWeeklyGain) ? Number(af.requiredWeeklyGain.toFixed(1)) : 0,
     ceiling: ceiling != null ? Math.round(ceiling) : undefined,
     aboveCeiling,
