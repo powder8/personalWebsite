@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { parseGpxRoute } from '@/lib/gpx';
 
 /** "22" → 22:00, "1:45:00" → h:m:s, "1.45.00"/"1 45 00" → same. */
 function parseClock(s: string): number | null {
@@ -35,6 +36,26 @@ export function BikeGoalSetup({
   const [pending, setPending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [distKm, setDistKm] = useState('');
+  const [elevM, setElevM] = useState('');
+  const [gpxNote, setGpxNote] = useState<string | null>(null);
+
+  async function onGpx(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.currentTarget.files?.[0];
+    if (!file) return;
+    setGpxNote(null);
+    try {
+      const stats = parseGpxRoute(await file.text());
+      if (!stats) return setGpxNote("Couldn't read that GPX — enter distance & climbing by hand.");
+      setDistKm((stats.distanceMeters / 1000).toFixed(1));
+      setElevM(String(stats.elevationGainMeters));
+      setGpxNote(
+        `Loaded ${stats.name ?? 'route'} — ${(stats.distanceMeters / 1000).toFixed(1)} km · ${stats.elevationGainMeters.toLocaleString()} m climbing.`,
+      );
+    } catch {
+      setGpxNote("Couldn't read that file — enter distance & climbing by hand.");
+    }
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -128,24 +149,34 @@ export function BikeGoalSetup({
 
       {/* Race goal — distance + climbing make a target time mean something. */}
       <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-inset ring-white/10">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Your race (optional)</div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Your race (optional)</div>
+          <label className="cursor-pointer rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:bg-white/15">
+            ⬆ Import route (GPX)
+            <input type="file" accept=".gpx,application/gpx+xml,text/xml" onChange={onGpx} className="sr-only" />
+          </label>
+        </div>
         <div className="mt-3 grid grid-cols-3 gap-3">
           <div>
             <label className={label}>Distance (km)</label>
-            <input type="number" name="distanceKm" min="5" max="400" step="1" placeholder="160" className={field} />
+            <input type="number" name="distanceKm" min="5" max="400" step="0.1" placeholder="160" value={distKm} onChange={(e) => setDistKm(e.target.value)} className={field} />
           </div>
           <div>
             <label className={label}>Climbing (m)</label>
-            <input type="number" name="elevationM" min="0" max="8000" step="10" placeholder="1850" className={field} />
+            <input type="number" name="elevationM" min="0" max="8000" step="10" placeholder="1850" value={elevM} onChange={(e) => setElevM(e.target.value)} className={field} />
           </div>
           <div>
             <label className={label}>Target time</label>
             <input name="targetTime" placeholder="5:30:00" className={field} />
           </div>
         </div>
-        <p className="mt-2 text-[11px] text-slate-500">
-          From the race page — distance &amp; total elevation. I&apos;ll tell you honestly whether your target time is on.
-        </p>
+        {gpxNote ? (
+          <p className="mt-2 text-[11px] font-medium text-lime-300">{gpxNote}</p>
+        ) : (
+          <p className="mt-2 text-[11px] text-slate-500">
+            Import a GPX (export it from Strava / RideWithGPS / Komoot), or type distance &amp; total climbing from the race page.
+          </p>
+        )}
       </div>
 
       <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-inset ring-white/10">
