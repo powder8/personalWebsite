@@ -18,6 +18,8 @@ export interface BikeGoalInput {
   weeklyHours: number;
   ftpWatts: number;
   weightKg?: number;
+  /** Optional goal FTP to train toward — powers the honest bike goal tracker. */
+  targetFtpWatts?: number;
   dateOfBirth?: string;
 }
 
@@ -34,6 +36,7 @@ export async function setupAthleteBikeGoal(
   await setAthletePowerConfig(db, athleteId, {
     ftpWatts: Math.round(input.ftpWatts),
     weightKg: input.weightKg && input.weightKg > 0 ? input.weightKg : undefined,
+    targetFtpWatts: input.targetFtpWatts && input.targetFtpWatts > 0 ? Math.round(input.targetFtpWatts) : undefined,
   });
 
   if (input.dateOfBirth && DATE_RE.test(input.dateOfBirth)) {

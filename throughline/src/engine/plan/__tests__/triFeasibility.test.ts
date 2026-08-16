@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   assessAnchorFeasibility,
   assessTriFeasibility,
+  assessFtpGoal,
   typicalWeeklyFtpGain,
   typicalWeeklyCssGain,
 } from '../triFeasibilityLogic';
@@ -132,6 +133,33 @@ test('hours scaling: fewer training hours never makes a goal look easier', () =>
   const many = assessTriFeasibility({ decomposition: g, currentAnchors: ANCHORS, weeksToRace: 30, riderMassKg: MASS, weeklyHours: 14 });
   const few = assessTriFeasibility({ decomposition: g, currentAnchors: ANCHORS, weeksToRace: 30, riderMassKg: MASS, weeklyHours: 5 });
   assert.ok(rank[few.legs.bike.verdict] >= rank[many.legs.bike.verdict], 'fewer hours ⇒ same-or-harder bike verdict');
+});
+
+// ── Standalone cycling FTP goal ──────────────────────────────────────────────
+
+test('FTP goal: a modest bump is on_track; projected rises above current', () => {
+  const g = assessFtpGoal({ currentFtp: 240, targetFtp: 258, weeksToRace: 20, weeklyHours: 8 });
+  assert.equal(g.verdict, 'on_track');
+  assert.ok(g.projectedFtp > 240); // realistic FTP climbs (may even exceed a modest goal)
+  assert.equal(g.gapWatts, 18);
+  assert.ok(g.requiredWeeklyGain > 0);
+});
+
+test('FTP goal: a target at/below current reads ahead', () => {
+  assert.equal(assessFtpGoal({ currentFtp: 260, targetFtp: 250, weeksToRace: 16 }).verdict, 'ahead');
+});
+
+test('FTP goal: a 52yo chasing a huge FTP jump is beyond_reach (age ceiling)', () => {
+  const g = assessFtpGoal({ currentFtp: 240, targetFtp: 330, weeksToRace: 40, ageYears: 52, massKg: 74, weeklyHours: 8 });
+  assert.equal(g.verdict, 'beyond_reach');
+  assert.equal(g.aboveCeiling, true);
+  assert.ok(g.ceiling! < 330);
+});
+
+test('FTP goal: WITHOUT age there is no ceiling, so a big jump is "longer game" not beyond_reach', () => {
+  const g = assessFtpGoal({ currentFtp: 240, targetFtp: 330, weeksToRace: 40, weeklyHours: 8 });
+  assert.notEqual(g.verdict, 'beyond_reach');
+  assert.equal(g.ceiling, undefined);
 });
 
 test('aggregate: prose names the binding leg and both clocks', () => {

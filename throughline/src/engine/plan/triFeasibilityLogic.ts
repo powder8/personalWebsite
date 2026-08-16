@@ -354,3 +354,70 @@ function triProse(
     }
   }
 }
+
+// ── Standalone cycling: FTP-goal feasibility (bike goal tracker) ─────────────
+
+export interface FtpGoalInput {
+  currentFtp: number;
+  targetFtp: number;
+  weeksToRace: number;
+  ageYears?: number; // enables the attainability ceiling
+  massKg?: number; // for the age-graded bounding box
+  weeklyHours?: number; // scales the gain rate
+}
+
+export interface FtpGoalAssessment {
+  verdict: FeasibilityVerdict;
+  currentFtp: number;
+  targetFtp: number;
+  projectedFtp: number; // realistic FTP by the event, on a normal build
+  gapWatts: number;
+  requiredWeeklyGain: number; // W/wk the goal demands
+  ceiling?: number; // best-case attainable FTP (when age known)
+  aboveCeiling: boolean;
+}
+
+/**
+ * Is a target FTP reachable by the event? The cycling analog of the run goal
+ * tracker's verdict — reuses the shared anchor-feasibility core (FTP gain curve,
+ * hours scaling) + the attainability ceiling (age/mass), so a goal above what's
+ * realistically attainable reads `beyond_reach`, not just "hard".
+ */
+export function assessFtpGoal(input: FtpGoalInput): FtpGoalAssessment {
+  const taper = 2; // a short sharpening/taper into the event
+  const af = assessAnchorFeasibility({
+    currentAnchor: input.currentFtp,
+    goalAnchor: input.targetFtp,
+    weeksToRace: input.weeksToRace,
+    taperWeeks: taper,
+    weeklyGain: typicalWeeklyFtpGain(input.currentFtp) * hoursGainScale(input.weeklyHours),
+    seasonGainCap: input.currentFtp * FTP_SEASON_GAIN_CAP_PCT,
+    projectTime: (a) => a, // identity — "projected time" IS the projected FTP here
+  });
+
+  let verdict = af.verdict;
+  let ceiling: number | undefined;
+  let aboveCeiling = false;
+  if (input.ageYears != null) {
+    const att = assessAttainability({
+      discipline: 'bike',
+      currentAnchor: input.currentFtp,
+      ageYears: input.ageYears,
+      massKg: input.massKg,
+    });
+    ceiling = att.ceiling;
+    aboveCeiling = input.targetFtp > att.ceiling;
+    if (aboveCeiling) verdict = 'beyond_reach';
+  }
+
+  return {
+    verdict,
+    currentFtp: input.currentFtp,
+    targetFtp: input.targetFtp,
+    projectedFtp: Math.round(af.projectedAnchor),
+    gapWatts: Math.round(input.targetFtp - input.currentFtp),
+    requiredWeeklyGain: Number.isFinite(af.requiredWeeklyGain) ? Number(af.requiredWeeklyGain.toFixed(1)) : 0,
+    ceiling: ceiling != null ? Math.round(ceiling) : undefined,
+    aboveCeiling,
+  };
+}

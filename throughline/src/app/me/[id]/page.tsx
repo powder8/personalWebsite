@@ -28,6 +28,8 @@ import { decideReadinessGate } from '@/server/readinessGate';
 import { GoalTrackerHero } from '@/components/GoalTrackerHero';
 import { TriGoalTrackerHero } from '@/components/TriGoalTrackerHero';
 import { getTriGoalTracker } from '@/server/triGoalTracker';
+import { BikeGoalTrackerHero } from '@/components/BikeGoalTrackerHero';
+import { getBikeGoalTracker } from '@/server/bikeGoalTracker';
 import { YourSports } from '@/components/YourSports';
 import { getAthleteDisciplines } from '@/server/disciplines';
 import { ConnectStrava } from '@/components/ConnectStrava';
@@ -151,6 +153,12 @@ export default async function PortalPage({
   // Triathletes with a TIMED goal get the multi-sport tracker (per-leg verdict +
   // binding leg) instead of the single-sport one. Null for everyone else.
   const triGoalTracker = needsGoal ? null : await getTriGoalTracker(db, id, today);
+  // A standalone cyclist (FTP anchor, no run VDOT) gets the bike-native tracker
+  // (goal-FTP verdict) rather than the run-based one. Precedence: tri → bike → run.
+  const isCyclist =
+    (disciplines.statuses.find((s) => s.discipline === 'bike')?.anchorSet ?? false) &&
+    !(disciplines.statuses.find((s) => s.discipline === 'run')?.anchorSet ?? false);
+  const bikeGoalTracker = needsGoal || triGoalTracker || !isCyclist ? null : await getBikeGoalTracker(db, id, today);
 
   const nextStep = decideNextStep({
     firstName,
@@ -269,6 +277,8 @@ export default async function PortalPage({
       {/* Where you stand */}
       {triGoalTracker ? (
         <TriGoalTrackerHero tracker={triGoalTracker} />
+      ) : bikeGoalTracker ? (
+        <BikeGoalTrackerHero tracker={bikeGoalTracker} athleteId={athlete.id} />
       ) : (
         goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} />
       )}

@@ -51,6 +51,7 @@ export function BikeGoalSetup({
       weeklyHours: Number(fd.get('weeklyHours') || 0),
       ftpWatts: ftp,
       weightKg: Number(fd.get('weightKg') || 0) || undefined,
+      targetFtpWatts: Number(fd.get('targetFtp') || 0) || undefined,
       dateOfBirth: String(fd.get('dob') || '') || undefined,
     };
 
@@ -113,8 +114,8 @@ export function BikeGoalSetup({
           <input type="number" name="weeklyHours" min="1" max="25" step="0.5" defaultValue="6" required className={field} />
         </div>
         <div>
-          <label className={label}>Target time (optional)</label>
-          <input name="targetTime" placeholder="2:45:00" className={field} />
+          <label className={label}>Goal FTP — watts (optional)</label>
+          <input type="number" name="targetFtp" min="60" max="500" placeholder="265" className={field} />
         </div>
       </div>
 

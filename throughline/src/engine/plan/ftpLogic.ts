@@ -74,6 +74,7 @@ export interface AthletePowerConfig {
   ftpTest?: FtpTest; // a raw test to derive FTP from
   lthrBpm?: number; // lactate-threshold HR — enables the HR fallback
   weightKg?: number; // for W/kg display + climbing feasibility
+  targetFtpWatts?: number; // a goal FTP to train toward (drives the bike goal tracker)
   // --- provenance (identical semantics to paceConfig.anchorSource) ---
   anchorSource?: 'auto' | 'manual';
   // --- per-athlete overrides layered on the global model ---
