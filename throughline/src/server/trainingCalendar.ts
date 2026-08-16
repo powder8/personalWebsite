@@ -44,8 +44,11 @@ export async function getTrainingCalendar(
     .select({
       day: plannedSessions.day,
       sessionType: plannedSessions.sessionType,
+      discipline: plannedSessions.discipline,
       zone: plannedSessions.zone,
       targetDistanceMeters: plannedSessions.targetDistanceMeters,
+      targetDurationSeconds: plannedSessions.targetDurationSeconds,
+      targetLoadTss: plannedSessions.targetLoad,
       targetPaceFastSecPerKm: plannedSessions.targetPaceFastSecPerKm,
       targetPaceSlowSecPerKm: plannedSessions.targetPaceSlowSecPerKm,
       description: plannedSessions.description,
@@ -81,10 +84,16 @@ export async function getTrainingCalendar(
       },
       directiveRows,
     );
+    const discipline = (r.discipline ?? 'run') as 'run' | 'bike' | 'swim';
     plannedByDay.set(r.day, {
       sessionType: adj.sessionType,
+      discipline,
       zone: r.zone,
-      miles: metersToMiles(adj.distanceMeters),
+      // Native volume per discipline; run's `miles` is unchanged.
+      miles: discipline === 'run' ? metersToMiles(adj.distanceMeters) : 0,
+      durationMinutes: discipline === 'bike' ? (r.targetDurationSeconds ?? 0) / 60 : 0,
+      meters: discipline === 'swim' ? (adj.distanceMeters ?? 0) : 0,
+      loadTss: r.targetLoadTss ?? 0,
       paceFastSecPerKm: adj.paceFastSecPerKm,
       paceSlowSecPerKm: adj.paceSlowSecPerKm,
       description: r.description,

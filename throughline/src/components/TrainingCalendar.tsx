@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { secPerKmToMinPerMile } from '@/engine/plan';
 import { SESSION_COLOR, SESSION_LABEL } from '@/components/WeekStrip';
-import type { CalWeek, CalDay, CalActual } from '@/server/trainingCalendarLogic';
+import { plannedHasWork, type CalWeek, type CalDay, type CalActual, type CalPlanned } from '@/server/trainingCalendarLogic';
 
 /**
  * Unified planned-vs-actual calendar — the portal centerpiece. Stacked week
@@ -44,6 +44,32 @@ function fmtDate(day: string): string {
 }
 function dayNum(day: string): number {
   return Number(day.split('-')[2]);
+}
+
+/** Compact planned volume in the day cell, per discipline: "5.0" · "45′" · "2.0k". */
+function plannedCell(p: CalPlanned): string {
+  if (p.discipline === 'bike') return `${Math.round(p.durationMinutes)}′`;
+  if (p.discipline === 'swim') return `${(p.meters / 1000).toFixed(1)}k`;
+  return mi(p.miles);
+}
+/** Fuller planned volume in the day detail: "5.0 mi" · "45 min" · "2000 m". */
+function plannedDetail(p: CalPlanned): string {
+  if (p.discipline === 'bike') return `${Math.round(p.durationMinutes)} min`;
+  if (p.discipline === 'swim') return `${Math.round(p.meters)} m`;
+  return `${mi(p.miles)} mi`;
+}
+/** Weekly total in the dominant discipline's unit (run weeks unchanged: "X/Y mi"). */
+function weekVolume(w: CalWeek): string {
+  if (w.primaryDiscipline === 'bike') return `${Math.round(w.actualMinutes)}/${Math.round(w.plannedMinutes)} min`;
+  if (w.primaryDiscipline === 'swim') return `${(w.actualMeters / 1000).toFixed(1)}/${(w.plannedMeters / 1000).toFixed(1)} km`;
+  return `${mi(w.actualMiles)}/${mi(w.plannedMiles)} mi`;
+}
+const DISC_EMOJI: Record<string, string> = { run: '🏃', bike: '🚴', swim: '🏊' };
+
+/** Session label, discipline-neutral for bike/swim ("Long run" → "Long"). */
+function sessionLabel(p: CalPlanned): string {
+  const base = SESSION_LABEL[p.sessionType] ?? p.sessionType;
+  return p.discipline === 'run' ? base : base.replace(/ run$/i, '');
 }
 
 /** Status → the small glyph + color shown under each day. */
@@ -134,9 +160,7 @@ function Week({
           {week.phase && <span className="ml-1.5 font-normal capitalize text-slate-400">· {week.phase}</span>}
         </div>
         <div className="flex items-center gap-2 text-[11px] tabular-nums text-slate-500">
-          <span>
-            {mi(week.actualMiles)}<span className="text-slate-500">/</span>{mi(week.plannedMiles)} mi
-          </span>
+          <span>{weekVolume(week)}</span>
           {week.adherencePct != null && (
             <span
               className={`rounded-full px-1.5 py-0.5 font-semibold ${
@@ -166,9 +190,9 @@ function Week({
 
 function DayCell({ d, selected, onClick }: { d: CalDay; selected: boolean; onClick: () => void }) {
   const plannedType = d.planned?.sessionType ?? null;
-  const plannedRun = plannedType && plannedType !== 'rest' && (d.planned?.miles ?? 0) > 0;
+  const hasWork = plannedHasWork(d.planned);
   const glyph = statusGlyph(d);
-  const empty = !plannedRun && d.actuals.length === 0;
+  const empty = !hasWork && d.actuals.length === 0;
 
   return (
     <button
@@ -189,10 +213,10 @@ function DayCell({ d, selected, onClick }: { d: CalDay; selected: boolean; onCli
         {DOW[d.dow]} {dayNum(d.day)}
       </span>
       {/* Planned target */}
-      {plannedRun ? (
+      {hasWork ? (
         <>
           <span className={`h-1.5 w-1.5 rounded-full ${SESSION_COLOR[plannedType!] ?? 'bg-slate-300'}`} />
-          <span className="text-[10px] font-semibold leading-none tabular-nums">{mi(d.planned!.miles)}</span>
+          <span className="text-[10px] font-semibold leading-none tabular-nums">{plannedCell(d.planned!)}</span>
         </>
       ) : plannedType === 'rest' ? (
         <span className={`text-[9px] ${selected ? 'text-[#0c1018]/40' : 'text-slate-500'}`}>rest</span>
@@ -215,25 +239,26 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
       <div className="text-xs font-semibold text-slate-500">{fmtDate(d.day)}</div>
 
       {/* Planned */}
-      {d.planned && d.planned.sessionType !== 'rest' && d.planned.miles > 0 ? (
+      {plannedHasWork(d.planned) ? (
         <div>
           <div className="flex items-center gap-1.5">
-            <span className={`h-2 w-2 rounded-full ${SESSION_COLOR[d.planned.sessionType] ?? 'bg-slate-300'}`} />
+            <span className={`h-2 w-2 rounded-full ${SESSION_COLOR[d.planned!.sessionType] ?? 'bg-slate-300'}`} />
             <span className="font-medium text-slate-700">
-              Planned: {SESSION_LABEL[d.planned.sessionType] ?? d.planned.sessionType} · {mi(d.planned.miles)} mi
+              {d.planned!.discipline !== 'run' && <span className="mr-0.5">{DISC_EMOJI[d.planned!.discipline]}</span>}
+              Planned: {sessionLabel(d.planned!)} · {plannedDetail(d.planned!)}
             </span>
-            {d.planned.paceFastSecPerKm != null && (
+            {d.planned!.discipline === 'run' && d.planned!.paceFastSecPerKm != null && (
               <span className="text-xs tabular-nums text-slate-400">
-                {pace(d.planned.paceFastSecPerKm)}–{pace(d.planned.paceSlowSecPerKm)}
+                {pace(d.planned!.paceFastSecPerKm)}–{pace(d.planned!.paceSlowSecPerKm)}
               </span>
             )}
           </div>
-          {d.planned.adjustments.length > 0 && (
+          {d.planned!.adjustments.length > 0 && (
             <div className="mt-1 inline-block rounded bg-amber-400/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-600">
-              {d.planned.adjustments.join('; ')}
+              {d.planned!.adjustments.join('; ')}
             </div>
           )}
-          {d.planned.description && <p className="mt-0.5 text-xs text-slate-500">{d.planned.description}</p>}
+          {d.planned!.description && <p className="mt-0.5 text-xs text-slate-500">{d.planned!.description}</p>}
         </div>
       ) : d.planned?.sessionType === 'rest' && d.actuals.length === 0 ? (
         <p className="text-slate-500">Rest day — nothing scheduled.</p>
@@ -282,8 +307,8 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
       )}
 
       {/* Today, still to do */}
-      {d.isToday && d.status === 'upcoming' && d.planned && d.planned.miles > 0 && (
-        <p className="text-xs font-medium text-sky-400">Still on today’s plan — go get it. 🏃</p>
+      {d.isToday && d.status === 'upcoming' && plannedHasWork(d.planned) && (
+        <p className="text-xs font-medium text-sky-400">Still on today’s plan — go get it. {DISC_EMOJI[d.planned!.discipline]}</p>
       )}
 
       {/* Missed-but-cross-trained reassurance */}

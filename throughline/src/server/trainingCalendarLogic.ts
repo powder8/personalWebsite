@@ -17,12 +17,25 @@ const MI = 1609.344;
 
 export interface CalPlanned {
   sessionType: string;
+  discipline: 'run' | 'bike' | 'swim';
   zone: string | null;
-  miles: number;
+  miles: number; // run volume
+  durationMinutes: number; // bike volume
+  meters: number; // swim volume
+  loadTss: number;
   paceFastSecPerKm: number | null;
   paceSlowSecPerKm: number | null;
   description: string | null;
   adjustments: string[];
+}
+
+/** Does a planned day carry real work, in ITS discipline's own unit? (A bike
+ * day has miles 0 but real minutes — the run-only `miles > 0` test hid it.) */
+export function plannedHasWork(p: CalPlanned | null): boolean {
+  if (!p || p.sessionType === 'rest') return false;
+  if (p.discipline === 'bike') return p.durationMinutes > 0;
+  if (p.discipline === 'swim') return p.meters > 0;
+  return p.miles > 0;
 }
 
 export interface CalActual {
@@ -67,7 +80,13 @@ export interface CalWeek {
   phase: string | null;
   plannedMiles: number;
   actualMiles: number; // run miles only
-  sessionsPlanned: number; // planned run days up to today
+  plannedMinutes: number; // bike planned minutes
+  actualMinutes: number; // bike actual minutes
+  plannedMeters: number; // swim planned metres
+  actualMeters: number; // swim actual metres
+  /** The week's dominant planned discipline — drives the weekly-total unit. */
+  primaryDiscipline: 'run' | 'bike' | 'swim';
+  sessionsPlanned: number; // planned session days up to today (any discipline)
   sessionsDone: number;
   adherencePct: number | null;
   isCurrent: boolean;
@@ -104,20 +123,28 @@ export interface AssembleInput {
 
 function dayStatus(
   planned: CalPlanned | null,
+  acts: CalActual[],
   runMiles: number,
   hasCross: boolean,
   isFuture: boolean,
   isToday: boolean,
 ): CalStatus {
-  const plannedRun = !!planned && planned.sessionType !== 'rest' && planned.miles > 0;
-  if (isFuture) return plannedRun ? 'upcoming' : 'rest';
-  if (plannedRun) {
-    if (runMiles >= planned!.miles * 0.8) return 'done';
-    if (runMiles > 0) return 'partial';
-    // Today with nothing logged yet is still TO DO — never "missed" mid-day.
+  const hasWork = plannedHasWork(planned);
+  if (isFuture) return hasWork ? 'upcoming' : 'rest';
+  if (hasWork) {
+    if (planned!.discipline === 'run') {
+      if (runMiles >= planned!.miles * 0.8) return 'done';
+      if (runMiles > 0) return 'partial';
+      // Today with nothing logged yet is still TO DO — never "missed" mid-day.
+      return isToday ? 'upcoming' : 'missed';
+    }
+    // Bike/swim: matched by whether a same-discipline activity was logged that
+    // day (duration/TSS matching comes with the activity-ingest work).
+    const did = acts.some((a) => a.sport === planned!.discipline);
+    if (did) return 'done';
     return isToday ? 'upcoming' : 'missed';
   }
-  // No run was planned (rest or nothing).
+  // No session was planned (rest or nothing).
   if (runMiles > 0) return 'extra';
   if (hasCross) return 'cross';
   return 'rest';
@@ -132,8 +159,13 @@ export function assembleCalendar(input: AssembleInput): CalWeek[] {
     const days: CalDay[] = [];
     let plannedMiles = 0;
     let actualMiles = 0;
+    let plannedMinutes = 0;
+    let actualMinutes = 0;
+    let plannedMeters = 0;
+    let actualMeters = 0;
     let sessionsPlanned = 0;
     let sessionsDone = 0;
+    const plannedByDiscipline: Record<'run' | 'bike' | 'swim', number> = { run: 0, bike: 0, swim: 0 };
 
     for (let i = 0; i < 7; i++) {
       const day = addDays(weekStart, i);
@@ -148,19 +180,34 @@ export function assembleCalendar(input: AssembleInput): CalWeek[] {
       const isFuture = day > today;
       const isToday = day === today;
 
-      const status = dayStatus(planned, runMiles, crossTrain.length > 0, isFuture, isToday);
+      const status = dayStatus(planned, acts, runMiles, crossTrain.length > 0, isFuture, isToday);
 
+      // Per-discipline planned/actual accumulation (run miles unchanged).
       plannedMiles += planned?.miles ?? 0;
       actualMiles += runMiles;
-      const plannedRunDay = !!planned && planned.sessionType !== 'rest' && planned.miles > 0;
+      if (plannedHasWork(planned)) {
+        plannedByDiscipline[planned!.discipline]++;
+        if (planned!.discipline === 'bike') plannedMinutes += planned!.durationMinutes;
+        if (planned!.discipline === 'swim') plannedMeters += planned!.meters;
+      }
+      for (const a of acts) {
+        if (a.sport === 'bike') actualMinutes += (a.durationSeconds ?? 0) / 60;
+        if (a.sport === 'swim') actualMeters += a.miles * MI;
+      }
       // Count a planned session toward adherence once it's genuinely DUE: any past
-      // day, plus today only if a run was actually logged (don't tank % mid-day).
-      if (plannedRunDay && (day < today || (isToday && runMiles > 0))) {
-        sessionsPlanned++;
-        if (status === 'done') sessionsDone++;
+      // day, plus today only if the session was actually logged (don't tank % mid-day).
+      // Run's "logged today" test (runMiles > 0) is preserved exactly.
+      if (plannedHasWork(planned)) {
+        const loggedToday = planned!.discipline === 'run' ? runMiles > 0 : status === 'done';
+        if (day < today || (isToday && loggedToday)) {
+          sessionsPlanned++;
+          if (status === 'done') sessionsDone++;
+        }
       }
 
-      // Inline coach's take for the run that happened (deterministic).
+      // Inline coach's take for the run that happened (deterministic). Only a
+      // planned RUN day supplies a target to grade against.
+      const plannedRunDay = plannedHasWork(planned) && planned!.discipline === 'run';
       let verdict: RunFeedback | null = null;
       if (primaryRun && !isFuture) {
         verdict = assessRun({
@@ -192,12 +239,26 @@ export function assembleCalendar(input: AssembleInput): CalWeek[] {
       });
     }
 
+    // Dominant planned discipline drives the weekly-total unit; ties favour run,
+    // so a pure-run week is byte-identical.
+    const primaryDiscipline: 'run' | 'bike' | 'swim' =
+      plannedByDiscipline.bike > plannedByDiscipline.run && plannedByDiscipline.bike >= plannedByDiscipline.swim
+        ? 'bike'
+        : plannedByDiscipline.swim > plannedByDiscipline.run && plannedByDiscipline.swim > plannedByDiscipline.bike
+          ? 'swim'
+          : 'run';
+
     weeks.push({
       weekStart,
       weekEnd,
       phase: phaseByWeekStart.get(weekStart) ?? null,
       plannedMiles,
       actualMiles,
+      plannedMinutes,
+      actualMinutes,
+      plannedMeters,
+      actualMeters,
+      primaryDiscipline,
       sessionsPlanned,
       sessionsDone,
       adherencePct: sessionsPlanned > 0 ? Math.round((sessionsDone / sessionsPlanned) * 100) : null,
