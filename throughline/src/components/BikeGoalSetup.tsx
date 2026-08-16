@@ -41,6 +41,30 @@ export function BikeGoalSetup({
   const [routeNote, setRouteNote] = useState<string | null>(null);
   const [routeUrl, setRouteUrl] = useState('');
   const [lookingUp, setLookingUp] = useState(false);
+  const [ftpVal, setFtpVal] = useState(defaultFtp != null ? String(defaultFtp) : '');
+  const [ftpNote, setFtpNote] = useState<string | null>(null);
+  const [detecting, setDetecting] = useState(false);
+
+  async function onDetectFtp() {
+    setDetecting(true);
+    setFtpNote(null);
+    try {
+      const res = await fetch(`/api/athletes/${athleteId}/estimate-ftp`, { method: 'POST' });
+      const j = await res.json();
+      if (j.ok && j.ftpWatts) {
+        setFtpVal(String(j.ftpWatts));
+        setFtpNote(`≈ ${j.ftpWatts} W — best 20-min power from ${j.sampleSize} recent ride${j.sampleSize === 1 ? '' : 's'} (${j.confidence} confidence). Adjust if you know better.`);
+      } else if (j.ok) {
+        setFtpNote('No power-meter rides found in your recent Strava — enter your FTP below.');
+      } else {
+        setFtpNote(j.error ?? 'Couldn’t estimate — enter your FTP below.');
+      }
+    } catch {
+      setFtpNote('Network error — enter your FTP below.');
+    } finally {
+      setDetecting(false);
+    }
+  }
 
   function applyRoute(name: string | null, distanceMeters: number, elevationGainMeters: number) {
     setDistKm((distanceMeters / 1000).toFixed(1));
@@ -225,11 +249,24 @@ export function BikeGoalSetup({
       </div>
 
       <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-inset ring-white/10">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Your cycling fitness</div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Your cycling fitness</div>
+          <button
+            type="button"
+            onClick={onDetectFtp}
+            disabled={detecting}
+            className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:bg-white/15 disabled:opacity-40"
+          >
+            {detecting ? 'Reading rides…' : '⚡ Detect FTP from Strava'}
+          </button>
+        </div>
+        {ftpNote && (
+          <p className={`mt-2 text-[11px] font-medium ${/couldn|error|connect|no power|rate/i.test(ftpNote) ? 'text-amber-300' : 'text-lime-300'}`}>{ftpNote}</p>
+        )}
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
             <label className={label}>🚴 FTP (watts)</label>
-            <input type="number" name="ftp" min="60" max="500" defaultValue={defaultFtp ?? undefined} placeholder="240" required className={field} />
+            <input type="number" name="ftp" min="60" max="500" value={ftpVal} onChange={(e) => setFtpVal(e.target.value)} placeholder="240" required className={field} />
           </div>
           <div>
             <label className={label}>Body weight (kg)</label>
