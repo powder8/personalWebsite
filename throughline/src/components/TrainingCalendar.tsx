@@ -65,6 +65,7 @@ function weekVolume(w: CalWeek): string {
   return `${mi(w.actualMiles)}/${mi(w.plannedMiles)} mi`;
 }
 const DISC_EMOJI: Record<string, string> = { run: '🏃', bike: '🚴', swim: '🏊' };
+const DISC_NOUN: Record<string, string> = { run: 'run', bike: 'ride', swim: 'swim' };
 
 /** Session label, discipline-neutral for bike/swim ("Long run" → "Long"). */
 function sessionLabel(p: CalPlanned): string {
@@ -234,9 +235,31 @@ function DayCell({ d, selected, onClick }: { d: CalDay; selected: boolean; onCli
 }
 
 function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
+  // A bike/swim planned day's SESSION is the matching-sport activity (a logged
+  // ride on a bike day is the day's work, not "cross-training"). Runs keep the
+  // full coach's-take path unchanged.
+  const plannedDisc = d.planned?.discipline ?? null;
+  const sessionSport = plannedDisc === 'bike' || plannedDisc === 'swim' ? plannedDisc : null;
+  const sessionActual = sessionSport ? d.crossTrain.find((a) => a.sport === sessionSport) ?? null : null;
+  const otherCross = d.crossTrain.filter((a) => a !== sessionActual);
+  const missedNoun = plannedDisc ? DISC_NOUN[plannedDisc] : 'session';
+
   return (
     <div className="mt-2 space-y-2 rounded-xl bg-slate-50 p-3 text-sm">
       <div className="text-xs font-semibold text-slate-500">{fmtDate(d.day)}</div>
+
+      {/* Bike/swim session done — the ride/swim IS the day's work. */}
+      {sessionActual && (
+        <div className="rounded-lg bg-emerald-400/15 p-2 text-xs ring-1 ring-inset ring-emerald-400/30">
+          <div className="flex flex-wrap items-center gap-x-2 font-semibold text-emerald-700">
+            <span>{SPORT_ICON[sessionActual.sport] ?? '🔁'} Session done</span>
+            {sessionActual.durationSeconds ? <span className="tabular-nums font-normal text-slate-500">{dur(sessionActual.durationSeconds)}</span> : null}
+            {sessionActual.miles > 0 && <span className="tabular-nums font-normal text-slate-500">{mi(sessionActual.miles)} mi</span>}
+            {sessionActual.avgHr != null && <span className="font-normal text-slate-400">{sessionActual.avgHr} bpm</span>}
+          </div>
+          {sessionActual.name && <p className="mt-0.5 leading-snug text-slate-500">{sessionActual.name}</p>}
+        </div>
+      )}
 
       {/* Planned */}
       {plannedHasWork(d.planned) ? (
@@ -292,8 +315,8 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
         </div>
       )}
 
-      {/* Cross-training (supporting context) */}
-      {d.crossTrain.map((a) => (
+      {/* Other activities (supporting context, beyond the day's session) */}
+      {otherCross.map((a) => (
         <div key={a.activityId} className="flex items-center gap-2 text-xs text-slate-600">
           <span>{SPORT_ICON[a.sport] ?? '🔁'}</span>
           <span className="font-medium capitalize">{a.sport.replace('_', ' ')}</span>
@@ -302,7 +325,7 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
           {a.miles > 0 && <span className="tabular-nums text-slate-400">· {mi(a.miles)} mi</span>}
         </div>
       ))}
-      {d.crossTrain.length > 0 && d.status !== 'missed' && (
+      {otherCross.length > 0 && d.status !== 'missed' && !sessionActual && (
         <p className="text-[11px] text-slate-400">Cross-training counts — it builds aerobic fitness without the pounding.</p>
       )}
 
@@ -311,12 +334,12 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
         <p className="text-xs font-medium text-sky-400">Still on today’s plan — go get it. {DISC_EMOJI[d.planned!.discipline]}</p>
       )}
 
-      {/* Missed-but-cross-trained reassurance */}
+      {/* Missed-but-cross-trained reassurance (discipline-aware) */}
       {d.status === 'missed' && d.crossTrain.length > 0 && (
-        <p className="text-[11px] text-slate-400">Run was missed, but you still moved — that’s a win on a tough day.</p>
+        <p className="text-[11px] text-slate-400">The {missedNoun} was missed, but you still moved — that’s a win on a tough day.</p>
       )}
       {d.status === 'missed' && d.crossTrain.length === 0 && (
-        <p className="text-xs text-slate-500">No run logged. One missed day won’t derail you — roll into the next session.</p>
+        <p className="text-xs text-slate-500">No {missedNoun} logged. One missed day won’t derail you — roll into the next session.</p>
       )}
     </div>
   );
