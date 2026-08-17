@@ -117,11 +117,11 @@ test('rest day never carries a readiness note', () => {
 test('bike day (miles=0, real minutes) is NOT rest — renders in minutes + watts', () => {
   const s = decideNextStep({
     ...base,
-    today: { discipline: 'bike', sessionType: 'threshold', miles: 0, durationMinutes: 45, targetLabel: '228–263 W', eased: false },
+    today: { discipline: 'bike', sessionType: 'threshold', miles: 0, durationMinutes: 45, targetLabel: '228-263 W', eased: false },
   });
   assert.equal(s.kind, 'today');
   assert.match(s.headline, /Threshold 45 min/);
-  assert.match(s.detail, /228–263 W/);
+  assert.match(s.detail, /228-263 W/);
 });
 
 test('swim day renders in metres, not miles', () => {

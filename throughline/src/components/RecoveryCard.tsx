@@ -148,7 +148,7 @@ export function RecoveryCard({
           )}
           {snapshot.n < 14 && (
             <p className="mt-1 text-[11px] text-slate-500">
-              Baseline still forming ({snapshot.n} days) — trends sharpen as history builds.
+              Baseline still forming ({snapshot.n} days), trends sharpen as history builds.
             </p>
           )}
         </div>
@@ -231,7 +231,7 @@ function MoreMarkers({ snapshot }: { snapshot: RecoverySnapshot }) {
         ))}
       </div>
       <p className="mt-2 text-[10px] leading-relaxed text-slate-500">
-        A jump in resting breathing or skin temp — or a dip in blood oxygen — often shows up a day before you feel a cold coming on.
+        A jump in resting breathing or skin temp, or a dip in blood oxygen, often shows up a day before you feel a cold coming on.
       </p>
     </details>
   );

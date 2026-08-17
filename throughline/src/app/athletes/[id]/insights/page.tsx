@@ -24,7 +24,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ id: s
         </Link>
         <h1 className="mt-1 text-xl font-semibold text-slate-900">Insights</h1>
         <p className="text-sm text-slate-500">
-          Patterns from {athlete.fullName.split(' ')[0]}’s own training history — observations to
+          Patterns from {athlete.fullName.split(' ')[0]}’s own training history, observations to
           discuss, not prescriptions.
         </p>
       </div>

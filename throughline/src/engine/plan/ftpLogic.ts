@@ -72,7 +72,7 @@ export interface AthletePowerConfig {
   // --- fitness anchors (provide one; resolution order in resolveFtp) ---
   ftpWatts?: number; // explicit FTP (wins)
   ftpTest?: FtpTest; // a raw test to derive FTP from
-  lthrBpm?: number; // lactate-threshold HR — enables the HR fallback
+  lthrBpm?: number; // lactate-threshold HR, enables the HR fallback
   weightKg?: number; // for W/kg display + climbing feasibility
   targetFtpWatts?: number; // a goal FTP to train toward (drives the bike goal tracker)
   goalElevationGainMeters?: number; // the goal race's total climbing (with distance → time feasibility)

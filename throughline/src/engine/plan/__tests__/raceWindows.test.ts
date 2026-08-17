@@ -24,7 +24,7 @@ test('marathon goal recommends a half for the specificity tune-up', () => {
   assert.equal(spec.priority, 'tune_up');
 });
 
-test('final sharpener sits 2–3 weeks out and is short', () => {
+test('final sharpener sits 2-3 weeks out and is short', () => {
   const w = suggestRaceWindows(goalMarathon, startDay);
   const sharp = w.find((x) => x.kind === 'final_sharpener')!;
   assert.equal(sharp.minWeeksOut, 2);

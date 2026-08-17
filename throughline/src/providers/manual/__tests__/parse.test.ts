@@ -80,7 +80,7 @@ test('parses a flat daily-log format and picks IMPERIAL columns (not metric)', {
   // pace — so paces vary across runs (not all the prescribed pace).
   const paces = days.map((d) => d.avgPaceSecPerKm).filter((p): p is number => p != null);
   assert.ok(paces.length > 100, `expected many logged paces, got ${paces.length}`);
-  // sane mile-pace range (~4:00–9:00/mi → s/km), incl. fast speed sessions.
+  // sane mile-pace range (~4:00-9:00/mi → s/km), incl. fast speed sessions.
   assert.ok(paces.every((p) => p > 140 && p < 360), 'paces in a sane mile-pace range');
   assert.ok(new Set(paces.map((p) => Math.round(p))).size > 20, 'actual paces vary, not a single value');
 });

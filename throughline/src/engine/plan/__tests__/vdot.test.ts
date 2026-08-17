@@ -111,7 +111,7 @@ test('a faster runner has faster equivalent times at every distance', () => {
   const fast = equivalentPerformances(65);
   const slow = equivalentPerformances(45);
   for (let i = 0; i < fast.length; i++) assert.ok(fast[i].timeSeconds < slow[i].timeSeconds);
-  // sanity: VDOT 50 → 5K in a plausible ~19–20 min window.
+  // sanity: VDOT 50 → 5K in a plausible ~19-20 min window.
   const fiveK = equivalentPerformances(50).find((p) => p.label === '5K')!;
   assert.ok(fiveK.timeSeconds > 18 * 60 && fiveK.timeSeconds < 21 * 60, `5K ${fiveK.timeSeconds}s`);
 });

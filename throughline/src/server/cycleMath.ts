@@ -18,7 +18,7 @@ export interface CycleStatus {
   dayInCycle: number | null;
   nextStart: string | null;
   daysUntilNext: number | null;
-  lateLuteal: boolean; // last ~4 days before next cycle — fatigue more likely
+  lateLuteal: boolean; // last ~4 days before next cycle, fatigue more likely
   upcoming: { start: string; periodEnd: string }[]; // next few projected cycles
 }
 

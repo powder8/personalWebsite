@@ -2,7 +2,7 @@
  * Privacy policy — required by Whoop developer registration.
  * URL registered: https://throughline.badoo.net/privacy
  */
-export const metadata = { title: 'Privacy Policy — Throughline' };
+export const metadata = { title: 'Privacy Policy. Throughline' };
 
 export default function PrivacyPage() {
   return (

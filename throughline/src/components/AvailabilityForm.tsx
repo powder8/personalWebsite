@@ -38,7 +38,7 @@ export function AvailabilityForm({ athleteId }: { athleteId: string }) {
       setPending(false);
       return;
     }
-    const label = description ? `${adj.label} — ${description}` : adj.label;
+    const label = description ? `${adj.label}, ${description}` : adj.label;
     try {
       const res = await fetch(`/api/athletes/${athleteId}/directives`, {
         method: 'POST',
@@ -89,9 +89,9 @@ export function AvailabilityForm({ athleteId }: { athleteId: string }) {
         disabled={pending}
         className="rounded bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
       >
-        {pending ? 'Saving…' : 'Send adjustment to coach'}
+        {pending ? 'Saving...' : 'Send adjustment to coach'}
       </button>
-      {done && <p className="text-sm text-emerald-300">Got it — your coach will see this and the plan adjusts. 🙌</p>}
+      {done && <p className="text-sm text-emerald-300">Got it, your coach will see this and the plan adjusts. 🙌</p>}
       {err && <p className="text-sm text-rose-600">{err}</p>}
     </form>
   );

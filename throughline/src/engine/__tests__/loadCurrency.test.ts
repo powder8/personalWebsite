@@ -139,7 +139,7 @@ test('thresholdHourTrimp: matches Banister at the threshold HR (spec §2.3 ≈17
   approx(thresholdHourTrimp(HR, lthr), banisterTrimp(3600, lthr, HR), 1e-9);
   // Default (no LTHR) synthesizes the same threshold HR → same constant.
   approx(thresholdHourTrimp(HR), banisterTrimp(3600, lthr, HR), 1e-9);
-  // Sanity: a men's threshold hour is ~150–180 TRIMP.
+  // Sanity: a men's threshold hour is ~150-180 TRIMP.
   const c = thresholdHourTrimp(HR);
   assert.ok(c > 150 && c < 185, `threshold-hour TRIMP ${c.toFixed(1)}`);
 });

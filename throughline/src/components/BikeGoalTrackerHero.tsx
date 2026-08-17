@@ -60,7 +60,7 @@ export function BikeGoalTrackerHero({ tracker, athleteId }: { tracker: BikeGoalT
         ? `Your FTP already supports ${target} on this course (needs ~${race.requiredFtp} W). Realistic finish on a normal build: ~${clock(race.projectedTimeSeconds)}.`
         : race.aboveCeiling && race.ceiling != null
           ? `On this course ${target} needs about ${race.requiredFtp} W, past what's realistically attainable for your profile (a best-case ceiling ~${race.ceiling} W), even with unlimited time. That's no knock on you. A strong, honest target here is ~${clock(race.projectedTimeSeconds)}. Let's chase that.`
-          : `On this course ${target} needs about ${race.requiredFtp} W — from ${race.currentFtp} W that's ~${race.requiredWeeklyGain} W/wk of focused work. Realistic finish on a normal build: ~${clock(race.projectedTimeSeconds)}.`;
+          : `On this course ${target} needs about ${race.requiredFtp} W, from ${race.currentFtp} W that's ~${race.requiredWeeklyGain} W/wk of focused work. Realistic finish on a normal build: ~${clock(race.projectedTimeSeconds)}.`;
   } else if (ftp) {
     headline =
       ftp.verdict === 'ahead' ? `You're already at ${ftp.targetFtp} W`
@@ -104,7 +104,7 @@ export function BikeGoalTrackerHero({ tracker, athleteId }: { tracker: BikeGoalT
         ) : (
           <>
             <p className="text-sm leading-relaxed text-white/90">
-              Add your race distance, climbing, and a target time — I&apos;ll tell you honestly whether it&apos;s on.
+              Add your race distance, climbing, and a target time. I&apos;ll tell you honestly whether it&apos;s on.
             </p>
             <Link
               href={`/me/${athleteId}/bike-setup`}

@@ -78,7 +78,7 @@ export function TriGoalTrackerHero({ tracker }: { tracker: TriGoalTracker }) {
         )}
       </div>
 
-      {/* Per-leg breakdown — current → required anchor, with the binding leg flagged. */}
+      {/* Per-leg breakdown, current → required anchor, with the binding leg flagged. */}
       <div className="mt-4 space-y-2">
         {ORDER.map((d) => {
           const leg = f.legs[d];
@@ -104,7 +104,7 @@ export function TriGoalTrackerHero({ tracker }: { tracker: TriGoalTracker }) {
                 </div>
                 <div className="text-xs text-slate-400 tabular-nums">
                   {leg.gap <= 0 ? (
-                    <>at {anchor(d, leg.currentAnchor)} — already fast enough</>
+                    <>at {anchor(d, leg.currentAnchor)}, already fast enough</>
                   ) : leg.aboveCeiling && leg.ceiling != null ? (
                     <>
                       {anchor(d, leg.currentAnchor)} → {anchor(d, leg.goalAnchor)} · above your ~{anchor(d, leg.ceiling)} ceiling
@@ -122,7 +122,7 @@ export function TriGoalTrackerHero({ tracker }: { tracker: TriGoalTracker }) {
         })}
       </div>
 
-      {/* The honest "why" — what the binding leg needs, and the realistic finish. */}
+      {/* The honest "why", what the binding leg needs, and the realistic finish. */}
       <div className={`mt-4 rounded-2xl p-3.5 ring-1 ring-inset ${t.ring} ${t.bar}`}>
         <p className="text-sm leading-relaxed text-white/90">{f.note}</p>
       </div>

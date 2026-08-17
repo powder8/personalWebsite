@@ -48,7 +48,7 @@ export function assessGrounding(input: {
   const goalStretch = input.statedGoalVdot != null && d != null && input.statedGoalVdot - d > GOAL_STRETCH_DELTA;
   const goalTail =
     goalStretch && input.statedGoalLabel
-      ? ` Heads up: your goal (${input.statedGoalLabel}) is a big step up from what your runs show today — reachable, but it's a stretch, not your current level.`
+      ? ` Heads up: your goal (${input.statedGoalLabel}) is a big step up from what your runs show today, reachable, but it's a stretch, not your current level.`
       : '';
 
   if (anchorVdot == null || demonstrated == null || d == null) {
@@ -78,7 +78,7 @@ export function assessGrounding(input: {
       goalStretch,
       headline: 'These targets look fast for your recent running',
       note:
-        `Your paces assume VDOT ${round(anchorVdot)}${anchorTail}, but your best recent effort — ${demonstrated.distanceLabel} ${demonstrated.timeLabel} (${demonstrated.paceLabel}) on ${demonstrated.day}${hillTag} — is about VDOT ${round(d)}. ` +
+        `Your paces assume VDOT ${round(anchorVdot)}${anchorTail}, but your best recent effort, ${demonstrated.distanceLabel} ${demonstrated.timeLabel} (${demonstrated.paceLabel}) on ${demonstrated.day}${hillTag}, is about VDOT ${round(d)}. ` +
         `We can keep these as goal targets, or re-anchor to what you’ve actually run so day-to-day paces feel right.${goalTail}`,
       offerRecentAnchor: true,
     };

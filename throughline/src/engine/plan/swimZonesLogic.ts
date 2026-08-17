@@ -26,10 +26,10 @@ export type SwimZoneModel = Record<SwimZoneKey, { loOffset: number; hiOffset: nu
  * CSS pace; the `threshold` band straddles CSS (the anchor).
  */
 export const DEFAULT_SWIM_ZONES: SwimZoneModel = {
-  recovery: { loOffset: +10, hiOffset: +20 }, // CSS + 10–20 s/100
-  aerobic: { loOffset: +4, hiOffset: +10 }, // CSS + 4–10 s/100
+  recovery: { loOffset: +10, hiOffset: +20 }, // CSS + 10-20 s/100
+  aerobic: { loOffset: +4, hiOffset: +10 }, // CSS + 4-10 s/100
   threshold: { loOffset: -2, hiOffset: +2 }, // CSS ± 2 s/100 (the anchor)
-  vo2max: { loOffset: -6, hiOffset: -2 }, // CSS − 2–6 s/100
+  vo2max: { loOffset: -6, hiOffset: -2 }, // CSS − 2-6 s/100
   sprint: { loOffset: -12, hiOffset: -6 }, // CSS − 6 s/100 and faster
 };
 
@@ -134,5 +134,5 @@ export function formatSecPer100(secPer100: number): string {
 
 /** Display twin of `wattsLabel` — "1:35–1:42 /100m". */
 export function swimPaceLabel(range: SwimRange): string {
-  return `${formatSecPer100(range.fastSecPer100)}–${formatSecPer100(range.slowSecPer100)} /100m`;
+  return `${formatSecPer100(range.fastSecPer100)}-${formatSecPer100(range.slowSecPer100)} /100m`;
 }

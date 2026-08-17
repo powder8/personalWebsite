@@ -67,7 +67,7 @@ export function AdjustmentForm({ athleteId, today }: { athleteId: string; today:
         <label className="text-xs text-slate-600">
           Adjustment
           <select value={type} onChange={(e) => setType(e.target.value as Type)} className={`block ${field}`}>
-            <option value="unavailable">Unavailable (rest) — travel / busy / sick</option>
+            <option value="unavailable">Unavailable (rest), travel / busy / sick</option>
             <option value="pace_adjust">Slower paces</option>
             <option value="reduce_volume">Shorter (reduce volume)</option>
           </select>
@@ -92,7 +92,7 @@ export function AdjustmentForm({ athleteId, today }: { athleteId: string; today:
             <option value="today">Today</option>
             <option value="next3">Next 3 days</option>
             <option value="week">This week</option>
-            <option value="range">Date range…</option>
+            <option value="range">Date range...</option>
             <option value="ongoing">Ongoing</option>
           </select>
         </label>
@@ -121,7 +121,7 @@ export function AdjustmentForm({ athleteId, today }: { athleteId: string; today:
         disabled={pending}
         className="rounded bg-sky-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
       >
-        {pending ? 'Adding…' : 'Add adjustment'}
+        {pending ? 'Adding...' : 'Add adjustment'}
       </button>
       {err && <p className="text-xs text-rose-600">{err}</p>}
     </form>

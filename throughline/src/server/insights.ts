@@ -48,7 +48,7 @@ export interface WorkoutMix {
   longRuns: number;
   avgWeeklyMiles: number;
   runDaysPerWeek: number;
-  gpsShare: number; // % of runs from a GPS provider — intensity mix is trustworthy when high
+  gpsShare: number; // % of runs from a GPS provider, intensity mix is trustworthy when high
 }
 
 export interface Suggestion {
@@ -83,7 +83,7 @@ export interface TrainingInsights {
   peak: { day: string; ctl: number };
   /** Best performance ever — shown as CONTEXT (may be a different life stage), not a target. */
   careerBest: { vdot: number; distanceLabel: string; day: string } | null;
-  builds: BuildBlock[]; // recent (≤2yr) productive blocks — the actionable benchmark
+  builds: BuildBlock[]; // recent (≤2yr) productive blocks, the actionable benchmark
   buildProfile: BuildProfile | null;
   bestBuild: BuildBlock | null; // = builds[0], kept for the headline highlight
   recent: (WorkoutMix & { weeks: number; hasData: boolean }) | null;
@@ -355,7 +355,7 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
     );
     if (careerBest && careerBest.day < bestBuild.fromDay && careerBest.vdot > (bestBuild.performance?.vdot ?? 0) + 2) {
       observations.push(
-        `Career best for context: ~VDOT ${careerBest.vdot} (${careerBest.distanceLabel}, ${careerBest.day}) — a faster era; current benchmarks use recent training, not this.`,
+        `Career best for context: ~VDOT ${careerBest.vdot} (${careerBest.distanceLabel}, ${careerBest.day}), a faster era; current benchmarks use recent training, not this.`,
       );
     }
     if (p.medianQualityPerWeek != null) {
@@ -384,19 +384,19 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
     } else if (mixReliable && recent.qualityPct < 12) {
       suggestions.push({
         basis: 'science',
-        text: `Your recent mix is ~${recent.easyPct}% easy / ~${recent.qualityPct}% quality. A polarized ~80/20 distribution is repeatedly linked to better endurance gains in trained runners (Seiler; Stöggl & Sperlich, 2014) — a weekly tempo or interval session would help.`,
+        text: `Your recent mix is ~${recent.easyPct}% easy / ~${recent.qualityPct}% quality. A polarized ~80/20 distribution is repeatedly linked to better endurance gains in trained runners (Seiler; Stöggl & Sperlich, 2014), a weekly tempo or interval session would help.`,
       });
     }
     if (mixReliable && recent.easyPct < 65) {
       suggestions.push({
         basis: 'science',
-        text: `Keep most volume easy (~80%): you're at ~${recent.easyPct}% easy lately. Running easy days truly easy is what lets the hard days be hard (Seiler's intensity-distribution work) — slow them or add easy aerobic miles.`,
+        text: `Keep most volume easy (~80%): you're at ~${recent.easyPct}% easy lately. Running easy days truly easy is what lets the hard days be hard (Seiler's intensity-distribution work), slow them or add easy aerobic miles.`,
       });
     }
     if (p.medianWeeklyMiles > 0 && recent.avgWeeklyMiles < p.medianWeeklyMiles * 0.75) {
       suggestions.push({
         basis: 'history',
-        text: `Build volume gradually toward ~${p.medianWeeklyMiles} mi/week — the level your ${p.count} most productive blocks shared. You're ~${recent.avgWeeklyMiles} lately; progress about +10%/week to manage injury risk.`,
+        text: `Build volume gradually toward ~${p.medianWeeklyMiles} mi/week, the level your ${p.count} most productive blocks shared. You're ~${recent.avgWeeklyMiles} lately; progress about +10%/week to manage injury risk.`,
       });
     }
     if (recent.runDaysPerWeek + 0.7 < p.medianRunDaysPerWeek) {
@@ -408,13 +408,13 @@ export async function getTrainingInsights(athleteId: string): Promise<TrainingIn
     if (recent.longRuns === 0 && p.blocksWithLongRuns >= Math.ceil(p.count / 2)) {
       suggestions.push({
         basis: 'history',
-        text: `Reintroduce a weekly long run — they featured in ${p.blocksWithLongRuns} of your ${p.count} best blocks (typically up to ${p.typicalLongestRunMiles} mi).`,
+        text: `Reintroduce a weekly long run, they featured in ${p.blocksWithLongRuns} of your ${p.count} best blocks (typically up to ${p.typicalLongestRunMiles} mi).`,
       });
     }
   } else if (!recent.hasData) {
     suggestions.push({
       basis: 'history',
-      text: `Not much recent running to assess — connect Strava or log current training for tailored suggestions.`,
+      text: `Not much recent running to assess, connect Strava or log current training for tailored suggestions.`,
     });
   }
 

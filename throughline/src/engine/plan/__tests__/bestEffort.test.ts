@@ -53,7 +53,7 @@ test('returns null when nothing reaches the minimum anchor distance', () => {
 });
 
 test('respects the max distance (long slow runs do not form an anchor block beyond range)', () => {
-  // 20 easy miles — any 3K–half window is easy; VDOT stays modest, distance within range.
+  // 20 easy miles — any 3K-half window is easy; VDOT stays modest, distance within range.
   const splits = Array.from({ length: 20 }, () => mile(9 * 60, 150));
   const best = bestSustainedEffort(splits)!;
   assert.ok(best.distanceMeters <= 21100);

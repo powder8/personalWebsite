@@ -101,7 +101,7 @@ export interface AnchorFeasibility {
   weeksNeededForGoal: number; // weeks a normal build needs to reach the goal
 }
 
-const OPTIMISTIC_MULTIPLIER = 1.3; // "everything clicks" — matches the run guardrails.
+const OPTIMISTIC_MULTIPLIER = 1.3; // "everything clicks", matches the run guardrails.
 
 export function assessAnchorFeasibility(input: AnchorFeasibilityInput): AnchorFeasibility {
   const trainableWeeks = Math.max(0, input.weeksToRace - input.taperWeeks);
@@ -129,7 +129,7 @@ export function assessAnchorFeasibility(input: AnchorFeasibilityInput): AnchorFe
 // ── Tri aggregate (G4) ───────────────────────────────────────────────────────
 
 export interface TriFeasibilityInput {
-  decomposition: GoalDecomposition; // from decomposeGoalTime — carries required anchors + transitions
+  decomposition: GoalDecomposition; // from decomposeGoalTime, carries required anchors + transitions
   currentAnchors: TriAnchors;
   weeksToRace: number;
   riderMassKg: number;
@@ -323,7 +323,7 @@ function triProse(
     case 'ahead':
       return {
         headline: `${target} is within reach`,
-        note: `Every leg is at or ahead of the fitness ${target} needs — the plan is about race-specific sharpening and durability (especially the run off the bike), not chasing big fitness gains. Realistic finish on a normal build: ~${realistic}.`,
+        note: `Every leg is at or ahead of the fitness ${target} needs, the plan is about race-specific sharpening and durability (especially the run off the bike), not chasing big fitness gains. Realistic finish on a normal build: ~${realistic}.`,
       };
     case 'on_track':
       return {
@@ -332,8 +332,8 @@ function triProse(
       };
     case 'stretch':
       return {
-        headline: `${target} is a stretch — the ${name} is the constraint`,
-        note: `The ${name} needs about ${b.requiredWeeklyGainLabel} for ${b.trainableWeeks} weeks — the top of what typically happens, not the expectation. It's the leg that decides your day. Realistic finish on a normal build: ~${realistic}; treat that as success and ${target} as the reach.`,
+        headline: `${target} is a stretch. The ${name} is the constraint`,
+        note: `The ${name} needs about ${b.requiredWeeklyGainLabel} for ${b.trainableWeeks} weeks, the top of what typically happens, not the expectation. It's the leg that decides your day. Realistic finish on a normal build: ~${realistic}; treat that as success and ${target} as the reach.`,
       };
     case 'unrealistic': {
       // POSSIBLE but not in these weeks — the gap is under the athlete's ceiling
@@ -341,8 +341,8 @@ function triProse(
       const gapLabel = absLabel(bindingLeg, b.gap);
       const addsLabel = absLabel(bindingLeg, b.achievableGain);
       return {
-        headline: `${target} is a longer game — the ${name} needs more time`,
-        note: `${target} is reachable for you, but not in this build: these ${b.trainableWeeks} training weeks realistically add ~${addsLabel} on the ${name}, and it needs about ${gapLabel} more (${absLabel(bindingLeg, b.currentAnchor)} → ${absLabel(bindingLeg, b.goalAnchor)}). Give the ${name} another season or two of consistent work and it comes in range — for THIS race, ~${realistic} is a strong, honest target.`,
+        headline: `${target} is a longer game. The ${name} needs more time`,
+        note: `${target} is reachable for you, but not in this build: these ${b.trainableWeeks} training weeks realistically add ~${addsLabel} on the ${name}, and it needs about ${gapLabel} more (${absLabel(bindingLeg, b.currentAnchor)} → ${absLabel(bindingLeg, b.goalAnchor)}). Give the ${name} another season or two of consistent work and it comes in range, for THIS race, ~${realistic} is a strong, honest target.`,
       };
     }
     default: {
@@ -352,7 +352,7 @@ function triProse(
       const ceilingLabel = b.ceiling != null ? absLabel(bindingLeg, b.ceiling) : null;
       return {
         headline: `${target} is faster than this race can be for you`,
-        note: `${target} is an elite time — on the ${name} it would need ${absLabel(bindingLeg, b.goalAnchor)}, past what's realistically attainable for your profile${ceilingLabel ? ` (a best-case ceiling around ${ceilingLabel})` : ''}, even with unlimited time. That's no knock on you — it's simply a very fast number. The honest, motivating target for this race is ~${realistic}, and it's a genuinely strong day. Let's chase that.`,
+        note: `${target} is an elite time, on the ${name} it would need ${absLabel(bindingLeg, b.goalAnchor)}, past what's realistically attainable for your profile${ceilingLabel ? ` (a best-case ceiling around ${ceilingLabel})` : ''}, even with unlimited time. That's no knock on you, it's simply a very fast number. The honest, motivating target for this race is ~${realistic}, and it's a genuinely strong day. Let's chase that.`,
       };
     }
   }
@@ -395,7 +395,7 @@ export function assessFtpGoal(input: FtpGoalInput): FtpGoalAssessment {
     taperWeeks: taper,
     weeklyGain: typicalWeeklyFtpGain(input.currentFtp) * hoursGainScale(input.weeklyHours),
     seasonGainCap: input.currentFtp * FTP_SEASON_GAIN_CAP_PCT,
-    projectTime: (a) => a, // identity — "projected time" IS the projected FTP here
+    projectTime: (a) => a, // identity. "projected time" IS the projected FTP here
   });
 
   let verdict = af.verdict;

@@ -36,7 +36,7 @@ test('buildPowerZones: each band = FTP × its %FTP bounds, at FTP=250', () => {
     assert.equal(z.zones![k].loWatts, Math.round(250 * DEFAULT_POWER_ZONES[k].lo), `${k} lo`);
     assert.equal(z.zones![k].hiWatts, Math.round(250 * DEFAULT_POWER_ZONES[k].hi), `${k} hi`);
   }
-  // Coggan spot checks: 1 h at FTP sits inside threshold; endurance ~56–75%.
+  // Coggan spot checks: 1 h at FTP sits inside threshold; endurance ~56-75%.
   assert.equal(z.zones!.threshold.hiWatts, 263); // 1.05 × 250
   assert.equal(z.zones!.endurance.loWatts, 140); // 0.56 × 250
   assert.equal(z.zones!.endurance.hiWatts, 188); // 0.75 × 250 (rounded)
@@ -52,7 +52,7 @@ test('buildPowerZones: zones ascend in intensity (recovery < … < sprint)', () 
       `${tiling[i]} lo >= ${tiling[i - 1]} lo`,
     );
   }
-  // sweetspot really does straddle Z3/Z4 (88–94% FTP).
+  // sweetspot really does straddle Z3/Z4 (88-94% FTP).
   assert.equal(z.zones!.sweetspot.loWatts, 220);
   assert.equal(z.zones!.sweetspot.hiWatts, 235);
 });
@@ -102,8 +102,8 @@ test('isPowerZones / isPaceZones narrow the TrainingZones union', () => {
 });
 
 test('display helpers format watts, W/kg and bpm', () => {
-  assert.equal(wattsLabel({ loWatts: 250, hiWatts: 290 }), '250–290 W');
+  assert.equal(wattsLabel({ loWatts: 250, hiWatts: 290 }), '250-290 W');
   assert.equal(wattsPerKg(280, 70), 4);
   assert.equal(wattsPerKg(280, 0), 0);
-  assert.equal(bpmLabel({ loBpm: 150, hiBpm: 160 }), '150–160 bpm');
+  assert.equal(bpmLabel({ loBpm: 150, hiBpm: 160 }), '150-160 bpm');
 });

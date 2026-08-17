@@ -99,7 +99,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
             <p className="font-semibold text-slate-800">{athlete.fullName}</p>
             <p className="text-sm text-slate-500">{session?.user?.email ?? athlete.email}</p>
             <p className="text-xs text-slate-400">
-              {athlete.coachingMode === 'autonomous' ? 'Auto-coached — AI builds and adjusts your plan' : 'Coach-guided — your coach reviews and adjusts the plan'}
+              {athlete.coachingMode === 'autonomous' ? 'Auto-coached. AI builds and adjusts your plan' : 'Coach-guided, your coach reviews and adjusts the plan'}
             </p>
           </div>
           {session && authConfigured() && (
@@ -137,7 +137,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
         />
       </Card>
 
-      <Card title="Whoop — HRV, sleep &amp; recovery">
+      <Card title="Whoop. HRV, sleep &amp; recovery">
         <ConnectWhoop
           athleteId={athlete.id}
           connected={whoopStatus.connected}
@@ -153,8 +153,8 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
       <Card title={checkedInToday ? "Today's check-in ✓" : 'How are you feeling today?'}>
         {checkedInToday && todayCheckIn && (
           <p className="mb-3 text-xs text-slate-500">
-            Soreness {todayCheckIn.soreness ?? '—'} · Energy {todayCheckIn.energy ?? '—'} · Yesterday RPE{' '}
-            {todayCheckIn.yesterdayRpe ?? '—'}. You can update it below.
+            Soreness {todayCheckIn.soreness ?? '-'} · Energy {todayCheckIn.energy ?? '-'} · Yesterday RPE{' '}
+            {todayCheckIn.yesterdayRpe ?? '-'}. You can update it below.
           </p>
         )}
         <CheckInForm
@@ -199,10 +199,10 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
       {/* ── PROGRESS ─────────────────────────────────────────────────────── */}
       <SectionHeader>Progress</SectionHeader>
       {timeline && timeline.blocks.length > 0 && (
-        <Card title="Your season — block by block">
+        <Card title="Your season, block by block">
           <PlanTimeline timeline={timeline} />
           <p className="mt-3 text-[11px] text-slate-400">
-            Each block stresses a different system — aerobic base, race-specific work, then a taper so you arrive
+            Each block stresses a different system, aerobic base, race-specific work, then a taper so you arrive
             fresh. Races are placed to sharpen, not interrupt.
           </p>
         </Card>

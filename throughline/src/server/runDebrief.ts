@@ -226,8 +226,8 @@ async function narrateSignals(signals: RunSignal[]): Promise<{ headline: string;
     model,
     max_tokens: 400,
     system:
-      'You are the athlete’s running coach writing a short post-run debrief. Use ONLY the facts provided — never invent numbers, paces, or events. Be warm, specific, and encouraging; never guilt-trip; never tell them to "make up" missed miles. ' +
-      'Output EXACTLY this format, plain text, no markdown:\nHEADLINE: <≤6 words>\nWENT WELL: <2–3 sentences>\nFOCUS NEXT: <1–2 sentences>',
+      'You are the athlete’s running coach writing a short post-run debrief. Use ONLY the facts provided, never invent numbers, paces, or events. Be warm, specific, and encouraging; never guilt-trip; never tell them to "make up" missed miles. ' +
+      'Output EXACTLY this format, plain text, no markdown:\nHEADLINE: <≤6 words>\nWENT WELL: <2-3 sentences>\nFOCUS NEXT: <1-2 sentences>',
     messages: [{ role: 'user', content: `Facts about today's run:\n${facts}` }],
   });
   const text = resp.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('\n');

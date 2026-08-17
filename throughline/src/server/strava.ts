@@ -116,9 +116,9 @@ export async function fetchStravaRoute(db: DB, athleteId: string, routeId: strin
   const { apiBaseUrl } = stravaEnv();
 
   const res = await fetch(`${apiBaseUrl}/routes/${routeId}`, { headers: { Authorization: `Bearer ${token}` } });
-  if (res.status === 404) throw new Error("Couldn't find that route — is the link right, and is the route public?");
-  if (res.status === 401 || res.status === 403) throw new Error('Strava wouldn’t share that route — make it public, or reconnect Strava.');
-  if (res.status === 429) throw new Error('Strava is rate-limiting right now — try again in a minute.');
+  if (res.status === 404) throw new Error("Couldn't find that route, is the link right, and is the route public?");
+  if (res.status === 401 || res.status === 403) throw new Error('Strava wouldn’t share that route, make it public, or reconnect Strava.');
+  if (res.status === 429) throw new Error('Strava is rate-limiting right now, try again in a minute.');
   if (!res.ok) throw new Error(`Strava route lookup failed (HTTP ${res.status}).`);
 
   const j = (await res.json()) as { name?: string; distance?: number; elevation_gain?: number };
@@ -149,7 +149,7 @@ export async function estimateFtpFromStrava(db: DB, athleteId: string): Promise<
 
   const after = Math.floor((Date.now() - 120 * 86400000) / 1000); // last ~4 months
   const listRes = await fetch(`${apiBaseUrl}/athlete/activities?after=${after}&per_page=100`, { headers: auth });
-  if (listRes.status === 429) throw new Error('Strava is rate-limiting right now — try again in a minute.');
+  if (listRes.status === 429) throw new Error('Strava is rate-limiting right now, try again in a minute.');
   if (!listRes.ok) throw new Error(`Strava activity fetch failed (HTTP ${listRes.status}).`);
 
   const acts = (await listRes.json()) as Array<{
@@ -210,7 +210,7 @@ export interface SyncResult {
   imported: number; // NEW raw events captured this call
   done: boolean; // false → more pages remain; call again with `afterOverride: nextAfter`
   nextAfter: number | null; // unix cursor to continue from
-  rateLimited?: boolean; // Strava 429 — back off and resume from nextAfter
+  rateLimited?: boolean; // Strava 429, back off and resume from nextAfter
   retryAfterSec?: number; // suggested wait before resuming (when rateLimited)
 }
 

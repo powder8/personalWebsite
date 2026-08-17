@@ -37,7 +37,7 @@ export default async function TriSetupPage({ params }: { params: Promise<{ id: s
         <h1 className="text-2xl font-bold tracking-tight">Let&apos;s build your triathlon, {firstName} 🏊 🚴 🏃</h1>
         <p className="mt-1 text-sm text-white/80">
           Tell me your race, roughly where your fitness is in each sport, and how much you can train. I&apos;ll build a
-          coordinated swim/bike/run plan — and give you an honest read on your target.
+          coordinated swim/bike/run plan, and give you an honest read on your target.
         </p>
       </div>
 

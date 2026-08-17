@@ -292,7 +292,7 @@ function dropReason(s: TriScheduleSession, schedule: WeekSchedule): string {
   if (s.discipline === 'swim' && !DOWS.some((d) => schedule[d].poolAccess)) {
     return 'no pool-access day available for the swim';
   }
-  return 'week over capacity — no day with room that avoids stacking a second hard session';
+  return 'week over capacity, no day with room that avoids stacking a second hard session';
 }
 
 /**
@@ -362,7 +362,7 @@ export function layoutTriWeek(
       .map((d) => `${d.session.discipline} (${d.reason})`)
       .join('; ');
     notes.push(
-      `Week over-full: dropped ${dropped.length} lower-priority session(s) — ${summary}.`,
+      `Week over-full: dropped ${dropped.length} lower-priority session(s), ${summary}.`,
     );
   }
 

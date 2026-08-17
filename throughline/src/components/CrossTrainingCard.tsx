@@ -41,7 +41,7 @@ export function CrossTrainingCard({ summary }: { summary: CrossTrainingSummary }
         {summary.miles > 0 && <span className="font-normal text-slate-400"> · {summary.miles} mi</span>}
       </div>
       <p className="mt-1 text-xs leading-relaxed text-slate-400">
-        Nice aerobic work — this builds your engine with none of the pounding. It counts toward your consistency and
+        Nice aerobic work, this builds your engine with none of the pounding. It counts toward your consistency and
         weekly load; it just doesn’t set your run paces (cycling fitness ≠ running economy).
       </p>
     </div>

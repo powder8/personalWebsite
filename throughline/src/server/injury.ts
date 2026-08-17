@@ -88,7 +88,7 @@ export async function reportInjury(
       factor: 0.8,
       from: today,
       to: null,
-      label: `${cap(input.bodyPart)} niggle — keeping it easier`,
+      label: `${cap(input.bodyPart)} niggle, keeping it easier`,
       source: 'auto',
       category: 'injury',
     });
@@ -98,7 +98,7 @@ export async function reportInjury(
       type: 'unavailable',
       from: today,
       to: null,
-      label: `Resting your ${input.bodyPart.toLowerCase()} — running paused until you're ready`,
+      label: `Resting your ${input.bodyPart.toLowerCase()}, running paused until you're ready`,
       source: 'auto',
       category: 'injury',
     });
@@ -123,7 +123,7 @@ export async function resumeInjury(db: DB, athleteId: string, injuryId: string, 
     from: today,
     to: addDaysISO(today, 7),
     deltaSecPerMile: 15,
-    label: `Easing back after your ${row.bodyPart.toLowerCase()} — start soft, build gradually`,
+    label: `Easing back after your ${row.bodyPart.toLowerCase()}, start soft, build gradually`,
     source: 'auto',
     category: 'injury',
   });

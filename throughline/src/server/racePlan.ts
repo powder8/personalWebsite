@@ -140,7 +140,7 @@ export async function getRacePlan(db: DB, athleteId: string, today: string): Pro
     target,
     windows,
     goalCourseNote:
-      'Chasing a time? Course choice matters: pick a flat, fast course (and do your key timed sessions on flat ground too — save hills for easy and strength days).',
+      'Chasing a time? Course choice matters: pick a flat, fast course (and do your key timed sessions on flat ground too, save hills for easy and strength days).',
     grounding,
     recentAnchorOffer,
     feasibility,

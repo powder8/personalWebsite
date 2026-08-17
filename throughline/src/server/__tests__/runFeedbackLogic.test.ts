@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { assessRun, type PlannedRef } from '../runFeedbackLogic';
 
-// Paces in sec/km. Easy band ~9:00–9:45/mi → ~335–363 s/km. Threshold ~7:00/mi → ~261 s/km.
+// Paces in sec/km. Easy band ~9:00-9:45/mi → ~335-363 s/km. Threshold ~7:00/mi → ~261 s/km.
 const easy: PlannedRef = { sessionType: 'easy', zone: 'easy', miles: 5, paceFastSecPerKm: 335, paceSlowSecPerKm: 363 };
 const threshold: PlannedRef = { sessionType: 'threshold', zone: 'threshold', miles: 6, paceFastSecPerKm: 255, paceSlowSecPerKm: 268 };
 

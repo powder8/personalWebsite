@@ -47,7 +47,7 @@ test('bike speed↔power invert cleanly (round-trip within 1 W)', () => {
     assert.ok(Math.abs(back - watts) < 1, `round-trip watts ${watts} → ${back}`);
   }
 });
-test('bike: a 240 W FTP @ IF 0.80 rides 90 km in a plausible 70.3 window (2:15–3:15)', () => {
+test('bike: a 240 W FTP @ IF 0.80 rides 90 km in a plausible 70.3 window (2:15-3:15)', () => {
   const s = predictBikeSeconds(240, MASS, 90000, 0.8);
   assert.ok(s > 8100 && s < 11700, `bike seconds ${s} out of plausible band`);
 });

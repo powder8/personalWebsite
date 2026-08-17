@@ -40,7 +40,7 @@ export function WeeklyVolumeChart({ summary, runLinkBase }: { summary: TrainingS
   const { weeks, efforts, hasElevation } = summary;
   const anyMiles = weeks.some((w) => w.miles > 0);
   if (!anyMiles) {
-    return <p className="text-sm text-slate-400">No runs in the last 12 weeks yet — connect Strava to populate this.</p>;
+    return <p className="text-sm text-slate-400">No runs in the last 12 weeks yet, connect Strava to populate this.</p>;
   }
 
   const n = weeks.length;
@@ -174,12 +174,12 @@ export function WeeklyVolumeChart({ summary, runLinkBase }: { summary: TrainingS
                         {e.name ?? 'Run'}
                       </Link>
                     ) : (
-                      e.name ?? '—'
+                      e.name ?? '-'
                     )}
                   </td>
                   <td className="py-1.5 text-right text-slate-700">{e.miles.toFixed(1)}</td>
                   <td className="py-1.5 text-right text-slate-600">
-                    {e.paceSecPerKm != null ? `${secPerKmToMinPerMile(e.paceSecPerKm)}/mi` : '—'}
+                    {e.paceSecPerKm != null ? `${secPerKmToMinPerMile(e.paceSecPerKm)}/mi` : '-'}
                   </td>
                   {hasElevation && (
                     <td className="py-1.5 text-right text-slate-500">{Math.round(e.elevationFt)} ft</td>

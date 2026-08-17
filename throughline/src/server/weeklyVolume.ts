@@ -92,7 +92,7 @@ export interface TrainingSummary {
 function mondayOf(day: string): string {
   const [y, m, d] = day.split('-').map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
-  const dow = dt.getUTCDay(); // 0 = Sun … 6 = Sat
+  const dow = dt.getUTCDay(); // 0 = Sun ... 6 = Sat
   const back = (dow + 6) % 7; // days since Monday
   dt.setUTCDate(dt.getUTCDate() - back);
   return dt.toISOString().slice(0, 10);

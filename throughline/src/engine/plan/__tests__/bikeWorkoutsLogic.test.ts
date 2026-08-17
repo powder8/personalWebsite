@@ -54,7 +54,7 @@ test('work segments are duration × %FTP: repSeconds + watt targets, no meters',
   assert.ok((work.repSeconds ?? 0) > 0, 'interval length in seconds');
   assert.equal(work.repMeters, undefined, 'no running meters');
   assert.equal(work.distanceMeters, undefined);
-  // Watt targets come from the athlete's threshold band (91–105% of 250 W).
+  // Watt targets come from the athlete's threshold band (91-105% of 250 W).
   assert.equal(work.targetLoWatts, power.zones!.threshold.loWatts);
   assert.equal(work.targetHiWatts, power.zones!.threshold.hiWatts);
   assert.match(work.note ?? '', /W\b/, 'watt label in note');

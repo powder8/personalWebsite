@@ -29,7 +29,7 @@ function pace(sec: number | null): string {
   return sec == null ? '' : `${secPerKmToMinPerMile(sec)}/mi`;
 }
 function mi(n: number): string {
-  return n <= 0 ? '—' : n >= 10 ? n.toFixed(1) : n.toFixed(1);
+  return n <= 0 ? '-' : n >= 10 ? n.toFixed(1) : n.toFixed(1);
 }
 function dur(sec: number | null): string {
   if (!sec) return '';
@@ -248,7 +248,7 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
     <div className="mt-2 space-y-2 rounded-xl bg-slate-50 p-3 text-sm">
       <div className="text-xs font-semibold text-slate-500">{fmtDate(d.day)}</div>
 
-      {/* Bike/swim session done — the ride/swim IS the day's work. */}
+      {/* Bike/swim session done, the ride/swim IS the day's work. */}
       {sessionActual && (
         <div className="rounded-lg bg-emerald-400/15 p-2 text-xs ring-1 ring-inset ring-emerald-400/30">
           <div className="flex flex-wrap items-center gap-x-2 font-semibold text-emerald-700">
@@ -272,7 +272,7 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
             </span>
             {d.planned!.discipline === 'run' && d.planned!.paceFastSecPerKm != null && (
               <span className="text-xs tabular-nums text-slate-400">
-                {pace(d.planned!.paceFastSecPerKm)}–{pace(d.planned!.paceSlowSecPerKm)}
+                {pace(d.planned!.paceFastSecPerKm)}-{pace(d.planned!.paceSlowSecPerKm)}
               </span>
             )}
           </div>
@@ -284,18 +284,18 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
           {d.planned!.description && <p className="mt-0.5 text-xs text-slate-500">{d.planned!.description}</p>}
         </div>
       ) : d.planned?.sessionType === 'rest' && d.actuals.length === 0 ? (
-        <p className="text-slate-500">Rest day — nothing scheduled.</p>
+        <p className="text-slate-500">Rest day, nothing scheduled.</p>
       ) : null}
 
       {/* Multi-run day: one session logged as several activities */}
       {d.actuals.filter((a) => a.isRun).length > 1 && (
         <p className="text-xs font-medium text-slate-500">
           {d.actuals.filter((a) => a.isRun).length} runs · {mi(d.actuals.filter((a) => a.isRun).reduce((s, a) => s + a.miles, 0))} mi
-          total — coach’s take is on your main effort.
+          total, coach’s take is on your main effort.
         </p>
       )}
 
-      {/* Actual runs — main effort first */}
+      {/* Actual runs, main effort first */}
       {d.primaryRun && <ActualLine a={d.primaryRun} athleteId={athleteId} primary={d.actuals.filter((a) => a.isRun).length > 1} />}
       {d.actuals.filter((a) => a.isRun && a !== d.primaryRun).map((a) => (
         <ActualLine key={a.activityId} a={a} athleteId={athleteId} />
@@ -326,20 +326,20 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
         </div>
       ))}
       {otherCross.length > 0 && d.status !== 'missed' && !sessionActual && (
-        <p className="text-[11px] text-slate-400">Cross-training counts — it builds aerobic fitness without the pounding.</p>
+        <p className="text-[11px] text-slate-400">Cross-training counts, it builds aerobic fitness without the pounding.</p>
       )}
 
       {/* Today, still to do */}
       {d.isToday && d.status === 'upcoming' && plannedHasWork(d.planned) && (
-        <p className="text-xs font-medium text-sky-400">Still on today’s plan — go get it. {DISC_EMOJI[d.planned!.discipline]}</p>
+        <p className="text-xs font-medium text-sky-400">Still on today’s plan, go get it. {DISC_EMOJI[d.planned!.discipline]}</p>
       )}
 
       {/* Missed-but-cross-trained reassurance (discipline-aware) */}
       {d.status === 'missed' && d.crossTrain.length > 0 && (
-        <p className="text-[11px] text-slate-400">The {missedNoun} was missed, but you still moved — that’s a win on a tough day.</p>
+        <p className="text-[11px] text-slate-400">The {missedNoun} was missed, but you still moved, that’s a win on a tough day.</p>
       )}
       {d.status === 'missed' && d.crossTrain.length === 0 && (
-        <p className="text-xs text-slate-500">No {missedNoun} logged. One missed day won’t derail you — roll into the next session.</p>
+        <p className="text-xs text-slate-500">No {missedNoun} logged. One missed day won’t derail you, roll into the next session.</p>
       )}
     </div>
   );

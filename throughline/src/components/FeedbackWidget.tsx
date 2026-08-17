@@ -54,7 +54,7 @@ export function FeedbackWidget() {
             </button>
           </div>
           {done ? (
-            <p className="py-4 text-center text-sm text-emerald-300">Thanks — sent! 🙌</p>
+            <p className="py-4 text-center text-sm text-emerald-300">Thanks, sent! 🙌</p>
           ) : (
             <form onSubmit={onSubmit} className="space-y-2">
               <p className="text-xs text-slate-500">
@@ -76,14 +76,14 @@ export function FeedbackWidget() {
               </div>
               <label className="block text-xs text-slate-600">
                 Message
-                <textarea name="body" required rows={4} className={field} placeholder="I'd build this differently because…" />
+                <textarea name="body" required rows={4} className={field} placeholder="I'd build this differently because..." />
               </label>
               <button
                 type="submit"
                 disabled={pending}
                 className="w-full rounded bg-sky-700 px-3 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
               >
-                {pending ? 'Sending…' : 'Send feedback'}
+                {pending ? 'Sending...' : 'Send feedback'}
               </button>
               {err && <p className="text-xs text-rose-600">{err}</p>}
             </form>

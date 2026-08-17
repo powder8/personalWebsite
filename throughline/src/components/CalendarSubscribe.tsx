@@ -46,7 +46,7 @@ export function CalendarSubscribe({ athleteId }: { athleteId: string }) {
         </button>
       </div>
       <p className="text-xs text-slate-400">
-        Subscribes to your plan — new and changed workouts update automatically.
+        Subscribes to your plan, new and changed workouts update automatically.
       </p>
     </div>
   );

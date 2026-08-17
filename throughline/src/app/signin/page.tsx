@@ -41,7 +41,7 @@ export default async function SignInPage({
 
       {error && (
         <p className="mt-4 rounded bg-rose-400/10 px-3 py-2 text-center text-sm text-rose-300 ring-1 ring-inset ring-rose-400/30">
-          {error === 'AccessDenied' ? 'That account isn’t recognized yet.' : 'Sign-in failed — please try again.'}
+          {error === 'AccessDenied' ? 'That account isn’t recognized yet.' : 'Sign-in failed, please try again.'}
         </p>
       )}
 

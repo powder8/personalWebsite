@@ -41,7 +41,7 @@ export function SyncButton({ athleteId }: { athleteId: string }) {
   }
 
   const label =
-    state === 'syncing' ? 'Syncing…' : state === 'done' ? 'Synced ✓' : state === 'uptodate' ? 'Up to date' : state === 'error' ? 'Retry sync' : '↻ Sync';
+    state === 'syncing' ? 'Syncing...' : state === 'done' ? 'Synced ✓' : state === 'uptodate' ? 'Up to date' : state === 'error' ? 'Retry sync' : '↻ Sync';
 
   return (
     <button

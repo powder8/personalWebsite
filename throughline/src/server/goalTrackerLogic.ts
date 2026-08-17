@@ -26,7 +26,7 @@ export interface GoalTracker {
   headline: string; // "Sub-3:05 is in reach"
   projectionLine: string | null; // "projected today 3:07 → race day 3:04"
   gapNote: string | null; // the honest "why": the size of the gap + the runway it needs
-  fillPct: number; // 0-100 — how close the projected outcome is to the goal
+  fillPct: number; // 0-100, how close the projected outcome is to the goal
   goalMarkerPct: number; // where the goal line sits on the bar
   leftLabel: string;
   rightLabel: string;
@@ -78,7 +78,7 @@ function execNoteFor(exec: Execution, c: ConsistencyStats | null): string | null
     case 'strong':
       return `${c.activeWeeks28d}/4 weeks fully trained`;
     case 'okay':
-      return 'Training is steady — keep stacking weeks';
+      return 'Training is steady, keep stacking weeks';
     case 'slipping':
       return c.adherence28dPct != null
         ? `Training ${Math.max(1, 100 - c.adherence28dPct)}% under plan the last 4 weeks`
@@ -106,10 +106,10 @@ export interface BuildGoalTrackerInput {
 export function driftingAdvice(days: number | null): string {
   if (days != null && days <= 13) {
     return days <= 1
-      ? "Race is basically here — the fitness is banked. Rest up, run smart, and we rebuild after."
-      : `Only ${days} days out — too little runway to rebuild base, so don't cram. Arrive rested, race what you've got, and we build it back properly afterwards.`;
+      ? "Race is basically here, the fitness is banked. Rest up, run smart, and we rebuild after."
+      : `Only ${days} days out, too little runway to rebuild base, so don't cram. Arrive rested, race what you've got, and we build it back properly afterwards.`;
   }
-  return 'The race is still yours — get two solid weeks back-to-back and the base rebuilds fast.';
+  return 'The race is still yours, get two solid weeks back-to-back and the base rebuilds fast.';
 }
 
 /** Pure verdict builder. Returns null when there is no goal to track. */
@@ -144,10 +144,10 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
       // Without a target time we can only judge consistency — nudge for the time
       // so the real on-pace verdict (projected finish vs goal) unlocks.
       advocateLine: needsTime
-        ? "Add a target time and I'll show you exactly whether you're on pace to hit it — not just building blind."
+        ? "Add a target time and I'll show you exactly whether you're on pace to hit it, not just building blind."
         : drifting
           ? driftingAdvice(days)
-          : 'Keep stacking consistent weeks — that is what shows up on race day.',
+          : 'Keep stacking consistent weeks, that is what shows up on race day.',
       cta: needsTime ? { label: 'Set a target time', href: '#goal-setup' } : null,
     };
   }
@@ -178,11 +178,11 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
         : `${goalLabel} is ahead of what a fully consistent block projects for race day (~${projected}). `;
     const runwayClause =
       weeksNeeded && weeksNeeded > weeksLeft
-        ? `A normal build to it runs ~${weeksNeeded} weeks — more than the ${weeksLeft} this race gives. It's a genuine season goal.`
+        ? `A normal build to it runs ~${weeksNeeded} weeks, more than the ${weeksLeft} this race gives. It's a genuine season goal.`
         : `Closing it needs consistent, structured weeks between now and race day.`;
     gapNote = gapClause + runwayClause;
   } else if (feasibility.verdict === 'stretch' && goalLabel) {
-    gapNote = `${goalLabel} asks for a strong ${weeksLeft}-week block — a good build gets you close; stack the weeks and see how near you land.`;
+    gapNote = `${goalLabel} asks for a strong ${weeksLeft}-week block, a good build gets you close; stack the weeks and see how near you land.`;
   }
 
   // Destination verdict, then let execution downgrade a capable athlete who
@@ -206,7 +206,7 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
         : verdict === 'stretch'
           ? goalLabel
             ? `${goalLabel} is a real stretch`
-            : 'A real stretch — reachable if it clicks'
+            : 'A real stretch, reachable if it clicks'
           : verdict === 'drifting'
             ? goalLabel
               ? `${goalLabel} is slipping`
@@ -244,14 +244,14 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
         : `${consistency.runs28d} run${consistency.runs28d === 1 ? '' : 's'} in 4 weeks`;
   const atRiskAdvocate =
     slipping && runsPhrase
-      ? `That ~${projected} already assumes you train consistently — and at ${runsPhrase} right now, even it is slipping. Get consistent and you protect it; ${goalLabel ?? 'the big goal'} stays the season target to build toward. Want a race-day goal with more room? Adjust it below.`
-      : `You're doing the work — ${goalLabel ?? 'it'} is simply a bigger jump than ${weeksLeft} weeks allow, so keep it as your season target. For this race, ~${projected} is a strong result to chase now. Want more room? Adjust it below.`;
+      ? `That ~${projected} already assumes you train consistently, and at ${runsPhrase} right now, even it is slipping. Get consistent and you protect it; ${goalLabel ?? 'the big goal'} stays the season target to build toward. Want a race-day goal with more room? Adjust it below.`
+      : `You're doing the work, ${goalLabel ?? 'it'} is simply a bigger jump than ${weeksLeft} weeks allow, so keep it as your season target. For this race, ~${projected} is a strong result to chase now. Want more room? Adjust it below.`;
 
   const advocateLine =
     verdict === 'ahead'
-      ? 'Hold this fitness — or let\'s aim a notch faster and make the race count.'
+      ? 'Hold this fitness, or let\'s aim a notch faster and make the race count.'
       : verdict === 'on_track'
-        ? 'Keep protecting your long run and key session — it\'s yours to lose.'
+        ? 'Keep protecting your long run and key session, it\'s yours to lose.'
         : verdict === 'stretch'
           ? 'It\'s the ceiling, not the floor. Stack consistent weeks and see how close you get.'
           : verdict === 'drifting'

@@ -101,8 +101,8 @@ const TEMPLATES: WindowTemplate[] = [
     maxWeeksOut: 3,
     priority: 'tune_up',
     phase: 'taper',
-    rationale: 'Short, sharp effort to prime race legs — far enough out to recover fully.',
-    effortNote: 'Race controlled and short — sharpen the legs, this is not a max effort.',
+    rationale: 'Short, sharp effort to prime race legs, far enough out to recover fully.',
+    effortNote: 'Race controlled and short, sharpen the legs, this is not a max effort.',
     courseProfile: 'Flat and fast; a low-key local race is ideal.',
   },
   {
@@ -113,8 +113,8 @@ const TEMPLATES: WindowTemplate[] = [
     priority: 'tune_up',
     phase: 'peak',
     rationale: 'A longer race near goal effort to rehearse pacing and confirm fitness at peak.',
-    effortNote: 'Near goal effort — rehearse goal-race pacing, fueling, and kit.',
-    courseProfile: 'Flat and fast, and as similar to the goal course as possible — a dress rehearsal.',
+    effortNote: 'Near goal effort, rehearse goal-race pacing, fueling, and kit.',
+    courseProfile: 'Flat and fast, and as similar to the goal course as possible, a dress rehearsal.',
   },
   {
     kind: 'fitness_check',
@@ -124,8 +124,8 @@ const TEMPLATES: WindowTemplate[] = [
     priority: 'tune_up',
     phase: 'build',
     rationale: 'Gauge progress mid-build and practice racing without disrupting the block.',
-    effortNote: 'Honest race effort to gauge fitness — then back to the build.',
-    courseProfile: 'Any profile; rolling is fine — don’t over-prioritize a fast course.',
+    effortNote: 'Honest race effort to gauge fitness, then back to the build.',
+    courseProfile: 'Any profile; rolling is fine, don’t over-prioritize a fast course.',
   },
   {
     kind: 'opener',
@@ -135,7 +135,7 @@ const TEMPLATES: WindowTemplate[] = [
     priority: 'training',
     phase: 'base',
     rationale: 'Low-stakes opener to shake off rust; run as a workout, not all-out.',
-    effortNote: 'Run as a workout, not all-out — shake off the rust.',
+    effortNote: 'Run as a workout, not all-out, shake off the rust.',
     courseProfile: 'Any course; convenience over course quality.',
   },
 ];

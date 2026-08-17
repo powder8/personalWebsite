@@ -54,7 +54,7 @@ const base: WeekTemplate = {
     quality(1, 'threshold', 0.5, 1.3),
     technique(2, 1.0),
     aerobic(3, 1.1),
-    technique(4, 0.8), // base leans on skill — technique twice
+    technique(4, 0.8), // base leans on skill, technique twice
     aerobic(5, 1.0),
     long(6),
   ],

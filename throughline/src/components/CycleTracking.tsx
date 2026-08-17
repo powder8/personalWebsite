@@ -96,7 +96,7 @@ export function CycleTracking({
     return (
       <div className="space-y-2">
         <p className="text-sm text-slate-600">
-          Optional and private to you. Track your cycle to plan training and racing around it —
+          Optional and private to you. Track your cycle to plan training and racing around it -
           many athletes feel more fatigued in the late luteal phase and prefer to avoid key efforts then.
         </p>
         <button
@@ -104,7 +104,7 @@ export function CycleTracking({
           disabled={pending}
           className="rounded bg-rose-700 px-4 py-2 text-sm font-medium text-white hover:bg-rose-800 disabled:opacity-50"
         >
-          {pending ? 'Enabling…' : 'Turn on cycle tracking'}
+          {pending ? 'Enabling...' : 'Turn on cycle tracking'}
         </button>
         {err && <p className="text-sm text-rose-600">{err}</p>}
         {dismissLink}
@@ -130,7 +130,7 @@ export function CycleTracking({
           </div>
           {status.lateLuteal && (
             <p className="mt-2 text-xs font-medium text-amber-200">
-              ⚠ Late luteal — fatigue is more common now. Worth easing key sessions and avoiding A-races in this window.
+              ⚠ Late luteal, fatigue is more common now. Worth easing key sessions and avoiding A-races in this window.
             </p>
           )}
           {status.upcoming.length > 0 && (
@@ -191,7 +191,7 @@ export function CycleTracking({
             disabled={pending}
             className="rounded bg-rose-700 px-4 py-2 text-sm font-medium text-white hover:bg-rose-800 disabled:opacity-50"
           >
-            {pending ? 'Saving…' : 'Save'}
+            {pending ? 'Saving...' : 'Save'}
           </button>
           <button
             type="button"
@@ -204,7 +204,7 @@ export function CycleTracking({
         </div>
         {err && <p className="text-sm text-rose-600">{err}</p>}
         <p className="text-[11px] text-slate-400">
-          Private to you. Your coach sees only your current phase for planning — no dates.
+          Private to you. Your coach sees only your current phase for planning, no dates.
         </p>
       </form>
     </div>

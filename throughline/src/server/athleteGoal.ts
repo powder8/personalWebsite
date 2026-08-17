@@ -21,7 +21,7 @@ export interface AthleteGoalInput {
   kind: GoalKind;
   distanceLabel?: string; // for finish / time
   targetTimeSeconds?: number; // for time
-  date?: string; // YYYY-MM-DD — required for finish/time
+  date?: string; // YYYY-MM-DD, required for finish/time
   /** Where the athlete's fitness is now. 'existing' reuses their current anchor. */
   fitness: { kind: 'existing' | 'race'; distanceLabel?: string; distanceMeters?: number; timeSeconds?: number };
   currentWeeklyMiles: number;
@@ -79,7 +79,7 @@ export async function setupAthleteGoal(
     // Reuse existing anchor — but make sure one exists.
     const vdot = await getAthleteVdot(db, athleteId);
     if (vdot == null) {
-      throw new Error('We don’t have a fitness starting point yet — add a recent race time, or connect Strava first.');
+      throw new Error('We don’t have a fitness starting point yet, add a recent race time, or connect Strava first.');
     }
     fitness = undefined; // setupSeason keeps the existing anchor
   }

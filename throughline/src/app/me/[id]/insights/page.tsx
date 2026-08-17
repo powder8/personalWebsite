@@ -25,7 +25,7 @@ export default async function MyInsightsPage({ params }: { params: Promise<{ id:
         </Link>
         <h1 className="mt-1 text-xl font-semibold text-slate-900">Your training patterns</h1>
         <p className="text-sm text-slate-500">
-          What’s driven your fitness, and what to consider next — from your own history and training
+          What’s driven your fitness, and what to consider next, from your own history and training
           science.
         </p>
       </div>
@@ -35,7 +35,7 @@ export default async function MyInsightsPage({ params }: { params: Promise<{ id:
       ) : (
         <Card>
           <p className="text-sm text-slate-500">
-            Not enough training history yet — connect Strava or import a log and your patterns will
+            Not enough training history yet, connect Strava or import a log and your patterns will
             appear here.
           </p>
         </Card>

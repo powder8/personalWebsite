@@ -86,7 +86,7 @@ async function resolveTriZones(db: DB, athleteId: string): Promise<Record<Discip
   if (!bike) missing.push('bike (FTP)');
   if (!swim) missing.push('swim (CSS)');
   if (missing.length) {
-    throw new Error(`Triathlon plan needs all three anchors — missing: ${missing.join(', ')}.`);
+    throw new Error(`Triathlon plan needs all three anchors, missing: ${missing.join(', ')}.`);
   }
   return { run: run!, bike: bike!, swim: swim! };
 }

@@ -26,7 +26,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const routeId = parseStravaRouteId(String(body.url ?? ''));
   if (!routeId) {
-    return NextResponse.json({ error: 'Paste a Strava route link (strava.com/routes/…).' }, { status: 400 });
+    return NextResponse.json({ error: 'Paste a Strava route link (strava.com/routes/...).' }, { status: 400 });
   }
 
   try {

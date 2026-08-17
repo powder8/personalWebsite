@@ -41,10 +41,10 @@ function targetLabel(zones: SwimZones, key: SwimZoneKey): string {
 }
 /** A short CSS-relative descriptor for prose, e.g. "@ CSS", "@ CSS+4–10". */
 const CSS_DESCRIPTOR: Record<SwimZoneKey, string> = {
-  recovery: 'easy (CSS+10–20)',
-  aerobic: 'CSS+4–10',
+  recovery: 'easy (CSS+10-20)',
+  aerobic: 'CSS+4-10',
   threshold: 'CSS',
-  vo2max: 'CSS−2–6 (fast)',
+  vo2max: 'CSS−2-6 (fast)',
   sprint: 'sprint (CSS−6+)',
 };
 /** Pace bounds for a segment, taken from the athlete's own CSS-relative zone. */
@@ -91,7 +91,7 @@ const THRESHOLD_TEMPLATES: SwimQualityTemplate[] = [
       const reps = clampInt(wm / 100, 6, 16);
       return [
         intervalSet('threshold', reps, 100, 15, z,
-          `${reps} × 100 m @ ${targetLabel(z, 'threshold')} (CSS) · 15 s rest — hold CSS to the last rep`),
+          `${reps} × 100 m @ ${targetLabel(z, 'threshold')} (CSS) · 15 s rest, hold CSS to the last rep`),
       ];
     },
     prose: (wm, z) => `${clampInt(wm / 100, 6, 16)} × 100 m @ ${targetLabel(z, 'threshold')} (CSS) w/ 15 s`,
@@ -104,7 +104,7 @@ const THRESHOLD_TEMPLATES: SwimQualityTemplate[] = [
       const reps = clampInt(wm / 200, 3, 8);
       return [
         intervalSet('threshold', reps, 200, 20, z,
-          `${reps} × 200 m @ ${targetLabel(z, 'threshold')} (around CSS) · 20 s rest — steady, controlled threshold`),
+          `${reps} × 200 m @ ${targetLabel(z, 'threshold')} (around CSS) · 20 s rest, steady, controlled threshold`),
       ];
     },
     prose: (wm, z) => `${clampInt(wm / 200, 3, 8)} × 200 m @ ${targetLabel(z, 'threshold')} w/ 20 s`,
@@ -118,7 +118,7 @@ const THRESHOLD_TEMPLATES: SwimQualityTemplate[] = [
       const sets = Math.max(1, Math.round(reps / 4));
       return [
         intervalSet('threshold', reps, 100, 10, z,
-          `${sets} × broken 400 (4 × 100 m @ ${targetLabel(z, 'threshold')}, 10 s rest) — race-pace feel with micro-rests`),
+          `${sets} × broken 400 (4 × 100 m @ ${targetLabel(z, 'threshold')}, 10 s rest), race-pace feel with micro-rests`),
       ];
     },
     prose: (wm, z) =>
@@ -135,7 +135,7 @@ const VO2MAX_TEMPLATES: SwimQualityTemplate[] = [
       const reps = clampInt(wm / 50, 10, 24);
       return [
         intervalSet('vo2max', reps, 50, 15, z,
-          `${reps} × 50 m @ ${targetLabel(z, 'vo2max')} · 15 s rest — above CSS, short-course sharpening`),
+          `${reps} × 50 m @ ${targetLabel(z, 'vo2max')} · 15 s rest, above CSS, short-course sharpening`),
       ];
     },
     prose: (wm, z) => `${clampInt(wm / 50, 10, 24)} × 50 m @ ${targetLabel(z, 'vo2max')} w/ 15 s`,
@@ -148,7 +148,7 @@ const VO2MAX_TEMPLATES: SwimQualityTemplate[] = [
       const reps = clampInt(wm / 100, 6, 12);
       return [
         intervalSet('vo2max', reps, 100, 30, z,
-          `${reps} × 100 m @ ${targetLabel(z, 'vo2max')} · 30 s rest — even, repeatable efforts above CSS`),
+          `${reps} × 100 m @ ${targetLabel(z, 'vo2max')} · 30 s rest, even, repeatable efforts above CSS`),
       ];
     },
     prose: (wm, z) => `${clampInt(wm / 100, 6, 12)} × 100 m @ ${targetLabel(z, 'vo2max')} w/ 30 s`,
@@ -164,7 +164,7 @@ const SPRINT_TEMPLATES: SwimQualityTemplate[] = [
       const reps = clampInt(wm / 25, 8, 16);
       return [
         intervalSet('sprint', reps, 25, 45, z,
-          `${reps} × 25 m max @ ${targetLabel(z, 'sprint')} · full recovery (~45 s) — neuromuscular, quality over quantity`),
+          `${reps} × 25 m max @ ${targetLabel(z, 'sprint')} · full recovery (~45 s), neuromuscular, quality over quantity`),
       ];
     },
     prose: (wm, _z) => `${clampInt(wm / 25, 8, 16)} × 25 m max, full recovery`,
@@ -177,7 +177,7 @@ const SPRINT_TEMPLATES: SwimQualityTemplate[] = [
       const reps = clampInt(wm / 50, 6, 12);
       return [
         intervalSet('sprint', reps, 50, 45, z,
-          `${reps} × 50 m @ ${targetLabel(z, 'sprint')} · ~45 s rest — fast, controlled speed`),
+          `${reps} × 50 m @ ${targetLabel(z, 'sprint')} · ~45 s rest, fast, controlled speed`),
       ];
     },
     prose: (wm, z) => `${clampInt(wm / 50, 6, 12)} × 50 m @ ${targetLabel(z, 'sprint')} w/ 45 s`,
@@ -193,7 +193,7 @@ const AEROBIC_TEMPLATES: SwimQualityTemplate[] = [
       const reps = clampInt(wm / 800, 2, 5);
       return [
         intervalSet('aerobic', reps, 800, 20, z,
-          `${reps} × 800 m @ ${targetLabel(z, 'aerobic')} · 20 s rest — long aerobic pulls, distance base`),
+          `${reps} × 800 m @ ${targetLabel(z, 'aerobic')} · 20 s rest, long aerobic pulls, distance base`),
       ];
     },
     prose: (wm, z) => `${clampInt(wm / 800, 2, 5)} × 800 m @ ${targetLabel(z, 'aerobic')} w/ 20 s`,
@@ -206,7 +206,7 @@ const AEROBIC_TEMPLATES: SwimQualityTemplate[] = [
       const reps = clampInt(wm / 400, 3, 8);
       return [
         intervalSet('aerobic', reps, 400, 20, z,
-          `${reps} × 400 m @ ${targetLabel(z, 'aerobic')} · 20 s rest — smooth, steady endurance`),
+          `${reps} × 400 m @ ${targetLabel(z, 'aerobic')} · 20 s rest, smooth, steady endurance`),
       ];
     },
     prose: (wm, z) => `${clampInt(wm / 400, 3, 8)} × 400 m @ ${targetLabel(z, 'aerobic')} w/ 20 s`,
@@ -239,13 +239,13 @@ export interface SwimDrill {
 
 /** The rotated drill catalogue (swim-foundation-spec.md §5, technique category). */
 export const SWIM_DRILLS: SwimDrill[] = [
-  { id: 'catch-up', label: 'Catch-up', cue: 'one arm waits for the other — long, patient front quadrant' },
-  { id: 'single-arm', label: 'Single-arm', cue: 'other arm at side — feel the catch and roll on each stroke' },
-  { id: 'sculling', label: 'Sculling', cue: 'small figure-8 hands — find pressure on the water, feel the catch' },
-  { id: '6-kick-switch', label: '6-kick switch', cue: '6 kicks on your side, then switch — body-position + rotation' },
-  { id: 'fingertip-drag', label: 'Fingertip drag', cue: 'drag fingertips on recovery — high elbow, relaxed arm' },
-  { id: 'dps-golf', label: 'DPS "golf"', cue: 'count strokes + time per 50; lower the sum — distance-per-stroke' },
-  { id: 'band-only', label: 'Band-only', cue: 'ankles banded, no pull-buoy — forces a strong catch and core' },
+  { id: 'catch-up', label: 'Catch-up', cue: 'one arm waits for the other, long, patient front quadrant' },
+  { id: 'single-arm', label: 'Single-arm', cue: 'other arm at side, feel the catch and roll on each stroke' },
+  { id: 'sculling', label: 'Sculling', cue: 'small figure-8 hands, find pressure on the water, feel the catch' },
+  { id: '6-kick-switch', label: '6-kick switch', cue: '6 kicks on your side, then switch, body-position + rotation' },
+  { id: 'fingertip-drag', label: 'Fingertip drag', cue: 'drag fingertips on recovery, high elbow, relaxed arm' },
+  { id: 'dps-golf', label: 'DPS "golf"', cue: 'count strokes + time per 50; lower the sum, distance-per-stroke' },
+  { id: 'band-only', label: 'Band-only', cue: 'ankles banded, no pull-buoy, forces a strong catch and core' },
 ];
 
 /** Pick a drill deterministically by seed. */
@@ -271,7 +271,7 @@ function cooldownSegment(wuCdMeters: number, zones: SwimZones): WorkoutSegment {
     zone: 'recovery',
     distanceMeters: Math.round(wuCdMeters),
     ...paceTargets(zones, 'recovery'),
-    note: `${Math.round(wuCdMeters)} m easy @ ${targetLabel(zones, 'recovery')} — loosen out, easy backstroke ok`,
+    note: `${Math.round(wuCdMeters)} m easy @ ${targetLabel(zones, 'recovery')}, loosen out, easy backstroke ok`,
   };
 }
 
@@ -283,7 +283,7 @@ function continuousWork(zone: SwimZoneKey, workMeters: number, zones: SwimZones)
     zone,
     distanceMeters: m,
     ...paceTargets(zones, zone),
-    note: `${m} m continuous @ ${targetLabel(zones, zone)} — one steady aerobic swim`,
+    note: `${m} m continuous @ ${targetLabel(zones, zone)}, one steady aerobic swim`,
   };
 }
 
@@ -321,7 +321,7 @@ export function buildSwimQualityDescription(
 ): string {
   const template = pickTemplate(zone, seed);
   const main = template
-    ? `${template.label} — ${template.prose(workMeters, zones)}`
+    ? `${template.label}, ${template.prose(workMeters, zones)}`
     : `${Math.round(workMeters)} m @ ${targetLabel(zones, zone)} (${CSS_DESCRIPTOR[zone]})`;
   return `${cap(main)}; ${Math.round(wuCdMeters)} m warm-up + openers and ${Math.round(wuCdMeters)} m cool-down (${Math.round(dayMeters)} m total)`;
 }
@@ -351,7 +351,7 @@ export function buildSwimTechniqueSegments(
     repMeters: 50,
     restSeconds: 15,
     ...paceTargets(zones, 'recovery'),
-    note: `${perDrill} × 50 m ${d.label} drill @ ${targetLabel(zones, 'recovery')} · 15 s — ${d.cue}`,
+    note: `${perDrill} × 50 m ${d.label} drill @ ${targetLabel(zones, 'recovery')} · 15 s, ${d.cue}`,
   });
   return [warmupSegment(wu, zones), mk(drillA), mk(drillB), cooldownSegment(cd, zones)];
 }

@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     if (e.aspect_type === 'delete') continue; // we keep history; ignore deletes for now
     if (!item.providerUserId || e.object_id == null) continue;
     const athleteId = await athleteIdForStravaOwner(db, item.providerUserId);
-    if (!athleteId) continue; // unmapped owner — nothing to attribute yet
+    if (!athleteId) continue; // unmapped owner, nothing to attribute yet
     try {
       await fetchAndIngestActivityById(db, athleteId, e.object_id);
       handled++;

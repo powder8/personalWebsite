@@ -161,7 +161,7 @@ export interface TriBrick {
 /** One calendar day of the composed triathlon week: the sport sessions that land on it. */
 export interface TriDay {
   day: string; // 'YYYY-MM-DD'
-  dow: number; // 0=Mon … 6=Sun
+  dow: number; // 0=Mon ... 6=Sun
   /** Non-rest sessions on this day, keyed by discipline. */
   sessions: Partial<Record<Discipline, PlannedDay>>;
   /** When set, the day is a brick — do `to` immediately off `from` (bike→run). */
@@ -243,7 +243,7 @@ export function buildTriPlan(input: TriPlanInput): TriPlan {
       .find((w) => w.weekStart === wk.weekStart)
       ?.days.find((d) => d.day === brickDay.day && d.runType !== 'rest');
     if (runDay && !/off the bike/i.test(runDay.description)) {
-      runDay.description = `${runDay.description} 🔗 Brick: run straight off the bike — rehearse T2 (~${Math.round(t2)}s).`.trim();
+      runDay.description = `${runDay.description} 🔗 Brick: run straight off the bike, rehearse T2 (~${Math.round(t2)}s).`.trim();
     }
   }
 

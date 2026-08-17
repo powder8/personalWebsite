@@ -77,7 +77,7 @@ export function PaceAdjustForm({ athleteId, zones }: { athleteId: string; zones:
         disabled={pending}
         className="rounded bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
       >
-        {pending ? 'Applying…' : 'Apply pace adjustments'}
+        {pending ? 'Applying...' : 'Apply pace adjustments'}
       </button>
       {result?.error && (
         <p className="rounded bg-rose-400/10 px-3 py-2 text-sm text-rose-300 ring-1 ring-inset ring-rose-400/30">
@@ -86,7 +86,7 @@ export function PaceAdjustForm({ athleteId, zones }: { athleteId: string; zones:
       )}
       {result?.ok && (
         <p className="rounded bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200 ring-1 ring-inset ring-emerald-400/30">
-          Updated the model and {result.updatedSessions} future session(s). Refreshing…
+          Updated the model and {result.updatedSessions} future session(s). Refreshing...
         </p>
       )}
     </form>

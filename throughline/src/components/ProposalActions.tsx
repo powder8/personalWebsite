@@ -35,7 +35,7 @@ export function ProposalActions({ id }: { id: string }) {
         onClick={() => act('approve')}
         className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-400 disabled:opacity-50"
       >
-        {pending === 'approve' ? '…' : 'Approve'}
+        {pending === 'approve' ? '...' : 'Approve'}
       </button>
       <button
         type="button"
@@ -43,7 +43,7 @@ export function ProposalActions({ id }: { id: string }) {
         onClick={() => act('decline')}
         className="rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-300 disabled:opacity-50"
       >
-        {pending === 'decline' ? '…' : 'Decline'}
+        {pending === 'decline' ? '...' : 'Decline'}
       </button>
       {err && <span className="text-xs text-rose-500">Failed</span>}
     </div>

@@ -32,7 +32,7 @@ export default async function EscalationsPage() {
 
       {rows.length === 0 ? (
         <Card>
-          <p className="text-sm text-slate-500">Nothing to review — the autopilot is running clean. ✓</p>
+          <p className="text-sm text-slate-500">Nothing to review, the autopilot is running clean. ✓</p>
         </Card>
       ) : (
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-card">

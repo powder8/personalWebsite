@@ -66,7 +66,7 @@ export type PowerZoneKey =
   | 'recovery' // Coggan Z1 Active Recovery
   | 'endurance' // Coggan Z2 Endurance
   | 'tempo' // Coggan Z3 Tempo
-  | 'sweetspot' // 88–94% FTP (Z3/Z4 straddle, coach-added)
+  | 'sweetspot' // 88-94% FTP (Z3/Z4 straddle, coach-added)
   | 'threshold' // Coggan Z4 Lactate Threshold
   | 'vo2max' // Coggan Z5 VO2max
   | 'anaerobic' // Coggan Z6 Anaerobic Capacity
@@ -118,10 +118,10 @@ export interface PowerZones {
  * taxonomies because swim pace resolution in the pool is coarser.
  */
 export type SwimZoneKey =
-  | 'recovery' // very easy, technique/warm-up (CSS + 10–20 s/100)
-  | 'aerobic' // endurance / long-set base (CSS + 4–10 s/100)
-  | 'threshold' // at/around CSS — the anchor band (CSS ± 2 s/100)
-  | 'vo2max' // above CSS, short-course sharpening (CSS − 2–6 s/100)
+  | 'recovery' // very easy, technique/warm-up (CSS + 10-20 s/100)
+  | 'aerobic' // endurance / long-set base (CSS + 4-10 s/100)
+  | 'threshold' // at/around CSS, the anchor band (CSS ± 2 s/100)
+  | 'vo2max' // above CSS, short-course sharpening (CSS − 2-6 s/100)
   | 'sprint'; // 25/50 speed work, well above CSS (CSS − 6 s/100 and faster)
 
 /**
@@ -195,7 +195,7 @@ export interface WorkoutSegment {
 /** One planned day produced by the engine (mapped to PlannedSession on save). */
 export interface PlannedDay {
   day: string; // 'YYYY-MM-DD'
-  dow: number; // 0=Mon … 6=Sun
+  dow: number; // 0=Mon ... 6=Sun
   runType: RunType;
   /**
    * Primary zone (null for rest). Pace-shaped (`ZoneKey`) on the run discipline,
@@ -246,7 +246,7 @@ export interface QualitySpec {
 }
 
 export interface DayTemplate {
-  dow: number; // 0=Mon … 6=Sun
+  dow: number; // 0=Mon ... 6=Sun
   runType: RunType;
   /** Relative share of the week's non-long volume (ignored for long/rest). */
   volumeWeight: number;

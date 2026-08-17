@@ -72,7 +72,7 @@ test('cssFromVelocityCurve: null when under-determined (<2 distinct distances)',
 // --- single time trial (duration-discounted) ---------------------------------
 
 test('ttFactorForDuration: picks the bucket covering the TT time', () => {
-  assert.equal(ttFactorForDuration(60), 1.12); // ~50–100 m sprint
+  assert.equal(ttFactorForDuration(60), 1.12); // ~50-100 m sprint
   assert.equal(ttFactorForDuration(150), 1.06); // ~200 m
   assert.equal(ttFactorForDuration(360), 1.0); // ~400 m ≈ CSS
   assert.equal(ttFactorForDuration(1300), 0.97); // 1500 m+, below CSS

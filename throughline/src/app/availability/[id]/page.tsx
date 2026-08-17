@@ -25,7 +25,7 @@ export default async function AvailabilityPage({ params }: { params: Promise<{ i
       <div>
         <h1 className="text-lg font-semibold text-slate-900">Need to adjust your training?</h1>
         <p className="text-sm text-slate-500">
-          Hi {athlete.fullName.split(' ')[0]} — tell your coach when you’re travelling, slammed, or sick and
+          Hi {athlete.fullName.split(' ')[0]}, tell your coach when you’re travelling, slammed, or sick and
           what you need (move a workout, lighter mileage, or a rest day). The plan adjusts around it.
         </p>
       </div>
@@ -46,7 +46,7 @@ export default async function AvailabilityPage({ params }: { params: Promise<{ i
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-slate-500">Nothing marked — you’re all set.</p>
+          <p className="text-sm text-slate-500">Nothing marked, you’re all set.</p>
         )}
       </Card>
     </div>

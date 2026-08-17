@@ -38,13 +38,13 @@ export function ConnectWhoop({
       const res = await fetch(`/api/athletes/${athleteId}/whoop/sync`, { method: 'POST' });
       const j: SyncResult = await res.json().catch(() => ({ ok: false, error: 'Bad response.' }));
       if (j.ok) {
-        setMsg(`Synced — ${j.recoveries ?? 0} recovery days updated.`);
+        setMsg(`Synced, ${j.recoveries ?? 0} recovery days updated.`);
         setTimeout(() => window.location.reload(), 800);
       } else {
         setMsg(j.error ?? 'Sync failed.');
       }
     } catch {
-      setMsg('Network error — please try again.');
+      setMsg('Network error, please try again.');
     } finally {
       setSyncing(false);
     }
@@ -125,7 +125,7 @@ export function ConnectWhoop({
           disabled={syncing}
           className="rounded border border-slate-600 px-3 py-1 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-white disabled:opacity-50"
         >
-          {syncing ? 'Syncing…' : 'Sync now'}
+          {syncing ? 'Syncing...' : 'Sync now'}
         </button>
       </div>
       {msg && <p className="text-xs text-slate-500">{msg}</p>}

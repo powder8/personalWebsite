@@ -27,7 +27,7 @@ export function InsightsView({ insights }: { insights: TrainingInsights }) {
             ))}
           </ul>
           <p className="mt-3 text-xs text-slate-400">
-            Drawn from your most productive training blocks and established training science — to weigh,
+            Drawn from your most productive training blocks and established training science, to weigh,
             not follow blindly.
           </p>
         </Card>
@@ -49,7 +49,7 @@ export function InsightsView({ insights }: { insights: TrainingInsights }) {
         </div>
         {insights.careerBest && (
           <p className="mt-3 text-xs text-slate-400">
-            Career peak is shown for context only — it may be a different life stage. Benchmarks and
+            Career peak is shown for context only, it may be a different life stage. Benchmarks and
             suggestions below use your <span className="font-medium">recent</span> training.
           </p>
         )}
@@ -59,15 +59,15 @@ export function InsightsView({ insights }: { insights: TrainingInsights }) {
         <Card title="The training behind your recent best performances" className="border-emerald-400/30">
           <p className="text-sm text-slate-700">
             The 8-week blocks (last ~2 years) that led into your{' '}
-            <span className="font-medium">{insights.buildProfile.count}</span> best efforts — what they
-            had in common (a repeatable recipe, achievable now — not a pro-era peak):
+            <span className="font-medium">{insights.buildProfile.count}</span> best efforts, what they
+            had in common (a repeatable recipe, achievable now, not a pro-era peak):
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Tile label="Typical volume" value={`${insights.buildProfile.medianWeeklyMiles}`} unit="mi/week" emphasis />
             <Tile label="Frequency" value={`${insights.buildProfile.medianRunDaysPerWeek}`} unit="run-days/wk" />
             <Tile
               label="Quality"
-              value={insights.buildProfile.medianQualityPerWeek != null ? `${insights.buildProfile.medianQualityPerWeek}` : '—'}
+              value={insights.buildProfile.medianQualityPerWeek != null ? `${insights.buildProfile.medianQualityPerWeek}` : '-'}
               unit="hard sessions/wk"
             />
             <Tile
@@ -92,7 +92,7 @@ export function InsightsView({ insights }: { insights: TrainingInsights }) {
                     <td className="px-2 py-1.5 font-medium text-emerald-300">
                       {b.performance
                         ? `${b.performance.distanceLabel} ${b.performance.timeLabel} · VDOT ${b.performance.vdot}`
-                        : '—'}
+                        : '-'}
                     </td>
                     <td className="px-2 py-1.5 text-slate-600">{b.toDay}</td>
                     <td className="px-2 py-1.5 text-slate-700">{b.mix.avgWeeklyMiles} mi/wk</td>
@@ -126,7 +126,7 @@ export function InsightsView({ insights }: { insights: TrainingInsights }) {
           ))}
         </ul>
         <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-400">
-          Associations from your own data (n-of-1) — patterns to weigh, not causes. Recovery factors
+          Associations from your own data (n-of-1), patterns to weigh, not causes. Recovery factors
           (sleep, HRV, stress) join here as wearable data is connected.
         </p>
       </Card>

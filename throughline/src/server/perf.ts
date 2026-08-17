@@ -28,7 +28,7 @@ export interface Effort {
  */
 export function isRaceEffort(opts: { workoutType: number | null; name: string | null; meters: number }): boolean {
   if (opts.workoutType === 1) return true;
-  return opts.meters >= 40000; // marathon-distance — a major effort regardless
+  return opts.meters >= 40000; // marathon-distance, a major effort regardless
 }
 
 /**

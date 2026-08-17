@@ -26,7 +26,7 @@ function effortPace(rawSecPerKm: number | null, splits: unknown): { pace: number
   if (!gap || !gap.significant) return { pace: rawSecPerKm, note: '' };
   return {
     pace: gap.gapSecPerKm,
-    note: ` (Hilly route — ${Math.round(gap.climbMeters * 3.28084)} ft of climb, so this is judged on grade-adjusted ${pm(
+    note: ` (Hilly route, ${Math.round(gap.climbMeters * 3.28084)} ft of climb, so this is judged on grade-adjusted ${pm(
       gap.gapSecPerKm,
     )} vs ${pm(gap.rawSecPerKm)} actual.)`,
   };

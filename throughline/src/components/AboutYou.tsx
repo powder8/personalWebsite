@@ -59,7 +59,7 @@ export function AboutYou({
   return (
     <div className="space-y-4">
       <p className="text-xs text-slate-500">
-        Powers your <span className="font-medium text-slate-600">Health</span> comparisons — the age/sex
+        Powers your <span className="font-medium text-slate-600">Health</span> comparisons, the age/sex
         percentiles and fitness age. We use sex only for the physiological norms (VO2max, resting HR); it&apos;s
         separate from how you identify.
       </p>
@@ -81,7 +81,7 @@ export function AboutYou({
             onChange={(e) => setSex(e.target.value)}
             className="mt-0.5 block rounded border border-slate-300 px-2 py-1.5 text-sm"
           >
-            <option value="">Select…</option>
+            <option value="">Select...</option>
             {SEX_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
@@ -97,7 +97,7 @@ export function AboutYou({
           disabled={pending}
           className="rounded bg-sky-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
         >
-          {pending ? 'Saving…' : 'Save'}
+          {pending ? 'Saving...' : 'Save'}
         </button>
         {saved && <span className="text-sm text-emerald-300">Saved ✓</span>}
         {err && <span className="text-sm text-rose-600">{err}</span>}

@@ -109,8 +109,8 @@ export function TrainingChat({
           <div className="py-6 text-center">
             <p className="text-sm text-slate-500">
               {audience === 'coach'
-                ? 'Ask about this athlete — or tell me to change their plan.'
-                : 'Ask about your training — or tell me to change something.'}
+                ? 'Ask about this athlete, or tell me to change their plan.'
+                : 'Ask about your training, or tell me to change something.'}
             </p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               {starters.map((s) => (
@@ -198,7 +198,7 @@ export function TrainingChat({
               }
             }}
             placeholder={
-              audience === 'coach' ? 'Message your coaching assistant…' : 'Message your coach… (Enter to send)'
+              audience === 'coach' ? 'Message your coaching assistant...' : 'Message your coach... (Enter to send)'
             }
             disabled={pending}
             className="max-h-40 flex-1 resize-none bg-transparent py-1 text-sm text-slate-800 outline-none placeholder:text-slate-400"
@@ -219,7 +219,7 @@ export function TrainingChat({
       {err && <p className="mt-2 text-xs text-rose-600">{err}</p>}
       <p className="mt-2 text-[11px] text-slate-400">
         Grounded in {audience === 'coach' ? 'this athlete’s' : 'your'} training data. Can adjust days off, paces, and
-        the fitness anchor — every change is coach-reviewable. Not medical advice.
+        the fitness anchor, every change is coach-reviewable. Not medical advice.
       </p>
     </div>
   );

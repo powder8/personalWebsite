@@ -63,7 +63,7 @@ export type CalStatus =
 
 export interface CalDay {
   day: string;
-  dow: number; // 0 = Mon … 6 = Sun
+  dow: number; // 0 = Mon ... 6 = Sun
   isToday: boolean;
   isFuture: boolean;
   planned: CalPlanned | null;

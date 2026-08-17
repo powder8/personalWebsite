@@ -20,7 +20,7 @@ export interface ComplianceDay {
   day: string;
   sessionType: string | null; // null = no planned session
   plannedMiles: number;
-  actualMiles: number; // RUN miles only — cross-training never satisfies a run target
+  actualMiles: number; // RUN miles only, cross-training never satisfies a run target
   crossTrainSessions: number; // bike/swim/strength logged that day
   crossTrainMinutes: number;
   status: DayStatus;

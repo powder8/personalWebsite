@@ -10,17 +10,17 @@ const VALUE_PROPS: { title: string; body: string; emoji: string }[] = [
   {
     emoji: '🏃',
     title: 'Workouts that actually say something',
-    body: 'Not "6 miles threshold." A real session: how long the warm-up is and how fast, how long each rep is and at what pace, and whether the recovery is a jog, a walk, or standing rest — modeled on real coach-written training.',
+    body: 'Not "6 miles threshold." A real session: how long the warm-up is and how fast, how long each rep is and at what pace, and whether the recovery is a jog, a walk, or standing rest, modeled on real coach-written training.',
   },
   {
     emoji: '🫀',
     title: 'Reads how your body is handling it',
-    body: 'Connect a wearable and the plan sees HRV, resting heart rate, and sleep alongside your training load — and asks how you feel before it changes anything, rather than quietly deciding for you.',
+    body: 'Connect a wearable and the plan sees HRV, resting heart rate, and sleep alongside your training load, and asks how you feel before it changes anything, rather than quietly deciding for you.',
   },
   {
     emoji: '🎯',
     title: 'An honest read on your goal',
-    body: 'One verdict, always paired with the lever that moves it: on track, a real stretch, drifting off plan, or — when a goal genuinely is not this race — a straight answer and a realistic target instead.',
+    body: 'One verdict, always paired with the lever that moves it: on track, a real stretch, drifting off plan, or, when a goal genuinely is not this race, a straight answer and a realistic target instead.',
   },
   {
     emoji: '🤝',
@@ -31,7 +31,7 @@ const VALUE_PROPS: { title: string; body: string; emoji: string }[] = [
 
 const STEPS: { n: string; title: string; body: string }[] = [
   { n: '1', title: 'Set your goal', body: 'A race and a target time, or just "build fitness." Add a recent race or your current pace and the plan is built around where you actually are.' },
-  { n: '2', title: 'Train on a real plan', body: 'Every week adapts to what you log — specific sessions, not vague labels, with the reps and paces spelled out.' },
+  { n: '2', title: 'Train on a real plan', body: 'Every week adapts to what you log, specific sessions, not vague labels, with the reps and paces spelled out.' },
   { n: '3', title: 'See where you stand', body: 'One page tells you if you are on pace for your goal, how your body is responding, and exactly what to do about it.' },
 ];
 
@@ -52,7 +52,7 @@ export function LandingPage() {
             href="/signin"
             className="rounded-full bg-lime-300 px-6 py-3 text-sm font-semibold text-[#0c1018] transition hover:bg-lime-200"
           >
-            Get started — it&apos;s free
+            Get started, it&apos;s free
           </Link>
           <a
             href="#how-it-works"

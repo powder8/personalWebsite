@@ -61,7 +61,7 @@ export function RunDebriefCard({
 
   return (
     <div className="rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 shadow-lg">
-      {/* Attribution header — makes clear what run this evaluates */}
+      {/* Attribution header, makes clear what run this evaluates */}
       {recency && (
         <div className="mb-3 flex items-center gap-2 border-b border-white/10 pb-3">
           <span className="text-xs font-semibold text-lime-300">{recency}</span>
@@ -80,7 +80,7 @@ export function RunDebriefCard({
       </div>
       <h2 className="mt-1 text-xl font-extrabold tracking-tight text-white">{debrief.headline}</h2>
 
-      {/* Signal chips — the grounded facts the coach noticed */}
+      {/* Signal chips, the grounded facts the coach noticed */}
       {debrief.signals.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {debrief.signals.map((s, i) =>
@@ -115,7 +115,7 @@ export function RunDebriefCard({
         </div>
       </div>
 
-      {/* Cross-training — styled block matching the rest of the debrief */}
+      {/* Cross-training, styled block matching the rest of the debrief */}
       {crossTraining && crossTraining.sessions > 0 && (
         <div className="mt-3 rounded-2xl bg-sky-400/15 p-4 ring-1 ring-inset ring-sky-400/30">
           <div className="flex items-center gap-2">
@@ -133,7 +133,7 @@ export function RunDebriefCard({
             )}
           </p>
           <p className="mt-1 text-xs text-white/60">
-            Aerobic work with no running impact — counts toward your streak and weekly load.
+            Aerobic work with no running impact, counts toward your streak and weekly load.
           </p>
         </div>
       )}

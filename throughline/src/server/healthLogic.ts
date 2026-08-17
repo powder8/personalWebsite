@@ -44,7 +44,7 @@ export type Sex = 'male' | 'female';
 
 /** One age-decade row of the FRIEND treadmill percentile standard. */
 interface Vo2Anchor {
-  ageMid: number; // midpoint of the decade (25 = 20-29, …)
+  ageMid: number; // midpoint of the decade (25 = 20-29, ...)
   p10: number;
   p25: number;
   p50: number;
@@ -321,7 +321,7 @@ export function sleepAssessment(
   let label: string;
   if (avgHours >= 7 && avgHours <= 9) {
     status = 'good';
-    label = 'Meets the 7–9 h guideline';
+    label = 'Meets the 7-9 h guideline';
   } else if (avgHours >= 6 || avgHours > 9) {
     status = 'watch';
     label = avgHours > 9 ? 'Above the typical range' : 'Slightly under 7 h';

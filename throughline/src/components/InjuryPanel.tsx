@@ -78,7 +78,7 @@ function ActiveInjury({
       {injury.status === 'returning' ? (
         <>
           <p className="mt-1.5 text-sm leading-relaxed text-white/90">
-            Easing back after your {part} — start soft and let it build. Nothing hard until it feels 100%.
+            Easing back after your {part}, start soft and let it build. Nothing hard until it feels 100%.
           </p>
           <button
             type="button"
@@ -86,7 +86,7 @@ function ActiveInjury({
             onClick={() => act({ action: 'clear', injuryId: injury.id })}
             className="mt-3 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-white ring-1 ring-inset ring-white/15 hover:bg-white/15 disabled:opacity-50"
           >
-            Fully recovered — clear it
+            Fully recovered, clear it
           </button>
         </>
       ) : paused ? (
@@ -105,7 +105,7 @@ function ActiveInjury({
               onClick={() => act({ action: 'resume', injuryId: injury.id })}
               className="rounded-full bg-lime-300 px-3.5 py-1.5 text-xs font-semibold text-[#0c1018] hover:bg-lime-200 disabled:opacity-50"
             >
-              Ready — ease me back in
+              Ready, ease me back in
             </button>
             {CHECK_BACKS.map((c) => (
               <button
@@ -115,7 +115,7 @@ function ActiveInjury({
                 onClick={() => act({ action: 'still_hurt', injuryId: injury.id, checkBackDays: c.days })}
                 className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-white/80 ring-1 ring-inset ring-white/15 hover:bg-white/15 disabled:opacity-50"
               >
-                Still sore — check {c.label}
+                Still sore, check {c.label}
               </button>
             ))}
           </div>
@@ -132,7 +132,7 @@ function ActiveInjury({
               onClick={() => act({ action: 'clear', injuryId: injury.id })}
               className="rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-white ring-1 ring-inset ring-white/15 hover:bg-white/15 disabled:opacity-50"
             >
-              It&apos;s better — clear it
+              It&apos;s better, clear it
             </button>
             <button
               type="button"
@@ -140,7 +140,7 @@ function ActiveInjury({
               onClick={() => act({ action: 'report', bodyPart: injury.bodyPart, canContinue: false, checkBackDays: 7 })}
               className="rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-medium text-white/80 ring-1 ring-inset ring-white/15 hover:bg-white/15 disabled:opacity-50"
             >
-              Getting worse — pause running
+              Getting worse, pause running
             </button>
           </div>
         </>
@@ -212,7 +212,7 @@ function ReportEntry({ pending, act }: { pending: boolean; act: (body: Record<st
           onClick={() => act({ action: 'report', bodyPart: part, canContinue: true, note })}
           className="flex-1 rounded-xl bg-white/10 px-3 py-2.5 text-sm font-semibold text-white ring-1 ring-inset ring-white/15 hover:bg-white/15 disabled:opacity-40"
         >
-          Yes — keep going, just easier
+          Yes, keep going, just easier
         </button>
         <button
           type="button"
@@ -220,11 +220,11 @@ function ReportEntry({ pending, act }: { pending: boolean; act: (body: Record<st
           onClick={() => act({ action: 'report', bodyPart: part, canContinue: false, note, checkBackDays: 7 })}
           className="flex-1 rounded-xl bg-amber-300 px-3 py-2.5 text-sm font-semibold text-[#0c1018] hover:bg-amber-200 disabled:opacity-40"
         >
-          No — pause my running
+          No, pause my running
         </button>
       </div>
       <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
-        We&apos;ll pause your running and check back in a week — you can change that any time. We won&apos;t
+        We&apos;ll pause your running and check back in a week, you can change that any time. We won&apos;t
         give medical or treatment advice; for that, see a professional.
       </p>
     </div>

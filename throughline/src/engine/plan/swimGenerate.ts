@@ -181,7 +181,7 @@ export function generateSwimWeek(
     const base = { day, dow: dt.dow, pinned: false, optionalStrides: dt.optionalStrides ?? false };
 
     if (dt.runType === 'rest') {
-      return { ...base, runType: 'rest' as const, zone: null, distanceMeters: 0, durationSeconds: 0, targetLoadTss: 0, description: 'Rest day — out of the pool.' };
+      return { ...base, runType: 'rest' as const, zone: null, distanceMeters: 0, durationSeconds: 0, targetLoadTss: 0, description: 'Rest day, out of the pool.' };
     }
 
     if (dt.runType === 'long') {
@@ -202,7 +202,7 @@ export function generateSwimWeek(
 
     // Consolidated away (share below the minimum meaningful swim) → rest.
     if (!alloc.has(dt)) {
-      return { ...base, runType: 'rest' as const, zone: null, distanceMeters: 0, durationSeconds: 0, targetLoadTss: 0, description: 'Rest day — out of the pool.' };
+      return { ...base, runType: 'rest' as const, zone: null, distanceMeters: 0, durationSeconds: 0, targetLoadTss: 0, description: 'Rest day, out of the pool.' };
     }
     const dayStss = Math.round(alloc.get(dt)!);
 
@@ -269,10 +269,10 @@ export function generateSwimWeek(
           zone,
           distanceMeters: meters,
           ...paceTargets(zones, zone),
-          note: `${meters} m continuous @ ${targetLabel(zones, zone)} — steady aerobic swim`,
+          note: `${meters} m continuous @ ${targetLabel(zones, zone)}, steady aerobic swim`,
         },
       ],
-      description: `${cap(ZONE_LABEL[zone])} swim, ${meters} m @ ${targetLabel(zones, zone)} — steady aerobic effort`,
+      description: `${cap(ZONE_LABEL[zone])} swim, ${meters} m @ ${targetLabel(zones, zone)}, steady aerobic effort`,
     };
   });
 
@@ -318,7 +318,7 @@ function longSwimSegments(
       repMeters,
       restSeconds: 20,
       ...paceTargets(zones, 'aerobic'),
-      note: `${reps} × ${repMeters} m @ ${targetLabel(zones, 'aerobic')} · 20 s rest — long steady pulls, distance base`,
+      note: `${reps} × ${repMeters} m @ ${targetLabel(zones, 'aerobic')} · 20 s rest, long steady pulls, distance base`,
     },
     {
       role: 'cooldown',
@@ -349,15 +349,15 @@ function techniqueDescription(totalMeters: number, zones: SwimZones): string {
   return `Technique swim ${totalMeters} m: warm-up, rotated drill sets @ ${targetLabel(
     zones,
     'recovery',
-  )} (by feel, not the clock), easy finish. Skill work — frequency over intensity.`;
+  )} (by feel, not the clock), easy finish. Skill work, frequency over intensity.`;
 }
 
 function defaultRationale(phase: PlannedWeek['phase'], weeksToRace: number, weeklyStss: number): string {
   const head = {
-    base: 'Base week — build aerobic base and drill the stroke; technique is the highest time-yield limiter.',
-    build: 'Build week — raise CSS with threshold sets, sharpen above it with VO2 as volume ramps.',
-    peak: 'Peak week — highest load; threshold + VO2 on top of a big long pull.',
-    taper: 'Taper — cut volume, keep a little CSS work, hold the feel for the water.',
+    base: 'Base week, build aerobic base and drill the stroke; technique is the highest time-yield limiter.',
+    build: 'Build week, raise CSS with threshold sets, sharpen above it with VO2 as volume ramps.',
+    peak: 'Peak week, highest load; threshold + VO2 on top of a big long pull.',
+    taper: 'Taper, cut volume, keep a little CSS work, hold the feel for the water.',
   }[phase];
-  return `${head} ${weeksToRace} week(s) to race. Weekly load ~${weeklyStss} sTSS. Consistency over heroics — hold CSS pace, keep the catch.`;
+  return `${head} ${weeksToRace} week(s) to race. Weekly load ~${weeklyStss} sTSS. Consistency over heroics, hold CSS pace, keep the catch.`;
 }

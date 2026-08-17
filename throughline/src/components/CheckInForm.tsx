@@ -64,9 +64,9 @@ export function CheckInForm({
         disabled={pending}
         className="rounded bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
       >
-        {pending ? 'Saving…' : initial ? 'Update check-in' : 'Submit check-in'}
+        {pending ? 'Saving...' : initial ? 'Update check-in' : 'Submit check-in'}
       </button>
-      {done && <p className="text-sm text-emerald-300">Thanks — logged for today. 🙌</p>}
+      {done && <p className="text-sm text-emerald-300">Thanks, logged for today. 🙌</p>}
       {err && <p className="text-sm text-rose-600">{err}</p>}
     </form>
   );

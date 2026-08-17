@@ -60,7 +60,7 @@ export default async function RosterPage() {
                   {a.todaySession ? (
                     <span className="font-medium capitalize">{a.todaySession.sessionType}</span>
                   ) : (
-                    <span className="text-slate-400">—</span>
+                    <span className="text-slate-400">-</span>
                   )}
                 </td>
                 <td className="px-4 py-3 align-top">
@@ -68,7 +68,7 @@ export default async function RosterPage() {
                     {a.flags.length ? (
                       a.flags.map((f) => <Flag key={f}>{f}</Flag>)
                     ) : (
-                      <span className="text-slate-300">—</span>
+                      <span className="text-slate-300">-</span>
                     )}
                   </div>
                 </td>
@@ -79,7 +79,7 @@ export default async function RosterPage() {
                       {a.raceDate && <span className="text-slate-400"> · {a.raceDate}</span>}
                     </span>
                   ) : (
-                    <span className="text-slate-400">—</span>
+                    <span className="text-slate-400">-</span>
                   )}
                 </td>
               </tr>

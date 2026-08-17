@@ -144,7 +144,7 @@ function buildSentence(
   sufficientData: boolean,
 ): string {
   if (drivers.length === 0) {
-    return 'No signals available yet — defaulting to a normal session.';
+    return 'No signals available yet, defaulting to a normal session.';
   }
 
   // Pick the drivers that most justify the call: for easy/normal, the most
@@ -156,7 +156,7 @@ function buildSentence(
 
   const phrases = chosen.map((d) => d.note).join(' and ');
   const caveat = sufficientData ? '' : ' (limited baseline data)';
-  return `${capitalize(phrases)} — ${RECOMMENDATION[band]}${caveat}.`;
+  return `${capitalize(phrases)}, ${RECOMMENDATION[band]}${caveat}.`;
 }
 
 function capitalize(s: string): string {

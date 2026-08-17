@@ -396,8 +396,8 @@ export function decomposeGoalTime(input: GoalTimeInput): GoalDecomposition {
     };
     notes.push(
       k >= 1
-        ? `At sensible race intensities your current fitness already meets this finish (scale ${k.toFixed(2)}× ≥ 1) — the plan is sharpening + durability, not big fitness gains.`
-        : `You'd need to be ${((1 / k - 1) * 100).toFixed(0)}% faster than your current sustainable pace across the board (scale ${k.toFixed(2)}×) — see the per-leg required anchors for where the gap is.`,
+        ? `At sensible race intensities your current fitness already meets this finish (scale ${k.toFixed(2)}× ≥ 1), the plan is sharpening + durability, not big fitness gains.`
+        : `You'd need to be ${((1 / k - 1) * 100).toFixed(0)}% faster than your current sustainable pace across the board (scale ${k.toFixed(2)}×), see the per-leg required anchors for where the gap is.`,
     );
   } else {
     strategy = 'typical_split';
@@ -407,7 +407,7 @@ export function decomposeGoalTime(input: GoalTimeInput): GoalDecomposition {
       bike: movingBudgetSeconds * share.bike,
       run: movingBudgetSeconds * share.run,
     };
-    notes.push('Missing one or more anchors (VDOT/FTP/CSS) — used the published mid-pack time split. Add your anchors for a strength-relative target.');
+    notes.push('Missing one or more anchors (VDOT/FTP/CSS), used the published mid-pack time split. Add your anchors for a strength-relative target.');
   }
 
   const legs = {

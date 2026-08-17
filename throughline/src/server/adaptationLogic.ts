@@ -77,13 +77,13 @@ export function analyzeAdherence(input: {
     let body: string;
     if (layoffDays <= 7) {
       easeBack = { factor: 0.8, days: 5, rebuildSuggested: false };
-      body = `You've had ${layoffDays} days off — totally fine, you haven't lost real fitness. The trick is to ease in, not lunge back into hard work. Tap below and we'll trim the next few days ~20% so the first runs back feel good, not brutal. We are NOT cramming the missed miles in — that's how people get hurt.`;
+      body = `You've had ${layoffDays} days off, totally fine, you haven't lost real fitness. The trick is to ease in, not lunge back into hard work. Tap below and we'll trim the next few days ~20% so the first runs back feel good, not brutal. We are NOT cramming the missed miles in, that's how people get hurt.`;
     } else if (layoffDays <= 14) {
       easeBack = { factor: 0.7, days: 6, paceEaseSecPerMile: 10, rebuildSuggested: false };
-      body = `It's been about ${Math.round(layoffDays / 7)} week${layoffDays >= 14 ? 's' : ''} since your last run — no guilt, life happens. We'll bring the next few days down ~30% and a touch slower so you rebuild safely. Your race dates don't change; we just start lighter.`;
+      body = `It's been about ${Math.round(layoffDays / 7)} week${layoffDays >= 14 ? 's' : ''} since your last run, no guilt, life happens. We'll bring the next few days down ~30% and a touch slower so you rebuild safely. Your race dates don't change; we just start lighter.`;
     } else {
       easeBack = { factor: 0.6, days: 7, paceEaseSecPerMile: 15, rebuildSuggested: true };
-      body = `After ${layoffDays} days away, the smart move is to rebuild gently from easy running rather than pick up mid-plan. We'll ease the next week right down. Worth a quick chat with your coach — or re-setting your goal — so the plan matches where you are now.`;
+      body = `After ${layoffDays} days away, the smart move is to rebuild gently from easy running rather than pick up mid-plan. We'll ease the next week right down. Worth a quick chat with your coach, or re-setting your goal, so the plan matches where you are now.`;
     }
     return {
       tone: 'returning',
@@ -100,11 +100,11 @@ export function analyzeAdherence(input: {
 
   // --- Slipped: missed a session or two but still running (ran within ~3 days) ---
   if (missedRecent >= 1) {
-    const headline = missedRecent >= 3 ? 'A few missed — no guilt.' : 'Missed a day? It happens.';
+    const headline = missedRecent >= 3 ? 'A few missed, no guilt.' : 'Missed a day? It happens.';
     const body =
       missedRecent >= 3
-        ? `Life gets in the way — and consistency over weeks beats any single session. The worst move would be to pile the missed runs onto the next few days. We're leaving the plan as-is; today's run is your clean reset. Easy does it.`
-        : `One session won't derail your race, and we are NOT making up the miles (that's how niggles start). Just pick straight back up with today's run — showing up again is the whole game.`;
+        ? `Life gets in the way, and consistency over weeks beats any single session. The worst move would be to pile the missed runs onto the next few days. We're leaving the plan as-is; today's run is your clean reset. Easy does it.`
+        : `One session won't derail your race, and we are NOT making up the miles (that's how niggles start). Just pick straight back up with today's run, showing up again is the whole game.`;
     return {
       tone: 'slipped',
       show: true,
@@ -127,7 +127,7 @@ export function analyzeAdherence(input: {
     layoffDays,
     lastRunDay: input.lastRunDay,
     headline: `🔥 ${streakDays} days on plan`,
-    body: 'Consistency is the entire game — this is exactly how race fitness gets built. Keep showing up.',
+    body: 'Consistency is the entire game, this is exactly how race fitness gets built. Keep showing up.',
     easeBack: null,
   };
 }

@@ -31,7 +31,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Throughline — Coach Console",
+  title: "Throughline. Coach Console",
   description: "AI endurance coach: readiness-aware training.",
 };
 

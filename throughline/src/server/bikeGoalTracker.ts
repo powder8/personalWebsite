@@ -55,7 +55,7 @@ export async function getBikeGoalTracker(
   if (!race) return null;
 
   const ftp = await getAthleteFtp(db, athleteId);
-  if (ftp == null) return null; // not a cyclist — portal falls back
+  if (ftp == null) return null; // not a cyclist, portal falls back
 
   const [targetFtp, elevation, weightKg, athlete, planRow] = await Promise.all([
     getAthleteTargetFtp(db, athleteId),

@@ -40,7 +40,7 @@ export function decideAnchorUpdate(i: AnchorDecisionInput): AnchorDecision {
 
   const ageDays = daysBetween(i.best.day, i.today);
   if (ageDays > i.relevanceDays) {
-    return { set: false, reason: `best effort is ${ageDays}d old — past the ${i.relevanceDays}d relevance window` };
+    return { set: false, reason: `best effort is ${ageDays}d old, past the ${i.relevanceDays}d relevance window` };
   }
 
   const manual = i.anchorSource === 'manual';

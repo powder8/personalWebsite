@@ -180,7 +180,7 @@ export function isPaceZones(z: TrainingZones): z is PaceZones {
 
 /** Display twin of `paceRangeLabel` — "250–290 W". */
 export function wattsLabel(range: PowerRange): string {
-  return `${Math.round(range.loWatts)}–${Math.round(range.hiWatts)} W`;
+  return `${Math.round(range.loWatts)}-${Math.round(range.hiWatts)} W`;
 }
 
 /** Watts per kilogram at a bound, for display + climbing feasibility. */
@@ -189,5 +189,5 @@ export function wattsPerKg(watts: number, weightKg: number): number {
 }
 
 export function bpmLabel(range: HrRange): string {
-  return `${Math.round(range.loBpm)}–${Math.round(range.hiBpm)} bpm`;
+  return `${Math.round(range.loBpm)}-${Math.round(range.hiBpm)} bpm`;
 }
