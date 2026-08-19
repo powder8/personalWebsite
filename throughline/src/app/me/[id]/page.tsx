@@ -30,6 +30,7 @@ import { TriGoalTrackerHero } from '@/components/TriGoalTrackerHero';
 import { getTriGoalTracker } from '@/server/triGoalTracker';
 import { BikeGoalTrackerHero } from '@/components/BikeGoalTrackerHero';
 import { getBikeGoalTracker } from '@/server/bikeGoalTracker';
+import { CoordinatedBudget } from '@/components/CoordinatedBudget';
 import { YourSports } from '@/components/YourSports';
 import { getAthleteDisciplines } from '@/server/disciplines';
 import { ConnectStrava } from '@/components/ConnectStrava';
@@ -287,6 +288,9 @@ export default async function PortalPage({
           )}
           {goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} />}
           {bikeGoalTracker && <BikeGoalTrackerHero tracker={bikeGoalTracker} athleteId={athlete.id} />}
+          {goalTracker && bikeGoalTracker && (
+            <CoordinatedBudget athleteId={athlete.id} currentBudget={athlete.weeklyHoursBudget ?? null} />
+          )}
         </>
       )}
 

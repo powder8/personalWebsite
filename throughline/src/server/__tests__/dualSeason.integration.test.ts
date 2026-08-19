@@ -68,6 +68,10 @@ test('a 10 h budget is split by demand and rebuilds both plans to fit', async ()
   // The split conserves the budget (within rounding).
   assert.ok(Math.abs(res.hours.bike! + res.hours.run! - 10) < 0.2, `Σ ${res.hours.bike! + res.hours.run!} ≈ 10`);
 
+  // The shared budget is persisted on the athlete (so the portal control shows it).
+  const [ath] = await db.select().from(athletes).where(eq(athletes.id, A));
+  assert.equal(ath.weeklyHoursBudget, 10, 'weekly-hours budget persisted');
+
   // Both goal races survive the rebuild.
   const raceRows = await db.select().from(races).where(eq(races.athleteId, A));
   assert.ok(raceRows.some((r) => r.discipline === 'run' && r.name === 'Marathon'), 'run goal preserved');

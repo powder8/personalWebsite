@@ -218,6 +218,13 @@
       "when": 1787126683012,
       "tag": "0030_races_discipline",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1787167135084,
+      "tag": "0031_athlete_weekly_hours_budget",
+      "breakpoints": true
     }
   ]
 }

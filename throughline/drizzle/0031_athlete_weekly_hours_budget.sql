@@ -1,0 +1,1 @@
+ALTER TABLE "athletes" ADD COLUMN "weekly_hours_budget" double precision;

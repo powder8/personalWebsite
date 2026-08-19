@@ -14,7 +14,7 @@
  */
 import { eq } from 'drizzle-orm';
 import type { DB } from '@/db';
-import { races } from '@/db/schema';
+import { races, athletes } from '@/db/schema';
 import { allocateDualSportHours, runWeeklyMilesFromHours, isPaceZones, type DualDiscipline } from '@/engine/plan';
 import { getAthleteZones } from '@/db/paceConfig';
 import { setupSeason, type SeasonRaceInput } from './season';
@@ -74,6 +74,13 @@ export async function resplitDualSeason(
 
   const allocation = allocateDualSportHours({ weeklyHours: input.weeklyHours, disciplines: active, priority: input.priority });
   const hours: Partial<Record<DualDiscipline, number>> = {};
+
+  // Persist the shared budget so the portal control shows the current value and
+  // a future goal change can re-split against it.
+  await db
+    .update(athletes)
+    .set({ weeklyHoursBudget: input.weeklyHours, updatedAt: new Date() })
+    .where(eq(athletes.id, athleteId));
 
   // BIKE: rebuild from its hours share (hours→TSS lives in setupBikeSeason).
   if (bikeGoal) {

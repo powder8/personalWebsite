@@ -180,6 +180,10 @@ export const athletes = pgTable(
     sex: text('sex'), // 'female' | 'male' | 'other' | null — gates cycle tracking, age-grading
     goalRace: text('goal_race'),
     goalRaceDate: date('goal_race_date'),
+    // Realistic TOTAL weekly training HOURS across all disciplines — the shared
+    // budget the dual-sport coordinator splits between a coexisting run + bike
+    // goal (see server/dualSeason.ts). Null until the athlete sets it.
+    weeklyHoursBudget: doublePrecision('weekly_hours_budget'),
     // The sport this athlete is coached for. Additive: existing athletes default
     // to 'run', preserving all current behaviour.
     discipline: disciplineEnum('discipline').notNull().default('run'),
