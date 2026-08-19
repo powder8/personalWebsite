@@ -30,6 +30,7 @@ import { TriGoalTrackerHero } from '@/components/TriGoalTrackerHero';
 import { getTriGoalTracker } from '@/server/triGoalTracker';
 import { BikeGoalTrackerHero } from '@/components/BikeGoalTrackerHero';
 import { getBikeGoalTracker } from '@/server/bikeGoalTracker';
+import { CoordinatedBudget } from '@/components/CoordinatedBudget';
 import { YourSports } from '@/components/YourSports';
 import { getAthleteDisciplines } from '@/server/disciplines';
 import { ConnectStrava } from '@/components/ConnectStrava';
@@ -153,12 +154,11 @@ export default async function PortalPage({
   // Triathletes with a TIMED goal get the multi-sport tracker (per-leg verdict +
   // binding leg) instead of the single-sport one. Null for everyone else.
   const triGoalTracker = needsGoal ? null : await getTriGoalTracker(db, id, today);
-  // A standalone cyclist (FTP anchor, no run VDOT) gets the bike-native tracker
-  // (goal-FTP verdict) rather than the run-based one. Precedence: tri → bike → run.
-  const isCyclist =
-    (disciplines.statuses.find((s) => s.discipline === 'bike')?.anchorSet ?? false) &&
-    !(disciplines.statuses.find((s) => s.discipline === 'run')?.anchorSet ?? false);
-  const bikeGoalTracker = needsGoal || triGoalTracker || !isCyclist ? null : await getBikeGoalTracker(db, id, today);
+  // Run and bike goals coexist (each scoped to its own discipline), so both
+  // trackers can be live at once. A triathlete's combined tracker supersedes both.
+  // Each read-model self-nulls when its discipline has no goal, so we just ask for
+  // both: getGoalTracker → the run goal, getBikeGoalTracker → the bike goal.
+  const bikeGoalTracker = needsGoal || triGoalTracker ? null : await getBikeGoalTracker(db, id, today);
 
   const nextStep = decideNextStep({
     firstName,
@@ -274,13 +274,24 @@ export default async function PortalPage({
     <div className="mx-auto max-w-2xl space-y-4 pb-20 sm:pb-4">
       <p className="px-1 pt-1 text-sm text-slate-400">Hi {firstName} 👋 · {today}</p>
 
-      {/* Where you stand */}
+      {/* Where you stand. A triathlete's combined tracker supersedes the rest.
+          Otherwise run and bike goals coexist: both trackers stack, under one
+          coordinating header so the two commitments read as a single view. */}
       {triGoalTracker ? (
         <TriGoalTrackerHero tracker={triGoalTracker} />
-      ) : bikeGoalTracker ? (
-        <BikeGoalTrackerHero tracker={bikeGoalTracker} athleteId={athlete.id} />
       ) : (
-        goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} />
+        <>
+          {goalTracker && bikeGoalTracker && (
+            <p className="px-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+              Two goals in play · run + bike
+            </p>
+          )}
+          {goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} />}
+          {bikeGoalTracker && <BikeGoalTrackerHero tracker={bikeGoalTracker} athleteId={athlete.id} />}
+          {goalTracker && bikeGoalTracker && (
+            <CoordinatedBudget athleteId={athlete.id} currentBudget={athlete.weeklyHoursBudget ?? null} />
+          )}
+        </>
       )}
 
       {/* Today, the one thing to do now, with the specific workout. A

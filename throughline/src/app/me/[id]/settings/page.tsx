@@ -9,6 +9,8 @@ import { secPerKmToMinPerMile } from '@/engine/plan';
 import { ConnectStrava } from '@/components/ConnectStrava';
 import { ConnectWhoop } from '@/components/ConnectWhoop';
 import { getWhoopStatus } from '@/server/whoop';
+import { ConnectAppleHealth } from '@/components/ConnectAppleHealth';
+import { getAppleHealthStatus } from '@/server/appleHealth';
 import { CalendarSubscribe } from '@/components/CalendarSubscribe';
 import { CycleTracking } from '@/components/CycleTracking';
 import { getCycle, computeCycle } from '@/server/cycle';
@@ -53,6 +55,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
     timeline,
     racePlan,
     whoopStatus,
+    appleHealthStatus,
   ] = await Promise.all([
     getTrainingInsights(id),
     getCycle(db, id),
@@ -63,6 +66,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
     getSeasonTimeline(db, id, today),
     getRacePlan(db, id, today),
     getWhoopStatus(db, id),
+    getAppleHealthStatus(db, id),
   ]);
 
   const hasAnchor = hasAnchorRaw != null;
@@ -146,6 +150,10 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
           recoveryScore={whoopStatus.recoveryScore}
           hrv={whoopStatus.hrv}
         />
+      </Card>
+
+      <Card title="Apple Health. HRV, resting HR &amp; sleep">
+        <ConnectAppleHealth athleteId={athlete.id} connected={appleHealthStatus.connected} />
       </Card>
 
       {/* ── CHECK IN ─────────────────────────────────────────────────────── */}

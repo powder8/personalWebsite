@@ -13,7 +13,7 @@ import type {
   restingHrRecords,
 } from '@/db/schema';
 
-export type ProviderId = 'garmin' | 'strava';
+export type ProviderId = 'garmin' | 'strava' | 'apple';
 
 /** OAuth result a provider hands back after a successful connect flow. */
 export interface ProviderTokens {

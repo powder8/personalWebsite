@@ -1,0 +1,1 @@
+ALTER TABLE "races" ADD COLUMN "discipline" "discipline" DEFAULT 'run' NOT NULL;

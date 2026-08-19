@@ -33,7 +33,7 @@ import {
 // Enums
 // ---------------------------------------------------------------------------
 
-export const providerEnum = pgEnum('provider', ['garmin', 'strava', 'manual', 'whoop']);
+export const providerEnum = pgEnum('provider', ['garmin', 'strava', 'manual', 'whoop', 'apple']);
 
 export const connectionStatusEnum = pgEnum('connection_status', [
   'pending',
@@ -180,6 +180,10 @@ export const athletes = pgTable(
     sex: text('sex'), // 'female' | 'male' | 'other' | null — gates cycle tracking, age-grading
     goalRace: text('goal_race'),
     goalRaceDate: date('goal_race_date'),
+    // Realistic TOTAL weekly training HOURS across all disciplines — the shared
+    // budget the dual-sport coordinator splits between a coexisting run + bike
+    // goal (see server/dualSeason.ts). Null until the athlete sets it.
+    weeklyHoursBudget: doublePrecision('weekly_hours_budget'),
     // The sport this athlete is coached for. Additive: existing athletes default
     // to 'run', preserving all current behaviour.
     discipline: disciplineEnum('discipline').notNull().default('run'),
@@ -269,6 +273,10 @@ export const races = pgTable(
       .references(() => athletes.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     date: date('date').notNull(),
+    // Which sport this race belongs to. Lets a runner and a cyclist goal coexist
+    // for one athlete: each single-sport setup only replaces races of its own
+    // discipline. A triathlon setup owns all three legs and clears everything.
+    discipline: disciplineEnum('discipline').notNull().default('run'),
     distanceMeters: doublePrecision('distance_meters'),
     distanceLabel: text('distance_label'), // coach shorthand: 'Mile','5k','10k','Half','Marathon'
     priority: racePriorityEnum('priority').notNull().default('tune_up'),

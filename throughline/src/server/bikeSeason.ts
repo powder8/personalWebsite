@@ -8,7 +8,7 @@
  * Idempotent: re-running replaces the athlete's races + plan. `db` is passed in
  * so this works against Neon, local PGlite, and tests.
  */
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { DB } from '@/db';
 import { athletes, races, plans } from '@/db/schema';
 import { generatePlan, tssFromHours, TYPICAL_WEEKLY_IF, COACH_BIKE_TEMPLATE_SET } from '@/engine/plan';
@@ -46,9 +46,11 @@ export async function setupBikeSeason(
     .set({ goalRace: input.goalRace.name, goalRaceDate: input.goalRace.date, updatedAt: new Date() })
     .where(eq(athletes.id, athleteId));
 
-  await db.delete(races).where(eq(races.athleteId, athleteId));
+  // Only clear this athlete's BIKE races, so a coexisting run goal survives.
+  await db.delete(races).where(and(eq(races.athleteId, athleteId), eq(races.discipline, 'bike')));
   await db.insert(races).values({
     athleteId,
+    discipline: 'bike',
     name: input.goalRace.name,
     date: input.goalRace.date,
     distanceLabel: input.goalRace.distanceLabel ?? 'Bike',
@@ -59,7 +61,8 @@ export async function setupBikeSeason(
     targetTimeSeconds: input.goalRace.targetTimeSeconds ?? null,
   });
 
-  await db.delete(plans).where(eq(plans.athleteId, athleteId)); // cascades planned_sessions
+  // Only clear this athlete's BIKE plans; a run plan for the same athlete stays.
+  await db.delete(plans).where(and(eq(plans.athleteId, athleteId), eq(plans.discipline, 'bike'))); // cascades planned_sessions
   const weeks = generatePlan(
     {
       startDay: input.startDay,
