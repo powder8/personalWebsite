@@ -10,7 +10,7 @@
  * by value on ingest. Rotating it invalidates the old one.
  */
 import { randomBytes } from 'crypto';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gt, sql } from 'drizzle-orm';
 import type { DB } from '@/db';
 import { connectedAccounts, rawEvents } from '@/db/schema';
 import { payloadHash } from '@/lib/hash';
@@ -79,11 +79,40 @@ export interface AppleIngestResult {
   restingHr: number;
   sleep: number;
   duplicate: boolean;
+  rateLimited: boolean;
 }
 
-/** Ingest one Apple Health push: store the raw event (idempotent), normalize,
- *  and persist the recovery records. */
-export async function ingestAppleHealth(db: DB, athleteId: string, payload: unknown): Promise<AppleIngestResult> {
+/** Rate-limit knobs. A real exporter pushes a handful of times a day; this is a
+ *  generous ceiling that still caps an authenticated flood. Durable across
+ *  serverless instances because it counts rows in Postgres, not in memory. */
+export const APPLE_INGEST_RATE = { maxPerWindow: 60, windowMs: 60 * 60 * 1000 };
+
+/** How many Apple raw events this athlete has ingested inside the window. */
+async function recentAppleEventCount(db: DB, athleteId: string, windowMs: number): Promise<number> {
+  const since = new Date(Date.now() - windowMs);
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(rawEvents)
+    .where(and(eq(rawEvents.athleteId, athleteId), eq(rawEvents.provider, PROVIDER), gt(rawEvents.receivedAt, since)));
+  return row?.n ?? 0;
+}
+
+/** Ingest one Apple Health push: rate-check, store the raw event (idempotent),
+ *  normalize, and persist the recovery records. */
+export async function ingestAppleHealth(
+  db: DB,
+  athleteId: string,
+  payload: unknown,
+  rate: { maxPerWindow: number; windowMs: number } = APPLE_INGEST_RATE,
+): Promise<AppleIngestResult> {
+  const empty = { hrv: 0, restingHr: 0, sleep: 0, duplicate: false };
+
+  // Rate limit per athlete over the window (counts distinct ingests; identical
+  // re-posts dedup below and don't add rows). Reject before doing any work.
+  if ((await recentAppleEventCount(db, athleteId, rate.windowMs)) >= rate.maxPerWindow) {
+    return { ...empty, rateLimited: true };
+  }
+
   const hash = payloadHash(JSON.stringify(payload ?? null));
   const [raw] = await db
     .insert(rawEvents)
@@ -101,7 +130,7 @@ export async function ingestAppleHealth(db: DB, athleteId: string, payload: unkn
 
   // Identical re-post: the raw event already exists, so its records are already
   // persisted — nothing more to do.
-  if (!raw) return { hrv: 0, restingHr: 0, sleep: 0, duplicate: true };
+  if (!raw) return { ...empty, duplicate: true };
 
   const batch = normalizeAppleHealth(payload);
   await persistNormalizedBatch(db, athleteId, raw.id, batch, PROVIDER);
@@ -111,5 +140,6 @@ export async function ingestAppleHealth(db: DB, athleteId: string, payload: unkn
     restingHr: batch.restingHrRecords?.length ?? 0,
     sleep: batch.sleepRecords?.length ?? 0,
     duplicate: false,
+    rateLimited: false,
   };
 }

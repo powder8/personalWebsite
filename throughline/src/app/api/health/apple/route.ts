@@ -46,6 +46,9 @@ export async function POST(req: Request) {
 
   try {
     const res = await ingestAppleHealth(db, athleteId, payload);
+    if (res.rateLimited) {
+      return NextResponse.json({ error: 'Rate limit exceeded, try again later.' }, { status: 429 });
+    }
     return NextResponse.json({ ok: true, ...res });
   } catch {
     // Never echo payload contents (health PII) back in an error.

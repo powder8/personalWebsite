@@ -64,7 +64,7 @@ test('a generated token resolves to its athlete; garbage does not', async () => 
 
 test('ingest normalizes + persists HRV, resting HR, and sleep, tagged apple', async () => {
   const res = await ingestAppleHealth(db, A, PAYLOAD);
-  assert.deepEqual(res, { hrv: 1, restingHr: 1, sleep: 1, duplicate: false });
+  assert.deepEqual(res, { hrv: 1, restingHr: 1, sleep: 1, duplicate: false, rateLimited: false });
 
   const [hrv] = await db.select().from(hrvRecords).where(and(eq(hrvRecords.athleteId, A), eq(hrvRecords.day, '2026-08-18')));
   assert.equal(hrv.overnightAvgMs, 62);
@@ -84,6 +84,25 @@ test('re-posting the same payload is idempotent (no duplicate rows)', async () =
   assert.equal(res.duplicate, true);
   const rows = await db.select().from(hrvRecords).where(eq(hrvRecords.athleteId, A));
   assert.equal(rows.length, 1, 'still one HRV row for the day');
+});
+
+test('ingest is rate-limited per athlete over the window', async () => {
+  const B = '55555555-5555-4555-5555-5555555555bb';
+  await db.insert(athletes).values({ id: B, fullName: 'Chatty Exporter', email: 'chatty@example.com', timezone: 'UTC' });
+  const rate = { maxPerWindow: 2, windowMs: 10 * 60 * 1000 };
+
+  // Distinct payloads so each stores a raw event and counts toward the limit.
+  const day = (d: string) => ({ data: { metrics: [{ name: 'resting_heart_rate', data: [{ date: d, qty: 50 }] }] } });
+  const r1 = await ingestAppleHealth(db, B, day('2026-08-15'), rate);
+  const r2 = await ingestAppleHealth(db, B, day('2026-08-16'), rate);
+  assert.equal(r1.rateLimited, false);
+  assert.equal(r2.rateLimited, false);
+
+  // Third distinct push in the window is rejected and persists nothing.
+  const r3 = await ingestAppleHealth(db, B, day('2026-08-17'), rate);
+  assert.equal(r3.rateLimited, true);
+  const rows = await db.select().from(restingHrRecords).where(eq(restingHrRecords.athleteId, B));
+  assert.equal(rows.length, 2, 'the rate-limited push did not persist');
 });
 
 test('rotating the token invalidates the previous one', async () => {
