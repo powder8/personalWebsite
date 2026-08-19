@@ -269,6 +269,10 @@ export const races = pgTable(
       .references(() => athletes.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     date: date('date').notNull(),
+    // Which sport this race belongs to. Lets a runner and a cyclist goal coexist
+    // for one athlete: each single-sport setup only replaces races of its own
+    // discipline. A triathlon setup owns all three legs and clears everything.
+    discipline: disciplineEnum('discipline').notNull().default('run'),
     distanceMeters: doublePrecision('distance_meters'),
     distanceLabel: text('distance_label'), // coach shorthand: 'Mile','5k','10k','Half','Marathon'
     priority: racePriorityEnum('priority').notNull().default('tune_up'),

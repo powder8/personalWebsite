@@ -86,10 +86,12 @@ export async function setupSeason(
     { ...input.goalRace, priority: 'goal', purpose: 'goal' },
     ...(input.keyRaces ?? []).map((r) => ({ ...r, priority: purposeToPriority(r.purpose) })),
   ];
-  await db.delete(races).where(eq(races.athleteId, athleteId));
+  // Only clear this athlete's RUN races, so a coexisting bike goal survives.
+  await db.delete(races).where(and(eq(races.athleteId, athleteId), eq(races.discipline, 'run')));
   await db.insert(races).values(
     allRaces.map((r) => ({
       athleteId,
+      discipline: 'run' as const,
       name: r.name,
       date: r.date,
       distanceLabel: r.distanceLabel ?? null,
@@ -108,7 +110,8 @@ export async function setupSeason(
     priority: r.priority,
     label: r.name,
   }));
-  await db.delete(plans).where(eq(plans.athleteId, athleteId)); // cascades planned_sessions
+  // Only clear this athlete's RUN plans; a bike plan for the same athlete stays.
+  await db.delete(plans).where(and(eq(plans.athleteId, athleteId), eq(plans.discipline, 'run'))); // cascades planned_sessions
   const weeks = generatePlan(
     {
       startDay: input.startDay,

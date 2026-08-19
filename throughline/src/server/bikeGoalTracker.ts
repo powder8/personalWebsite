@@ -50,7 +50,7 @@ export async function getBikeGoalTracker(
   const [race] = await db
     .select()
     .from(races)
-    .where(and(eq(races.athleteId, athleteId), eq(races.priority, 'goal')))
+    .where(and(eq(races.athleteId, athleteId), eq(races.priority, 'goal'), eq(races.discipline, 'bike')))
     .limit(1);
   if (!race) return null;
 

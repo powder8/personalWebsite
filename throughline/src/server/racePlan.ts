@@ -65,7 +65,9 @@ function fmtClock(s: number): string {
 
 export async function getRacePlan(db: DB, athleteId: string, today: string): Promise<RacePlan | null> {
   const raceList = await db.select().from(races).where(eq(races.athleteId, athleteId));
-  const goal = raceList.find((r) => r.priority === 'goal');
+  // The run tracker owns the RUN goal only — a coexisting bike goal is tracked
+  // by getBikeGoalTracker, not here.
+  const goal = raceList.find((r) => r.priority === 'goal' && r.discipline === 'run');
   if (!goal || goal.date < today) return null;
 
   const vdot = await getAthleteVdot(db, athleteId);
