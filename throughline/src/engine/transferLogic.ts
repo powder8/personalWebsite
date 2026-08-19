@@ -108,8 +108,8 @@ export const TRANSFER_TABLE: Readonly<
 > = {
   run: {
     run: { central: 1.0, economy: 1.0, durability: 1.0 }, // identity
-    bike: { central: 0.75, economy: 0.1, durability: 0.0 }, // big engine, no impact — Millet 2009
-    pool_run: { central: 0.9, economy: 0.5, durability: 0.3 }, // same gait, no ground impact — Wilber 1996
+    bike: { central: 0.75, economy: 0.1, durability: 0.0 }, // big engine, no impact. Millet 2009
+    pool_run: { central: 0.9, economy: 0.5, durability: 0.3 }, // same gait, no ground impact. Wilber 1996
     elliptical: { central: 0.78, economy: 0.32, durability: 0.1 }, // run-like leg cycle, minimal impact
     swim: { central: 0.6, economy: 0.0, durability: 0.0 }, // upper-body dominant (see note above)
     strength: { central: 0.15, economy: 0.05, durability: 0.15 }, // some tendon/bone loading
@@ -121,7 +121,7 @@ export const TRANSFER_TABLE: Readonly<
     run: { central: 0.78, economy: 0.1, durability: 0.2 }, // aerobic base carries; little pedaling economy
     pool_run: { central: 0.55, economy: 0.1, durability: 0.1 },
     elliptical: { central: 0.62, economy: 0.2, durability: 0.15 },
-    swim: { central: 0.4, economy: 0.0, durability: 0.05 }, // spec §3.2 swim→bike 0.30–0.50
+    swim: { central: 0.4, economy: 0.0, durability: 0.05 }, // spec §3.2 swim→bike 0.30-0.50
     strength: { central: 0.15, economy: 0.05, durability: 0.2 },
     cross_train: { central: 0.45, economy: 0.05, durability: 0.15 },
     other: { central: 0.3, economy: 0.0, durability: 0.05 },
@@ -149,7 +149,7 @@ export const DEFAULT_CROSS_COEFFS: TransferCoeffs = { central: 0.25, economy: 0.
 export function fromDbSport(
   sport: 'run' | 'bike' | 'swim' | 'strength' | 'cross_train' | 'other',
 ): TransferSport {
-  return sport; // identity — every enum member is a TransferSport too
+  return sport; // identity, every enum member is a TransferSport too
 }
 
 /**
@@ -274,7 +274,7 @@ export function aerobicCapacity(tracks: FitnessTracks): { ctl: number; atl: numb
 }
 
 /** How much a durability-limited ramp may exceed chronic durability load per week. */
-export const DURABILITY_WEEKLY_RAMP = 1.1; // +10%/week — the classic safe progression
+export const DURABILITY_WEEKLY_RAMP = 1.1; // +10%/week, the classic safe progression
 
 export interface RunVolumeSafety {
   /** Chronic durability load (durability-track CTL) — the legs' absorbed run load. */

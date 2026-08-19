@@ -11,6 +11,9 @@ import {
   bikeSpeedForPower,
   legReferenceTimes,
   decomposeGoalTime,
+  predictBikeTimeOnCourse,
+  requiredFtpForBikeTime,
+  bikeRaceIntensity,
   DEFAULT_BIKE_COURSE,
   type TriAnchors,
 } from '../triGoalTimeLogic';
@@ -44,7 +47,7 @@ test('bike speed↔power invert cleanly (round-trip within 1 W)', () => {
     assert.ok(Math.abs(back - watts) < 1, `round-trip watts ${watts} → ${back}`);
   }
 });
-test('bike: a 240 W FTP @ IF 0.80 rides 90 km in a plausible 70.3 window (2:15–3:15)', () => {
+test('bike: a 240 W FTP @ IF 0.80 rides 90 km in a plausible 70.3 window (2:15-3:15)', () => {
   const s = predictBikeSeconds(240, MASS, 90000, 0.8);
   assert.ok(s > 8100 && s < 11700, `bike seconds ${s} out of plausible band`);
 });
@@ -52,6 +55,28 @@ test('bike: more watts → less time', () => {
   const slow = predictBikeSeconds(200, MASS, 90000, 0.8);
   const fast = predictBikeSeconds(300, MASS, 90000, 0.8);
   assert.ok(fast < slow);
+});
+
+// ── Bike course model (elevation-aware) ──────────────────────────────────────
+test('a hilly course is slower than a flat one of the same distance', () => {
+  const flat = predictBikeTimeOnCourse(240, MASS, 100000, 200, 0.8); // ~flat 100 km
+  const hilly = predictBikeTimeOnCourse(240, MASS, 100000, 2000, 0.8); // +2000 m climbing
+  assert.ok(hilly > flat, `hilly ${hilly} should exceed flat ${flat}`);
+  assert.ok(hilly - flat > 600, 'meaningful elevation penalty (>10 min for 2000 m)');
+});
+test('more FTP → less time on the same course', () => {
+  const slow = predictBikeTimeOnCourse(200, MASS, 100000, 1500, 0.8);
+  const fast = predictBikeTimeOnCourse(300, MASS, 100000, 1500, 0.8);
+  assert.ok(fast < slow);
+});
+test('requiredFtpForBikeTime inverts the course model (round-trip within a few minutes)', () => {
+  const target = 3 * 3600; // 3:00 for the course
+  const ftp = requiredFtpForBikeTime(target, MASS, 90000, 1200, 0.8);
+  const back = predictBikeTimeOnCourse(ftp, MASS, 90000, 1200, 0.8);
+  assert.ok(Math.abs(back - target) < 120, `round-trip ${back} vs ${target}`);
+});
+test('bikeRaceIntensity falls with duration (a TT holds more than a fondo)', () => {
+  assert.ok(bikeRaceIntensity(45 * 60) > bikeRaceIntensity(3 * 3600));
 });
 
 // ── Run predictor ────────────────────────────────────────────────────────────

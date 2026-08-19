@@ -104,7 +104,7 @@ function readinessNoteFor(
   if (!band) return undefined;
   const quality = isQualitySession(session.sessionType);
   if (band === 'go' && quality) {
-    return { tone: 'go', text: 'Recovery is green today — a good day to attack this one.' };
+    return { tone: 'go', text: 'Recovery is green today, a good day to attack this one.' };
   }
   // Autonomous mode routes the low-readiness case through the interactive gate,
   // so the banner doesn't pre-empt it with a static caution here.
@@ -112,8 +112,8 @@ function readinessNoteFor(
     return {
       tone: 'caution',
       text: quality
-        ? 'Heads up: your recovery is running low today. Consider dialing the intensity back or moving the hard work to a fresher day — and check in with your coach if it persists.'
-        : 'Your recovery is running low today — keep this one genuinely easy and let the body catch up.',
+        ? 'Heads up: your recovery is running low today. Consider dialing the intensity back or moving the hard work to a fresher day, and check in with your coach if it persists.'
+        : 'Your recovery is running low today, keep this one genuinely easy and let the body catch up.',
     };
   }
   return undefined;
@@ -140,7 +140,7 @@ export function decideNextStep(input: NextStepInput): NextStep {
       kind: 'goal_done',
       emoji: '🎉',
       headline: 'That’s a wrap on this goal',
-      detail: 'Big effort. The fitness you built fades fast if it sits — pick your next race or focus and we’ll start a fresh block.',
+      detail: 'Big effort. The fitness you built fades fast if it sits, pick your next race or focus and we’ll start a fresh block.',
       cta: { type: 'scroll', href: '#goal-setup', label: 'Set my next goal' },
       tone: 'positive',
     };
@@ -163,7 +163,7 @@ export function decideNextStep(input: NextStepInput): NextStep {
       kind: 'ease_back',
       emoji: '👋',
       headline: `Welcome back, ${name}`,
-      detail: `You’ve had ${d} days off — no problem and no cramming. Tap below and I’ll trim the next few days so the first runs back feel good, not brutal.`,
+      detail: `You’ve had ${d} days off, no problem and no cramming. Tap below and I’ll trim the next few days so the first runs back feel good, not brutal.`,
       cta: { type: 'ease_back' },
       tone: 'action',
     };
@@ -175,7 +175,7 @@ export function decideNextStep(input: NextStepInput): NextStep {
       kind: 'done_today',
       emoji: '✅',
       headline: 'Today’s run is in the bag',
-      detail: 'Nice work — that’s the whole job today. Recover well; tomorrow takes care of itself.',
+      detail: 'Nice work, that’s the whole job today. Recover well; tomorrow takes care of itself.',
       cta: { type: 'view_run', label: 'See the run' },
       tone: 'positive',
     };
@@ -186,7 +186,7 @@ export function decideNextStep(input: NextStepInput): NextStep {
     return {
       kind: 'rest_today',
       emoji: '😌',
-      headline: 'Rest day — take it',
+      headline: 'Rest day, take it',
       detail: 'Recovery is where the training sticks. Nothing to run today; you’re back at it tomorrow.',
       cta: { type: 'none' },
       tone: 'neutral',
@@ -202,7 +202,7 @@ export function decideNextStep(input: NextStepInput): NextStep {
       kind: 'eased_today',
       emoji: '✓',
       headline: 'You’re eased back in',
-      detail: `Your next few days are trimmed so the return feels good. Today: ${cap(t.sessionType)} ${volumeLabel(t)}${paceTail} — already eased for you. Start there, momentum first.`,
+      detail: `Your next few days are trimmed so the return feels good. Today: ${cap(t.sessionType)} ${volumeLabel(t)}${paceTail}, already eased for you. Start there, momentum first.`,
       cta: { type: 'none' },
       tone: 'positive',
       readinessNote,
@@ -212,7 +212,7 @@ export function decideNextStep(input: NextStepInput): NextStep {
     kind: 'today',
     emoji: t.discipline === 'bike' ? '🚴' : t.discipline === 'swim' ? '🏊' : '🏃',
     headline: `Today: ${cap(t.sessionType)} ${volumeLabel(t)}`,
-    detail: `${paceTail ? `Target${paceTail}. ` : ''}${t.eased ? 'Eased for where you are right now. ' : ''}That’s the one thing today — go get it.`,
+    detail: `${paceTail ? `Target${paceTail}. ` : ''}${t.eased ? 'Eased for where you are right now. ' : ''}That’s the one thing today, go get it.`,
     cta: { type: 'none' },
     tone: 'action',
     readinessNote,

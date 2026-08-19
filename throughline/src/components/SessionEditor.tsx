@@ -105,13 +105,13 @@ export function SessionEditor({ session, today }: { session: EditableSession; to
       <tr className={session.day === today ? 'bg-sky-400/10' : ''}>
         <td className="w-12 px-2 py-1.5 font-medium text-slate-500">{dow(session.day)}</td>
         <td className="w-16 px-2 py-1.5 text-slate-700">
-          {session.targetDistanceMeters ? `${miles(session.targetDistanceMeters)} mi` : '—'}
+          {session.targetDistanceMeters ? `${miles(session.targetDistanceMeters)} mi` : '-'}
         </td>
         <td className="px-2 py-1.5">
           <span className="capitalize text-slate-800">{session.sessionType}</span>
           {session.targetPaceFastSecPerKm != null && (
             <span className="ml-2 text-xs text-slate-400">
-              {paceMinMile(session.targetPaceFastSecPerKm)}–{paceMinMile(session.targetPaceSlowSecPerKm)}/mi
+              {paceMinMile(session.targetPaceFastSecPerKm)}-{paceMinMile(session.targetPaceSlowSecPerKm)}/mi
             </span>
           )}
           {session.pinned && (
@@ -144,11 +144,11 @@ export function SessionEditor({ session, today }: { session: EditableSession; to
                 </label>
                 <label className="text-xs text-slate-600">
                   Pace fast (m:ss/mi)
-                  <input name="paceFast" defaultValue={paceMinMile(session.targetPaceFastSecPerKm)} placeholder="—" className={`mt-0.5 w-full ${field}`} />
+                  <input name="paceFast" defaultValue={paceMinMile(session.targetPaceFastSecPerKm)} placeholder="-" className={`mt-0.5 w-full ${field}`} />
                 </label>
                 <label className="text-xs text-slate-600">
                   Pace slow (m:ss/mi)
-                  <input name="paceSlow" defaultValue={paceMinMile(session.targetPaceSlowSecPerKm)} placeholder="—" className={`mt-0.5 w-full ${field}`} />
+                  <input name="paceSlow" defaultValue={paceMinMile(session.targetPaceSlowSecPerKm)} placeholder="-" className={`mt-0.5 w-full ${field}`} />
                 </label>
               </div>
               <label className="block text-xs text-slate-600">
@@ -160,7 +160,7 @@ export function SessionEditor({ session, today }: { session: EditableSession; to
                   Reason (required)
                   <select name="reason" required defaultValue="" className={`mt-0.5 block ${field}`}>
                     <option value="" disabled>
-                      Select…
+                      Select...
                     </option>
                     {REASONS.map(([v, l]) => (
                       <option key={v} value={v}>
@@ -178,7 +178,7 @@ export function SessionEditor({ session, today }: { session: EditableSession; to
                   disabled={pending}
                   className="rounded bg-sky-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
                 >
-                  {pending ? 'Saving…' : 'Save & pin'}
+                  {pending ? 'Saving...' : 'Save & pin'}
                 </button>
               </div>
               {err && <p className="text-xs text-rose-600">{err}</p>}

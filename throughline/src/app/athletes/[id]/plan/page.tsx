@@ -107,7 +107,7 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
         </Card>
       ) : (
         <Card>
-          <p className="text-sm text-slate-500">No plan yet — set up the season below to generate one.</p>
+          <p className="text-sm text-slate-500">No plan yet, set up the season below to generate one.</p>
         </Card>
       )}
 

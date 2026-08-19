@@ -102,7 +102,7 @@ export function GoalSetup({
     if (fitnessKind === 'race') {
       const secs = parseClock(fitTime);
       if (!secs) {
-        setErr('Add a recent race time — pick one of your runs above, or type it like 22:30 (or just 22 for 22 min).');
+        setErr('Add a recent race time, pick one of your runs above, or type it like 22:30 (or just 22 for 22 min).');
         return;
       }
       const picked = pickedDay ? recentRaces?.find((r) => r.day === pickedDay) : undefined;
@@ -193,7 +193,7 @@ export function GoalSetup({
       )}
       {kind === 'fitness' && (
         <p className="text-xs text-slate-500">
-          No race in mind — we’ll build a progressive ~12-week block to grow your aerobic base and consistency.
+          No race in mind, we’ll build a progressive ~12-week block to grow your aerobic base and consistency.
         </p>
       )}
 
@@ -242,7 +242,7 @@ export function GoalSetup({
                       </button>
                     ))}
                   </div>
-                  <div className="mt-2 text-xs text-slate-500">…or enter it yourself:</div>
+                  <div className="mt-2 text-xs text-slate-500">...or enter it yourself:</div>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
@@ -292,7 +292,7 @@ export function GoalSetup({
           disabled={pending}
           className="rounded bg-violet-700 px-4 py-2 text-sm font-medium text-white hover:bg-violet-800 disabled:opacity-50"
         >
-          {pending ? 'Building your plan…' : submitLabel ?? (hasGoal ? 'Update goal & rebuild plan' : 'Set goal & build my plan')}
+          {pending ? 'Building your plan...' : submitLabel ?? (hasGoal ? 'Update goal & rebuild plan' : 'Set goal & build my plan')}
         </button>
         {hasGoal && (
           <button type="button" onClick={() => setOpen(false)} className="text-xs text-slate-500 hover:underline">

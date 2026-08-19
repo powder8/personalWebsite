@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
   assessAnchorFeasibility,
   assessTriFeasibility,
+  assessFtpGoal,
+  assessBikeRaceGoal,
   typicalWeeklyFtpGain,
   typicalWeeklyCssGain,
 } from '../triFeasibilityLogic';
@@ -132,6 +134,56 @@ test('hours scaling: fewer training hours never makes a goal look easier', () =>
   const many = assessTriFeasibility({ decomposition: g, currentAnchors: ANCHORS, weeksToRace: 30, riderMassKg: MASS, weeklyHours: 14 });
   const few = assessTriFeasibility({ decomposition: g, currentAnchors: ANCHORS, weeksToRace: 30, riderMassKg: MASS, weeklyHours: 5 });
   assert.ok(rank[few.legs.bike.verdict] >= rank[many.legs.bike.verdict], 'fewer hours ⇒ same-or-harder bike verdict');
+});
+
+// ── Standalone cycling FTP goal ──────────────────────────────────────────────
+
+test('FTP goal: a modest bump is on_track; projected rises above current', () => {
+  const g = assessFtpGoal({ currentFtp: 240, targetFtp: 258, weeksToRace: 20, weeklyHours: 8 });
+  assert.equal(g.verdict, 'on_track');
+  assert.ok(g.projectedFtp > 240); // realistic FTP climbs (may even exceed a modest goal)
+  assert.equal(g.gapWatts, 18);
+  assert.ok(g.requiredWeeklyGain > 0);
+});
+
+test('FTP goal: a target at/below current reads ahead', () => {
+  assert.equal(assessFtpGoal({ currentFtp: 260, targetFtp: 250, weeksToRace: 16 }).verdict, 'ahead');
+});
+
+test('FTP goal: a 52yo chasing a huge FTP jump is beyond_reach (age ceiling)', () => {
+  const g = assessFtpGoal({ currentFtp: 240, targetFtp: 330, weeksToRace: 40, ageYears: 52, massKg: 74, weeklyHours: 8 });
+  assert.equal(g.verdict, 'beyond_reach');
+  assert.equal(g.aboveCeiling, true);
+  assert.ok(g.ceiling! < 330);
+});
+
+test('FTP goal: WITHOUT age there is no ceiling, so a big jump is "longer game" not beyond_reach', () => {
+  const g = assessFtpGoal({ currentFtp: 240, targetFtp: 330, weeksToRace: 40, weeklyHours: 8 });
+  assert.notEqual(g.verdict, 'beyond_reach');
+  assert.equal(g.ceiling, undefined);
+});
+
+// ── Standalone cycling RACE finish-time (distance + elevation) ───────────────
+
+test('bike race: a generous time on a course → ahead; realistic finish beats target', () => {
+  // Required FTP for the target is at/below current → ahead.
+  const g = assessBikeRaceGoal({ currentFtp: 260, targetTimeSeconds: 4 * 3600, distanceMeters: 90000, elevationGainMeters: 1000, riderMassKg: MASS, weeksToRace: 16 });
+  assert.equal(g.verdict, 'ahead');
+  assert.ok(g.requiredFtp <= 260);
+  assert.ok(g.projectedTimeSeconds <= 4 * 3600, 'realistic finish beats a generous target');
+});
+
+test('bike race: the SAME target time on a hillier course demands more FTP', () => {
+  const base = { currentFtp: 240, targetTimeSeconds: 3 * 3600 + 15 * 60, distanceMeters: 90000, riderMassKg: MASS, weeksToRace: 20 };
+  const flat = assessBikeRaceGoal({ ...base, elevationGainMeters: 300 });
+  const hilly = assessBikeRaceGoal({ ...base, elevationGainMeters: 2500 });
+  assert.ok(hilly.requiredFtp > flat.requiredFtp, `hilly needs more W (${hilly.requiredFtp} vs ${flat.requiredFtp})`);
+});
+
+test('bike race: a very fast time for a 52yo is beyond_reach (age ceiling)', () => {
+  const g = assessBikeRaceGoal({ currentFtp: 240, targetTimeSeconds: 2 * 3600 + 20 * 60, distanceMeters: 90000, elevationGainMeters: 1500, riderMassKg: MASS, weeksToRace: 40, ageYears: 52 });
+  assert.equal(g.verdict, 'beyond_reach');
+  assert.equal(g.aboveCeiling, true);
 });
 
 test('aggregate: prose names the binding leg and both clocks', () => {

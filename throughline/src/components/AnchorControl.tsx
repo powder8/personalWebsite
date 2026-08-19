@@ -67,7 +67,7 @@ export function AnchorControl({
       });
       const j = await res.json();
       if (j.ok) {
-        setMsg(`Anchor set — VDOT ${j.vdot}${j.updatedSessions ? `, ${j.updatedSessions} sessions re-tuned` : ''}.`);
+        setMsg(`Anchor set. VDOT ${j.vdot}${j.updatedSessions ? `, ${j.updatedSessions} sessions re-tuned` : ''}.`);
         setTimeout(() => window.location.reload(), 1000);
       } else setMsg(j.error ?? 'Failed.');
     } catch {
@@ -104,14 +104,14 @@ export function AnchorControl({
               <span className="rounded bg-amber-400/10 px-1.5 py-0.5 text-xs font-medium text-amber-300 ring-1 ring-inset ring-amber-400/30">
                 auto
               </span>{' '}
-              — inferred from the best recent effort, and refreshed as new data arrives. Confirm one
+             , inferred from the best recent effort, and refreshed as new data arrives. Confirm one
               below or override to lock it in.
             </>
           ) : (
             <>Current anchor: <span className="font-medium text-slate-800">VDOT {currentVdot}</span> (set by coach). Update it when this athlete races or hits a new benchmark.</>
           )
         ) : (
-          <>No fitness anchor yet — paces and race predictions appear once one is set. {suggestions.length > 0 ? 'Pick a suggested effort below or enter one.' : 'Enter a recent race, threshold pace, or VDOT.'}</>
+          <>No fitness anchor yet, paces and race predictions appear once one is set. {suggestions.length > 0 ? 'Pick a suggested effort below or enter one.' : 'Enter a recent race, threshold pace, or VDOT.'}</>
         )}
       </p>
 
@@ -199,7 +199,7 @@ export function AnchorControl({
             onClick={submitManual}
             className="rounded bg-sky-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
           >
-            {busy ? 'Saving…' : 'Set anchor'}
+            {busy ? 'Saving...' : 'Set anchor'}
           </button>
         </div>
       )}

@@ -32,6 +32,9 @@ import {
   predictSwimSeconds,
   predictBikeSeconds,
   predictRunSeconds,
+  predictBikeTimeOnCourse,
+  requiredFtpForBikeTime,
+  bikeRaceIntensity,
 } from './triGoalTimeLogic';
 import { assessAttainability } from './attainabilityLogic';
 
@@ -98,7 +101,7 @@ export interface AnchorFeasibility {
   weeksNeededForGoal: number; // weeks a normal build needs to reach the goal
 }
 
-const OPTIMISTIC_MULTIPLIER = 1.3; // "everything clicks" — matches the run guardrails.
+const OPTIMISTIC_MULTIPLIER = 1.3; // "everything clicks", matches the run guardrails.
 
 export function assessAnchorFeasibility(input: AnchorFeasibilityInput): AnchorFeasibility {
   const trainableWeeks = Math.max(0, input.weeksToRace - input.taperWeeks);
@@ -126,7 +129,7 @@ export function assessAnchorFeasibility(input: AnchorFeasibilityInput): AnchorFe
 // ── Tri aggregate (G4) ───────────────────────────────────────────────────────
 
 export interface TriFeasibilityInput {
-  decomposition: GoalDecomposition; // from decomposeGoalTime — carries required anchors + transitions
+  decomposition: GoalDecomposition; // from decomposeGoalTime, carries required anchors + transitions
   currentAnchors: TriAnchors;
   weeksToRace: number;
   riderMassKg: number;
@@ -320,7 +323,7 @@ function triProse(
     case 'ahead':
       return {
         headline: `${target} is within reach`,
-        note: `Every leg is at or ahead of the fitness ${target} needs — the plan is about race-specific sharpening and durability (especially the run off the bike), not chasing big fitness gains. Realistic finish on a normal build: ~${realistic}.`,
+        note: `Every leg is at or ahead of the fitness ${target} needs, the plan is about race-specific sharpening and durability (especially the run off the bike), not chasing big fitness gains. Realistic finish on a normal build: ~${realistic}.`,
       };
     case 'on_track':
       return {
@@ -329,8 +332,8 @@ function triProse(
       };
     case 'stretch':
       return {
-        headline: `${target} is a stretch — the ${name} is the constraint`,
-        note: `The ${name} needs about ${b.requiredWeeklyGainLabel} for ${b.trainableWeeks} weeks — the top of what typically happens, not the expectation. It's the leg that decides your day. Realistic finish on a normal build: ~${realistic}; treat that as success and ${target} as the reach.`,
+        headline: `${target} is a stretch. The ${name} is the constraint`,
+        note: `The ${name} needs about ${b.requiredWeeklyGainLabel} for ${b.trainableWeeks} weeks, the top of what typically happens, not the expectation. It's the leg that decides your day. Realistic finish on a normal build: ~${realistic}; treat that as success and ${target} as the reach.`,
       };
     case 'unrealistic': {
       // POSSIBLE but not in these weeks — the gap is under the athlete's ceiling
@@ -338,8 +341,8 @@ function triProse(
       const gapLabel = absLabel(bindingLeg, b.gap);
       const addsLabel = absLabel(bindingLeg, b.achievableGain);
       return {
-        headline: `${target} is a longer game — the ${name} needs more time`,
-        note: `${target} is reachable for you, but not in this build: these ${b.trainableWeeks} training weeks realistically add ~${addsLabel} on the ${name}, and it needs about ${gapLabel} more (${absLabel(bindingLeg, b.currentAnchor)} → ${absLabel(bindingLeg, b.goalAnchor)}). Give the ${name} another season or two of consistent work and it comes in range — for THIS race, ~${realistic} is a strong, honest target.`,
+        headline: `${target} is a longer game. The ${name} needs more time`,
+        note: `${target} is reachable for you, but not in this build: these ${b.trainableWeeks} training weeks realistically add ~${addsLabel} on the ${name}, and it needs about ${gapLabel} more (${absLabel(bindingLeg, b.currentAnchor)} → ${absLabel(bindingLeg, b.goalAnchor)}). Give the ${name} another season or two of consistent work and it comes in range, for THIS race, ~${realistic} is a strong, honest target.`,
       };
     }
     default: {
@@ -349,8 +352,160 @@ function triProse(
       const ceilingLabel = b.ceiling != null ? absLabel(bindingLeg, b.ceiling) : null;
       return {
         headline: `${target} is faster than this race can be for you`,
-        note: `${target} is an elite time — on the ${name} it would need ${absLabel(bindingLeg, b.goalAnchor)}, past what's realistically attainable for your profile${ceilingLabel ? ` (a best-case ceiling around ${ceilingLabel})` : ''}, even with unlimited time. That's no knock on you — it's simply a very fast number. The honest, motivating target for this race is ~${realistic}, and it's a genuinely strong day. Let's chase that.`,
+        note: `${target} is an elite time, on the ${name} it would need ${absLabel(bindingLeg, b.goalAnchor)}, past what's realistically attainable for your profile${ceilingLabel ? ` (a best-case ceiling around ${ceilingLabel})` : ''}, even with unlimited time. That's no knock on you, it's simply a very fast number. The honest, motivating target for this race is ~${realistic}, and it's a genuinely strong day. Let's chase that.`,
       };
     }
   }
+}
+
+// ── Standalone cycling: FTP-goal feasibility (bike goal tracker) ─────────────
+
+export interface FtpGoalInput {
+  currentFtp: number;
+  targetFtp: number;
+  weeksToRace: number;
+  ageYears?: number; // enables the attainability ceiling
+  massKg?: number; // for the age-graded bounding box
+  weeklyHours?: number; // scales the gain rate
+}
+
+export interface FtpGoalAssessment {
+  verdict: FeasibilityVerdict;
+  currentFtp: number;
+  targetFtp: number;
+  projectedFtp: number; // realistic FTP by the event, on a normal build
+  gapWatts: number;
+  requiredWeeklyGain: number; // W/wk the goal demands
+  ceiling?: number; // best-case attainable FTP (when age known)
+  aboveCeiling: boolean;
+}
+
+/**
+ * Is a target FTP reachable by the event? The cycling analog of the run goal
+ * tracker's verdict — reuses the shared anchor-feasibility core (FTP gain curve,
+ * hours scaling) + the attainability ceiling (age/mass), so a goal above what's
+ * realistically attainable reads `beyond_reach`, not just "hard".
+ */
+export function assessFtpGoal(input: FtpGoalInput): FtpGoalAssessment {
+  const taper = 2; // a short sharpening/taper into the event
+  const af = assessAnchorFeasibility({
+    currentAnchor: input.currentFtp,
+    goalAnchor: input.targetFtp,
+    weeksToRace: input.weeksToRace,
+    taperWeeks: taper,
+    weeklyGain: typicalWeeklyFtpGain(input.currentFtp) * hoursGainScale(input.weeklyHours),
+    seasonGainCap: input.currentFtp * FTP_SEASON_GAIN_CAP_PCT,
+    projectTime: (a) => a, // identity. "projected time" IS the projected FTP here
+  });
+
+  let verdict = af.verdict;
+  let ceiling: number | undefined;
+  let aboveCeiling = false;
+  if (input.ageYears != null) {
+    const att = assessAttainability({
+      discipline: 'bike',
+      currentAnchor: input.currentFtp,
+      ageYears: input.ageYears,
+      massKg: input.massKg,
+    });
+    ceiling = att.ceiling;
+    aboveCeiling = input.targetFtp > att.ceiling;
+    if (aboveCeiling) verdict = 'beyond_reach';
+  }
+
+  return {
+    verdict,
+    currentFtp: input.currentFtp,
+    targetFtp: input.targetFtp,
+    projectedFtp: Math.round(af.projectedAnchor),
+    gapWatts: Math.round(input.targetFtp - input.currentFtp),
+    requiredWeeklyGain: Number.isFinite(af.requiredWeeklyGain) ? Number(af.requiredWeeklyGain.toFixed(1)) : 0,
+    ceiling: ceiling != null ? Math.round(ceiling) : undefined,
+    aboveCeiling,
+  };
+}
+
+// ── Standalone cycling: RACE finish-time feasibility (distance + elevation) ──
+
+export interface BikeRaceGoalInput {
+  currentFtp: number;
+  targetTimeSeconds: number;
+  distanceMeters: number;
+  elevationGainMeters: number;
+  riderMassKg: number;
+  weeksToRace: number;
+  ageYears?: number;
+  weeklyHours?: number;
+  /** Race intensity (IF); defaults from the target duration. */
+  intensityFactor?: number;
+}
+
+export interface BikeRaceGoalAssessment {
+  verdict: FeasibilityVerdict;
+  currentFtp: number;
+  requiredFtp: number; // FTP the target time demands ON THIS COURSE
+  projectedFtp: number; // realistic FTP by race day
+  projectedTimeSeconds: number; // realistic finish on a normal build
+  targetTimeSeconds: number;
+  gapWatts: number;
+  requiredWeeklyGain: number;
+  ceiling?: number;
+  aboveCeiling: boolean;
+}
+
+/**
+ * Is a target FINISH TIME plausible on a specific course? Inverts the elevation-
+ * aware course model to the FTP the time demands, then runs the shared
+ * feasibility core (FTP gain + hours) + attainability ceiling — so the projector
+ * returns a real finish TIME and the verdict is honest about a hilly course.
+ */
+export function assessBikeRaceGoal(input: BikeRaceGoalInput): BikeRaceGoalAssessment {
+  const IF = input.intensityFactor ?? bikeRaceIntensity(input.targetTimeSeconds);
+  const requiredFtp = requiredFtpForBikeTime(
+    input.targetTimeSeconds,
+    input.riderMassKg,
+    input.distanceMeters,
+    input.elevationGainMeters,
+    IF,
+  );
+  const projectTime = (ftp: number) =>
+    predictBikeTimeOnCourse(ftp, input.riderMassKg, input.distanceMeters, input.elevationGainMeters, IF);
+
+  const af = assessAnchorFeasibility({
+    currentAnchor: input.currentFtp,
+    goalAnchor: requiredFtp,
+    weeksToRace: input.weeksToRace,
+    taperWeeks: 2,
+    weeklyGain: typicalWeeklyFtpGain(input.currentFtp) * hoursGainScale(input.weeklyHours),
+    seasonGainCap: input.currentFtp * FTP_SEASON_GAIN_CAP_PCT,
+    projectTime,
+  });
+
+  let verdict = af.verdict;
+  let ceiling: number | undefined;
+  let aboveCeiling = false;
+  if (input.ageYears != null) {
+    const att = assessAttainability({
+      discipline: 'bike',
+      currentAnchor: input.currentFtp,
+      ageYears: input.ageYears,
+      massKg: input.riderMassKg,
+    });
+    ceiling = att.ceiling;
+    aboveCeiling = requiredFtp > att.ceiling;
+    if (aboveCeiling) verdict = 'beyond_reach';
+  }
+
+  return {
+    verdict,
+    currentFtp: input.currentFtp,
+    requiredFtp,
+    projectedFtp: Math.round(af.projectedAnchor),
+    projectedTimeSeconds: af.projectedTimeSeconds,
+    targetTimeSeconds: input.targetTimeSeconds,
+    gapWatts: Math.round(requiredFtp - input.currentFtp),
+    requiredWeeklyGain: Number.isFinite(af.requiredWeeklyGain) ? Number(af.requiredWeeklyGain.toFixed(1)) : 0,
+    ceiling: ceiling != null ? Math.round(ceiling) : undefined,
+    aboveCeiling,
+  };
 }

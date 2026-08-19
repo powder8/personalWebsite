@@ -38,7 +38,7 @@ export function FileUploadForm() {
         </label>
         <label className="text-xs text-slate-600">
           Email (unique id)
-          <input name="email" type="email" required placeholder="heather@…" className={field} />
+          <input name="email" type="email" required placeholder="heather@..." className={field} />
         </label>
         <label className="text-xs text-slate-600">
           Year (weekly-format files)
@@ -46,7 +46,7 @@ export function FileUploadForm() {
         </label>
       </div>
       <label className="block text-xs text-slate-600">
-        Training-log files (.xlsx — select multiple)
+        Training-log files (.xlsx, select multiple)
         <input name="files" type="file" accept=".xlsx,.xls" multiple required className={`${field} py-1`} />
       </label>
       <button
@@ -54,7 +54,7 @@ export function FileUploadForm() {
         disabled={pending}
         className="rounded bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
       >
-        {pending ? 'Uploading…' : 'Upload & import'}
+        {pending ? 'Uploading...' : 'Upload & import'}
       </button>
       {result?.error && (
         <p className="rounded bg-rose-400/10 px-3 py-2 text-sm text-rose-300 ring-1 ring-inset ring-rose-400/30">{result.error}</p>

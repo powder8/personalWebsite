@@ -7,7 +7,7 @@
 import { secPerKmToMinPerMile } from '@/engine/plan';
 
 export interface PlannedRef {
-  sessionType: string; // easy | recovery | long | threshold | intervals | marathon | …
+  sessionType: string; // easy | recovery | long | threshold | intervals | marathon | ...
   zone: string | null;
   miles: number;
   paceFastSecPerKm: number | null; // band fast bound (lower = faster)
@@ -54,7 +54,7 @@ export function assessRun(input: RunVsPlan): RunFeedback {
       verdict: 'extra',
       positive: true,
       headline: 'Bonus miles 🙌',
-      detail: `${miStr(actualMi)} mi that weren't even on the plan — love the consistency. Just keep extra runs truly easy so they don't tax your hard days.`,
+      detail: `${miStr(actualMi)} mi that weren't even on the plan, love the consistency. Just keep extra runs truly easy so they don't tax your hard days.`,
     };
   }
 
@@ -75,16 +75,16 @@ export function assessRun(input: RunVsPlan): RunFeedback {
       return {
         verdict: 'too_fast_easy',
         positive: false,
-        headline: 'Strong run — but a touch quick',
-        detail: `That was an easy day and you ran ${pm(actualPaceSecPerKm)} — quicker than the ${pm(fast)}–${pm(slow)} target. It's the most common mistake in running: easy needs to be genuinely easy so your hard days land. Next one, hold back and let it feel boring.`,
+        headline: 'Strong run, but a touch quick',
+        detail: `That was an easy day and you ran ${pm(actualPaceSecPerKm)}, quicker than the ${pm(fast)}-${pm(slow)} target. It's the most common mistake in running: easy needs to be genuinely easy so your hard days land. Next one, hold back and let it feel boring.`,
       };
     }
     if (isQuality && ranFasterThanBand) {
       return {
         verdict: 'too_hard',
         positive: false,
-        headline: 'Hammered it 🔥 — maybe a bit much',
-        detail: `${pm(actualPaceSecPerKm)} is faster than the ${pm(fast)}–${pm(slow)} target for this one. Strong, but racing your workouts steals from race day. Aim to finish feeling you had one more rep in the tank.`,
+        headline: 'Hammered it 🔥, maybe a bit much',
+        detail: `${pm(actualPaceSecPerKm)} is faster than the ${pm(fast)}-${pm(slow)} target for this one. Strong, but racing your workouts steals from race day. Aim to finish feeling you had one more rep in the tank.`,
       };
     }
     if (isQuality && inBand) {
@@ -92,7 +92,7 @@ export function assessRun(input: RunVsPlan): RunFeedback {
         verdict: 'nailed',
         positive: true,
         headline: 'Nailed it 🎯',
-        detail: `${miStr(actualMi)} mi at ${pm(actualPaceSecPerKm)} — right in the ${pm(fast)}–${pm(slow)} target. This is exactly the work that moves your race time. Recover well.`,
+        detail: `${miStr(actualMi)} mi at ${pm(actualPaceSecPerKm)}, right in the ${pm(fast)}-${pm(slow)} target. This is exactly the work that moves your race time. Recover well.`,
       };
     }
     if (isQuality && ranSlowerThanBand) {
@@ -100,7 +100,7 @@ export function assessRun(input: RunVsPlan): RunFeedback {
         verdict: 'eased_off',
         positive: true,
         headline: 'Got it done',
-        detail: `A bit easier than the ${pm(fast)}–${pm(slow)} target — totally fine, some days the legs aren't there and showing up still counts. If it keeps happening, tell your coach and we'll adjust.`,
+        detail: `A bit easier than the ${pm(fast)}-${pm(slow)} target, totally fine, some days the legs aren't there and showing up still counts. If it keeps happening, tell your coach and we'll adjust.`,
       };
     }
     if (isEasy && inBand) {
@@ -108,7 +108,7 @@ export function assessRun(input: RunVsPlan): RunFeedback {
         verdict: 'solid',
         positive: true,
         headline: 'Textbook easy day ✅',
-        detail: `${miStr(actualMi)} mi at ${pm(actualPaceSecPerKm)} — right in the easy zone. Disciplined easy running is the quiet engine of every PB.`,
+        detail: `${miStr(actualMi)} mi at ${pm(actualPaceSecPerKm)}, right in the easy zone. Disciplined easy running is the quiet engine of every PB.`,
       };
     }
   }
@@ -119,7 +119,7 @@ export function assessRun(input: RunVsPlan): RunFeedback {
       verdict: 'short',
       positive: true,
       headline: 'Banked something',
-      detail: `${miStr(actualMi)} of the planned ${miStr(plannedMi)} mi — life happens, and a short run beats a skipped one. No need to make it up; just roll into the next session.`,
+      detail: `${miStr(actualMi)} of the planned ${miStr(plannedMi)} mi, life happens, and a short run beats a skipped one. No need to make it up; just roll into the next session.`,
     };
   }
 
@@ -127,6 +127,6 @@ export function assessRun(input: RunVsPlan): RunFeedback {
     verdict: 'solid',
     positive: true,
     headline: 'On plan ✅',
-    detail: `${miStr(actualMi)} mi${actualPaceSecPerKm != null ? ` at ${pm(actualPaceSecPerKm)}` : ''} — right where it should be. Consistency like this is what builds the result.`,
+    detail: `${miStr(actualMi)} mi${actualPaceSecPerKm != null ? ` at ${pm(actualPaceSecPerKm)}` : ''}, right where it should be. Consistency like this is what builds the result.`,
   };
 }

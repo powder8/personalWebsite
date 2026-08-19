@@ -46,7 +46,7 @@ export function EaseBackButton({ athleteId, directives }: { athleteId: string; d
     }
   }
 
-  if (done) return <p className="text-sm font-medium text-lime-300">Done — your next few days are eased. Go get the first one. 💪</p>;
+  if (done) return <p className="text-sm font-medium text-lime-300">Done, your next few days are eased. Go get the first one. 💪</p>;
 
   return (
     <div>
@@ -55,7 +55,7 @@ export function EaseBackButton({ athleteId, directives }: { athleteId: string; d
         disabled={pending}
         className="rounded-lg bg-lime-300 px-4 py-2 text-sm font-semibold text-[#0c1018] transition hover:bg-lime-200 disabled:opacity-50"
       >
-        {pending ? 'Easing you back in…' : 'Ease me back in'}
+        {pending ? 'Easing you back in...' : 'Ease me back in'}
       </button>
       {err && <p className="mt-1 text-xs text-rose-300">{err}</p>}
     </div>

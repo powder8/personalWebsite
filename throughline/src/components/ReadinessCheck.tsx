@@ -11,7 +11,7 @@ import { useState } from 'react';
  * rendered server-side by the portal.
  */
 const OPTIONS: { key: string; label: string; emoji: string; energy: number; soreness: number }[] = [
-  { key: 'rough', label: 'Rough — feeling it', emoji: '🥵', energy: 2, soreness: 7 },
+  { key: 'rough', label: 'Rough, feeling it', emoji: '🥵', energy: 2, soreness: 7 },
   { key: 'off', label: 'A bit off', emoji: '😕', energy: 4, soreness: 5 },
   { key: 'good', label: 'Actually good', emoji: '💪', energy: 8, soreness: 1 },
 ];
@@ -46,7 +46,7 @@ export function ReadinessCheck({
         setPending(null);
       }
     } catch {
-      setErr('Network error — try again.');
+      setErr('Network error, try again.');
       setPending(null);
     }
   }
@@ -69,7 +69,7 @@ export function ReadinessCheck({
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-2.5 text-sm font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:bg-white/15 disabled:opacity-50"
           >
             <span aria-hidden>{opt.emoji}</span>
-            <span>{pending === opt.key ? 'Saving…' : opt.label}</span>
+            <span>{pending === opt.key ? 'Saving...' : opt.label}</span>
           </button>
         ))}
       </div>

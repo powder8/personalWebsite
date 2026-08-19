@@ -37,16 +37,16 @@ Answering:
 - When asked what to do, explain what the plan / engine already prescribes and the reasoning. Don't invent prescriptions that contradict their plan or paces.
 - The fitness benchmark is RECENT training. If asked about a faster past, note it's a different stage and that current targets use recent data.
 - This is coaching guidance, not medical advice. For pain, injury, or medical questions, advise seeing a professional.
-- If they've missed sessions or fallen behind: be warm and encouraging, never guilt-trip. NEVER tell them to "make up" missed miles by stacking them — that causes injury and quitting. A missed day is forgiven; after a real layoff, ease back in (lighter for a few days) rather than cramming. Calendar dates don't move.
+- If they've missed sessions or fallen behind: be warm and encouraging, never guilt-trip. NEVER tell them to "make up" missed miles by stacking them, that causes injury and quitting. A missed day is forgiven; after a real layoff, ease back in (lighter for a few days) rather than cramming. Calendar dates don't move.
 - If the data doesn't contain the answer, say so plainly rather than guessing.
 - Be concise, specific, and encouraging. Plain text, no markdown headers.
 
 Taking action (tools):
 - You can CHANGE the plan with the provided tools: take days off / rest, reduce mileage, move a workout, ease or sharpen paces for a window, or set a new fitness anchor from a race or VDOT.
-- Only call a tool when the user clearly asks for a change — not when they're just discussing or asking "what if". If a request is ambiguous, ask a brief clarifying question instead of acting.
+- Only call a tool when the user clearly asks for a change, not when they're just discussing or asking "what if". If a request is ambiguous, ask a brief clarifying question instead of acting.
 - Resolve relative dates ("tomorrow", "this week", "next Tue") to YYYY-MM-DD using TODAY from the data below.
 - For a fitness-anchor change, confirm the exact race/time or VDOT before calling the tool.
-- set_training_goal REBUILDS the whole plan — use it only when the athlete clearly commits to a goal, and confirm distance + date (+ target time) first. Estimate currentWeeklyMiles from the recent-training data above if unstated.
+- set_training_goal REBUILDS the whole plan, use it only when the athlete clearly commits to a goal, and confirm distance + date (+ target time) first. Estimate currentWeeklyMiles from the recent-training data above if unstated.
 - After a tool runs, tell the user plainly what changed and that the coach can see and adjust it. Every change is reversible.`;
 }
 
@@ -56,8 +56,8 @@ function fmtTime(s: number): string {
   const sec = Math.round(s % 60);
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`;
 }
-const pm = (sec: number | null) => (sec == null ? '—' : `${secPerKmToMinPerMile(sec)}/mi`);
-const mi = (m: number | null) => (m == null || m <= 0 ? '—' : (m / 1609.344).toFixed(1));
+const pm = (sec: number | null) => (sec == null ? '-' : `${secPerKmToMinPerMile(sec)}/mi`);
+const mi = (m: number | null) => (m == null || m <= 0 ? '-' : (m / 1609.344).toFixed(1));
 
 /** Compose a grounding context string from the athlete's structured data. */
 async function buildContext(
@@ -86,13 +86,13 @@ async function buildContext(
   lines.push(
     `Today (${portal.today}): readiness ${portal.readiness.band ?? 'n/a'}${
       portal.readiness.score != null ? ` (${portal.readiness.score})` : ''
-    }${portal.readiness.sentence ? ` — "${portal.readiness.sentence}"` : ''}.`,
+    }${portal.readiness.sentence ? `. "${portal.readiness.sentence}"` : ''}.`,
   );
   if (portal.todaySession) {
     const s = portal.todaySession;
     lines.push(
       `Today's session: ${s.sessionType}, ${mi(s.distanceMeters)} mi${
-        s.paceFastSecPerKm != null ? ` @ ${pm(s.paceFastSecPerKm)}–${pm(s.paceSlowSecPerKm)}` : ''
+        s.paceFastSecPerKm != null ? ` @ ${pm(s.paceFastSecPerKm)}-${pm(s.paceSlowSecPerKm)}` : ''
       }${s.description ? `. ${s.description}` : ''}.`,
     );
   }
@@ -140,7 +140,7 @@ async function buildContext(
     }
     if (insights.careerBest) {
       lines.push(
-        `Career best (CONTEXT ONLY, possibly a different life stage — not the current target): ~VDOT ${insights.careerBest.vdot} (${insights.careerBest.distanceLabel}, ${insights.careerBest.day}).`,
+        `Career best (CONTEXT ONLY, possibly a different life stage, not the current target): ~VDOT ${insights.careerBest.vdot} (${insights.careerBest.distanceLabel}, ${insights.careerBest.day}).`,
       );
     }
     if (insights.suggestions.length) {
@@ -154,7 +154,7 @@ async function buildContext(
       `Adherence: ${adaptation.tone}${
         adaptation.lastRunDay ? `, last run ${adaptation.layoffDays}d ago` : ''
       }, ${adaptation.missedRecent} missed in last 2 weeks, current streak ${adaptation.streakDays} days.${
-        adaptation.tone !== 'on_track' ? ' If they bring it up, encourage — do not suggest making up the missed miles.' : ''
+        adaptation.tone !== 'on_track' ? ' If they bring it up, encourage, do not suggest making up the missed miles.' : ''
       }`,
     );
   }
@@ -207,7 +207,7 @@ export async function askTrainingQuestion(
 
     const toolUses = resp.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
     if (resp.stop_reason !== 'tool_use' || toolUses.length === 0) {
-      return { reply: lastText || "I couldn't generate a response — try rephrasing.", actions };
+      return { reply: lastText || "I couldn't generate a response, try rephrasing.", actions };
     }
 
     // Execute each requested tool and feed the results back.
@@ -222,7 +222,7 @@ export async function askTrainingQuestion(
   }
 
   return {
-    reply: lastText || 'Done — I made the requested changes.',
+    reply: lastText || 'Done. I made the requested changes.',
     actions,
   };
 }

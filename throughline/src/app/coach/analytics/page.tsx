@@ -131,11 +131,11 @@ export default async function AnalyticsPage() {
         <StatTile
           label="With a target time"
           value={a.goals.withTargetTime}
-          sublabel={a.goals.withGoalRace > 0 ? `of ${a.goals.withGoalRace} — target unlocks the on-pace verdict` : undefined}
+          sublabel={a.goals.withGoalRace > 0 ? `of ${a.goals.withGoalRace}, target unlocks the on-pace verdict` : undefined}
         />
         <StatTile
           label="Most common distance"
-          value={a.goals.distanceMix[0]?.key ?? '—'}
+          value={a.goals.distanceMix[0]?.key ?? '-'}
           sublabel={a.goals.distanceMix[0] ? `${a.goals.distanceMix[0].count} athlete${a.goals.distanceMix[0].count === 1 ? '' : 's'}` : undefined}
         />
       </div>

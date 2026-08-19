@@ -168,7 +168,7 @@ export function generateBikeWeek(
     const base = { day, dow: dt.dow, pinned: false, optionalStrides: dt.optionalStrides ?? false };
 
     if (dt.runType === 'rest') {
-      return { ...base, runType: 'rest' as const, zone: null, distanceMeters: 0, durationSeconds: 0, targetLoadTss: 0, description: 'Rest day — off the bike.' };
+      return { ...base, runType: 'rest' as const, zone: null, distanceMeters: 0, durationSeconds: 0, targetLoadTss: 0, description: 'Rest day, off the bike.' };
     }
 
     if (dt.runType === 'long') {
@@ -187,7 +187,7 @@ export function generateBikeWeek(
 
     // Consolidated away (share below the minimum meaningful ride) → rest.
     if (!alloc.has(dt)) {
-      return { ...base, runType: 'rest' as const, zone: null, distanceMeters: 0, durationSeconds: 0, targetLoadTss: 0, description: 'Rest day — off the bike.' };
+      return { ...base, runType: 'rest' as const, zone: null, distanceMeters: 0, durationSeconds: 0, targetLoadTss: 0, description: 'Rest day, off the bike.' };
     }
     const dayTss = Math.round(alloc.get(dt)!);
 
@@ -225,7 +225,7 @@ export function generateBikeWeek(
       distanceMeters: 0,
       durationSeconds: totalMin * 60,
       targetLoadTss: dayTss,
-      description: `${cap(ZONE_LABEL[zone])} ride, ${totalMin} min @ ${targetLabel(zones, zone)} — steady aerobic effort`,
+      description: `${cap(ZONE_LABEL[zone])} ride, ${totalMin} min @ ${targetLabel(zones, zone)}, steady aerobic effort`,
     };
   });
 
@@ -271,7 +271,7 @@ function longRideSegments(
       repSeconds: blockMin * 60,
       restSeconds: 5 * 60,
       ...wattTargets(zones, 'sweetspot'),
-      note: `${blocks} × ${blockMin} min @ ${targetLabel(zones, 'sweetspot')} · 5 min easy spin between — muscular endurance on tired legs`,
+      note: `${blocks} × ${blockMin} min @ ${targetLabel(zones, 'sweetspot')} · 5 min easy spin between, muscular endurance on tired legs`,
     },
     {
       role: 'cooldown',
@@ -300,10 +300,10 @@ function longRideDescription(
 
 function defaultRationale(phase: PlannedWeek['phase'], weeksToRace: number, weeklyTss: number): string {
   const head = {
-    base: 'Base week — build aerobic base and durability with sweet-spot work.',
-    build: 'Build week — raise FTP with threshold, sharpen with VO2max as volume ramps.',
-    peak: 'Peak week — highest load; threshold + VO2max on top of a big long ride.',
-    taper: 'Taper — cut volume, keep a little intensity, arrive fresh and snappy.',
+    base: 'Base week, build aerobic base and durability with sweet-spot work.',
+    build: 'Build week, raise FTP with threshold, sharpen with VO2max as volume ramps.',
+    peak: 'Peak week, highest load; threshold + VO2max on top of a big long ride.',
+    taper: 'Taper, cut volume, keep a little intensity, arrive fresh and snappy.',
   }[phase];
-  return `${head} ${weeksToRace} week(s) to race. Weekly load ~${weeklyTss} TSS. Consistency over heroics — hold the targets, don't chase watts.`;
+  return `${head} ${weeksToRace} week(s) to race. Weekly load ~${weeklyTss} TSS. Consistency over heroics, hold the targets, don't chase watts.`;
 }

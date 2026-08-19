@@ -71,7 +71,7 @@ export function PlanTimeline({ timeline }: { timeline: SeasonTimeline }) {
                 {phaseStyle(b.phase).label}
               </span>
               <span className="truncate text-slate-600">
-                {b.weeks}w · {fmtShort(b.startDay)}–{fmtShort(b.endDay)}
+                {b.weeks}w · {fmtShort(b.startDay)}-{fmtShort(b.endDay)}
                 {b.current && <span className="ml-1.5 font-semibold text-slate-900">← now</span>}
               </span>
             </div>
@@ -84,7 +84,7 @@ export function PlanTimeline({ timeline }: { timeline: SeasonTimeline }) {
               ))}
               {b.milesMin != null && b.milesMax != null && (
                 <span className="tabular-nums">
-                  {b.milesMin === b.milesMax ? `${b.milesMax}` : `${b.milesMin}–${b.milesMax}`} mi/wk
+                  {b.milesMin === b.milesMax ? `${b.milesMax}` : `${b.milesMin}-${b.milesMax}`} mi/wk
                 </span>
               )}
             </div>

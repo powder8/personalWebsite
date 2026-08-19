@@ -22,8 +22,8 @@ export interface DebriefInput {
   climbFeet: number;
   sleepHours: number | null;
   sleepNormHours: number | null; // athlete's typical
-  energy: number | null; // 0–10
-  soreness: number | null; // 0–10
+  energy: number | null; // 0-10
+  soreness: number | null; // 0-10
   // The athlete's own post-run read — what the sensors can't see. Takes
   // precedence when present (they were there; the data wasn't).
   reportedFeel?: 'strong' | 'fine' | 'rough' | null;
@@ -76,8 +76,8 @@ export function buildDebrief(input: DebriefInput): RunDebrief {
   const dayRuns = input.dayRunCount ?? 1;
   if (dayRuns > 1) {
     const total = input.dayTotalMiles != null ? `${input.dayTotalMiles} mi total` : 'across the day';
-    signals.push({ key: 'session', polarity: 'context', fact: `${dayRuns} runs that day (${total}) — judged on your main effort.` });
-    wentWell.push(`You logged ${dayRuns} runs in that session (${total}) — bookending the main effort with a warm-up and cool-down is exactly how to set up a good session.`);
+    signals.push({ key: 'session', polarity: 'context', fact: `${dayRuns} runs that day (${total}), judged on your main effort.` });
+    wentWell.push(`You logged ${dayRuns} runs in that session (${total}), bookending the main effort with a warm-up and cool-down is exactly how to set up a good session.`);
   }
 
   const adverseSleep = input.sleepHours != null && input.sleepHours < (input.sleepNormHours != null ? input.sleepNormHours - 1.5 : 6);
@@ -109,9 +109,9 @@ export function buildDebrief(input: DebriefInput): RunDebrief {
   // --- Showing up despite a rough day is the headline win ---
   if (adverse && input.actualMiles > 0) {
     signals.push({ key: 'showed_up', polarity: 'positive', fact: 'Got the run done on a day the body wasn’t at its best.' });
-    wentWell.push('You got out the door on a rough day — when sleep, energy, or how you feel is off, that’s the hardest part, and you did it.');
+    wentWell.push('You got out the door on a rough day, when sleep, energy, or how you feel is off, that’s the hardest part, and you did it.');
   } else if (input.reportedFeel === 'strong' && input.actualMiles > 0) {
-    wentWell.push('You felt strong out there — bank that; the days everything clicks are the ones to build on.');
+    wentWell.push('You felt strong out there, bank that; the days everything clicks are the ones to build on.');
   }
 
   // --- Mid-run stops: sensor (elapsed − moving) OR the athlete telling us ---
@@ -119,10 +119,10 @@ export function buildDebrief(input: DebriefInput): RunDebrief {
   if (stoppedSec >= 90) {
     const min = Math.round(stoppedSec / 60);
     signals.push({ key: 'stops', polarity: 'positive', fact: `Paused ~${min} min mid-run (moving vs elapsed time).` });
-    wentWell.push(`You took ~${min} min of breaks — listening to your body and walking when you need to is smart, not a setback.`);
+    wentWell.push(`You took ~${min} min of breaks, listening to your body and walking when you need to is smart, not a setback.`);
   } else if (input.reportedBreaks) {
     signals.push({ key: 'stops', polarity: 'positive', fact: 'You noted you took a few breaks mid-run.' });
-    wentWell.push('Taking breaks when your body asks is a strength, not a failure — better a paused run than a skipped one.');
+    wentWell.push('Taking breaks when your body asks is a strength, not a failure, better a paused run than a skipped one.');
   }
 
   // --- Terrain: trail/hills, and GAP vs raw ---
@@ -132,16 +132,16 @@ export function buildDebrief(input: DebriefInput): RunDebrief {
     signals.push({
       key: 'terrain',
       polarity: 'positive',
-      fact: `On ${isTrail ? 'the trails' : 'the hills'}, effort beat the clock — grade-adjusted ${pm(input.gapSecPerKm!)} vs ${pm(input.actualPaceSecPerKm!)} actual.`,
+      fact: `On ${isTrail ? 'the trails' : 'the hills'}, effort beat the clock, grade-adjusted ${pm(input.gapSecPerKm!)} vs ${pm(input.actualPaceSecPerKm!)} actual.`,
     });
     wentWell.push(
-      `Don’t be fooled by the raw pace — over ${input.climbFeet}+ ft${isTrail ? ' of trail' : ''}, your grade-adjusted effort was ${pm(input.gapSecPerKm!)}. That’s the honest read, and it was strong.`,
+      `Don’t be fooled by the raw pace, over ${input.climbFeet}+ ft${isTrail ? ' of trail' : ''}, your grade-adjusted effort was ${pm(input.gapSecPerKm!)}. That’s the honest read, and it was strong.`,
     );
   } else if (isTrail || input.climbFeet >= 200) {
     signals.push({
       key: 'terrain',
       polarity: 'context',
-      fact: `${input.climbFeet} ft of climb${isTrail ? ` on ${surface}` : ''} — softer ground and hills cost pace, so judge it by effort.`,
+      fact: `${input.climbFeet} ft of climb${isTrail ? ` on ${surface}` : ''}, softer ground and hills cost pace, so judge it by effort.`,
     });
   }
 
@@ -162,27 +162,27 @@ export function buildDebrief(input: DebriefInput): RunDebrief {
   // --- Focus-next guidance, shaped by context ---
   if (adverse) {
     focusNext.push(
-      'On low sleep or energy, treat the prescribed paces as ceilings, not targets — run by effort and it’s fine to cut a session short. The plan adapts; consistency over weeks is what counts.',
+      'On low sleep or energy, treat the prescribed paces as ceilings, not targets, run by effort and it’s fine to cut a session short. The plan adapts; consistency over weeks is what counts.',
     );
   }
   if (verdict.verdict === 'too_fast_easy') {
-    focusNext.push('Even adjusted for terrain, this drifted quick for an easy day — especially worth reining in when you’re under-recovered.');
+    focusNext.push('Even adjusted for terrain, this drifted quick for an easy day, especially worth reining in when you’re under-recovered.');
   }
   if (isQuality && verdict.verdict === 'too_hard') {
-    focusNext.push('Strong, but leave a little in the tank on quality days — racing the workout steals from race day.');
+    focusNext.push('Strong, but leave a little in the tank on quality days, racing the workout steals from race day.');
   }
   if (focusNext.length === 0) {
-    focusNext.push('Nothing to change — bank it and recover well. Keep stacking days like this.');
+    focusNext.push('Nothing to change, bank it and recover well. Keep stacking days like this.');
   }
   if (wentWell.length === 0) {
-    wentWell.push(`You covered ${input.actualMiles.toFixed(1)} mi and got it logged — showing up is the habit that builds everything else.`);
+    wentWell.push(`You covered ${input.actualMiles.toFixed(1)} mi and got it logged, showing up is the habit that builds everything else.`);
   }
 
   const headline = adverse
     ? 'Tough day, good decision to run'
     : verdict.positive
       ? 'Solid session'
-      : 'Done — one thing to tighten up';
+      : 'Done, one thing to tighten up';
 
   return { headline, signals, wentWell, focusNext };
 }
@@ -212,19 +212,19 @@ function buildIntervalDebrief(input: DebriefInput, iv: IntervalResult): RunDebri
   // What went well: what the recovery type says about what was trained
   const trainingDescription =
     iv.recoveryType === 'walk'
-      ? 'Walking recovery means near-complete rest — each rep is a fresh, explosive effort. This targets neuromuscular speed and top-end power.'
+      ? 'Walking recovery means near-complete rest, each rep is a fresh, explosive effort. This targets neuromuscular speed and top-end power.'
       : iv.recoveryType === 'float'
-        ? 'Float recovery keeps the aerobic system engaged — the short rest forces your body to buffer lactate and clear it faster. This targets threshold capacity.'
-        : 'Jogging recovery keeps aerobic demand high while delivering near-full-effort reps — the hallmark of VO2max development work.';
+        ? 'Float recovery keeps the aerobic system engaged, the short rest forces your body to buffer lactate and clear it faster. This targets threshold capacity.'
+        : 'Jogging recovery keeps aerobic demand high while delivering near-full-effort reps, the hallmark of VO2max development work.';
 
   wentWell.push(
-    `${iv.repCount} reps at ${effortPace} average — that is genuine high-intensity work. ${trainingDescription}`,
+    `${iv.repCount} reps at ${effortPace} average, that is genuine high-intensity work. ${trainingDescription}`,
   );
 
   // Pace consistency
   if (iv.paceFadePct != null && iv.paceFadePct <= 2) {
     wentWell.push(
-      `Rep pace held from first to last — ${iv.paceFadePct < 0 ? 'you ran a negative split, getting stronger as the set went on' : 'excellent consistency across the set'}.`,
+      `Rep pace held from first to last, ${iv.paceFadePct < 0 ? 'you ran a negative split, getting stronger as the set went on' : 'excellent consistency across the set'}.`,
     );
   }
 
@@ -235,21 +235,21 @@ function buildIntervalDebrief(input: DebriefInput, iv: IntervalResult): RunDebri
     );
   } else if (iv.recoveryType === 'jog') {
     focusNext.push(
-      `Recovery quality matters as much as the reps — keep your jogs truly conversational. If you need to walk the last 20 seconds before the next rep to feel ready, do it. Full recovery means full effort on every rep.`,
+      `Recovery quality matters as much as the reps, keep your jogs truly conversational. If you need to walk the last 20 seconds before the next rep to feel ready, do it. Full recovery means full effort on every rep.`,
     );
   } else if (iv.recoveryType === 'walk') {
     focusNext.push(
-      `The test of whether rest was sufficient: did rep pace hold? If the last reps were noticeably slower, take a few extra seconds next time. Walking recovery is not a shortcut — it is the prescription.`,
+      `The test of whether rest was sufficient: did rep pace hold? If the last reps were noticeably slower, take a few extra seconds next time. Walking recovery is not a shortcut, it is the prescription.`,
     );
   } else if (iv.recoveryType === 'float') {
     focusNext.push(
-      `Float recovery is demanding — your system never fully restores before the next rep. That is intentional, but it means the days after need to be genuinely easy to absorb the adaptation.`,
+      `Float recovery is demanding, your system never fully restores before the next rep. That is intentional, but it means the days after need to be genuinely easy to absorb the adaptation.`,
     );
   }
 
   // General post-interval recovery rule (always)
   focusNext.push(
-    "Intervals are high-cost: the day after should be genuinely easy. If soreness or fatigue lingers into the second day, that is normal — do not rush back to quality work.",
+    "Intervals are high-cost: the day after should be genuinely easy. If soreness or fatigue lingers into the second day, that is normal, do not rush back to quality work.",
   );
 
   // Wellness context
@@ -273,7 +273,7 @@ function buildIntervalDebrief(input: DebriefInput, iv: IntervalResult): RunDebri
   if (sore) signals.push({ key: 'feel', polarity: 'context', fact: `Soreness was elevated (${input.soreness}/10).` });
 
   if (adverse) {
-    wentWell.push('Running quality work on a less-than-fresh day takes grit — the adaptation still counts.');
+    wentWell.push('Running quality work on a less-than-fresh day takes grit, the adaptation still counts.');
     focusNext.push('With limited sleep or energy, recovery from intervals takes longer. Dial down volume in the next couple of days and make sleep the priority.');
   }
 

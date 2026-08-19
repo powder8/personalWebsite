@@ -12,7 +12,7 @@ export type NudgeKind = 'workout_today' | 'streak_protect' | 'comeback';
 
 export interface NudgeInput {
   firstName: string;
-  localHour: number; // 0–23 in the athlete's timezone
+  localHour: number; // 0-23 in the athlete's timezone
   todaySession: { sessionType: string; miles: number; isQuality: boolean; label: string } | null;
   loggedToday: boolean; // already ran today
   streakDays: number; // consecutive on-plan days ending yesterday
@@ -37,7 +37,7 @@ export function decideNudge(input: NudgeInput): Nudge | null {
   const isRestDay = !todaySession || todaySession.sessionType === 'rest' || todaySession.miles <= 0;
   const goalTail =
     input.goalName && input.daysToGoal != null && input.daysToGoal >= 0
-      ? ` ${input.daysToGoal} days to ${input.goalName} — every honest day counts.`
+      ? ` ${input.daysToGoal} days to ${input.goalName}, every honest day counts.`
       : '';
 
   // --- Comeback: a genuine layoff, re-engage gently (morning) ---
@@ -45,7 +45,7 @@ export function decideNudge(input: NudgeInput): Nudge | null {
     return {
       kind: 'comeback',
       subject: `Let’s ease back in, ${name}`,
-      body: `It's been ${input.layoffDays} days since your last run — no guilt at all, life happens. You haven't lost the fitness; the trick is to start light, not lunge back in. Open your plan and we'll ease the next few days down so the first run back feels good.${goalTail}`,
+      body: `It's been ${input.layoffDays} days since your last run, no guilt at all, life happens. You haven't lost the fitness; the trick is to start light, not lunge back in. Open your plan and we'll ease the next few days down so the first run back feels good.${goalTail}`,
     };
   }
 
@@ -60,8 +60,8 @@ export function decideNudge(input: NudgeInput): Nudge | null {
       subject: s.isQuality ? `Quality day, ${name} 💪` : `Today's run, ${name}`,
       body: `${lead} ${
         s.isQuality
-          ? 'This is the work that moves your race time — warm up well, nail the paces, and leave one rep in the tank.'
-          : 'Keep it genuinely easy and let it feel boring — easy days are the quiet engine of every PB.'
+          ? 'This is the work that moves your race time, warm up well, nail the paces, and leave one rep in the tank.'
+          : 'Keep it genuinely easy and let it feel boring, easy days are the quiet engine of every PB.'
       }${goalTail}`,
     };
   }
@@ -71,8 +71,8 @@ export function decideNudge(input: NudgeInput): Nudge | null {
     const s = todaySession!;
     return {
       kind: 'streak_protect',
-      subject: `🔥 ${input.streakDays}-day streak — still time, ${name}`,
-      body: `You're on a ${input.streakDays}-day roll and today's ${s.label} (${miStr(s.miles)} mi) is still open. No pressure — but if you've got it in you, getting out keeps the momentum going. If today just isn't happening, that's fine too: pick straight back up tomorrow, no make-up miles.${goalTail}`,
+      subject: `🔥 ${input.streakDays}-day streak, still time, ${name}`,
+      body: `You're on a ${input.streakDays}-day roll and today's ${s.label} (${miStr(s.miles)} mi) is still open. No pressure, but if you've got it in you, getting out keeps the momentum going. If today just isn't happening, that's fine too: pick straight back up tomorrow, no make-up miles.${goalTail}`,
     };
   }
 

@@ -52,7 +52,7 @@ export function applyDirectives(
   // Unavailable wins: the day becomes rest.
   const unavailable = active.find((d) => d.type === 'unavailable');
   if (unavailable && session.sessionType !== 'rest') {
-    adjustments.push(`Unavailable${unavailable.label ? ` — ${unavailable.label}` : ''} → rest`);
+    adjustments.push(`Unavailable${unavailable.label ? `, ${unavailable.label}` : ''} → rest`);
     return {
       ...out,
       sessionType: 'rest',
@@ -75,7 +75,7 @@ export function applyDirectives(
       paceSlowSecPerKm: out.paceSlowSecPerKm + dKm,
     };
     const lbl = active.find((d) => d.type === 'pace_adjust')?.label;
-    adjustments.push(`${paceDeltaMi > 0 ? '+' : ''}${paceDeltaMi}s/mi${lbl ? ` — ${lbl}` : ''}`);
+    adjustments.push(`${paceDeltaMi > 0 ? '+' : ''}${paceDeltaMi}s/mi${lbl ? `, ${lbl}` : ''}`);
   }
 
   // Volume: multiply distance by the product of all reduce_volume factors.
@@ -85,7 +85,7 @@ export function applyDirectives(
   if (factor !== 1 && out.distanceMeters != null) {
     out = { ...out, distanceMeters: out.distanceMeters * factor };
     const lbl = active.find((d) => d.type === 'reduce_volume')?.label;
-    adjustments.push(`shortened to ${Math.round(factor * 100)}%${lbl ? ` — ${lbl}` : ''}`);
+    adjustments.push(`shortened to ${Math.round(factor * 100)}%${lbl ? `, ${lbl}` : ''}`);
   }
 
   return { ...out, adjustments };

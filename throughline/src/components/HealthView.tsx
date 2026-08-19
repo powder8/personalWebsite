@@ -97,7 +97,7 @@ function CardioCard({ snapshot }: { snapshot: HealthSnapshot }) {
       <GradientCard title="Cardio fitness">
         <p className="mt-2 text-sm leading-relaxed text-white/80">
           Set a recent race result or fitness anchor and we&apos;ll surface your VDOT as a VO2max-based fitness
-          score — with an age/sex percentile and a fitness age.
+          score, with an age/sex percentile and a fitness age.
         </p>
       </GradientCard>
     );
@@ -107,18 +107,18 @@ function CardioCard({ snapshot }: { snapshot: HealthSnapshot }) {
   const fitnessAgeDelta = cardio.fitnessAge != null && age != null ? age - cardio.fitnessAge : null;
 
   return (
-    <GradientCard title="Cardio fitness — VDOT &amp; VO2max">
+    <GradientCard title="Cardio fitness. VDOT &amp; VO2max">
       <div className="mt-3 grid grid-cols-3 gap-2">
         <StatTile label="VDOT" value={`${cardio.vdot}`} sub="fitness score" valueClass="text-sky-300" />
         <StatTile
           label="Est. VO2max"
-          value={cardio.vo2max != null ? `${cardio.vo2max}` : '—'}
+          value={cardio.vo2max != null ? `${cardio.vo2max}` : '-'}
           unit="ml/kg/min"
           sub="from VDOT"
         />
         <StatTile
           label="Fitness age"
-          value={cardio.fitnessAge != null ? `${cardio.fitnessAge}` : '—'}
+          value={cardio.fitnessAge != null ? `${cardio.fitnessAge}` : '-'}
           unit={cardio.fitnessAge != null ? 'yrs' : undefined}
           sub={
             fitnessAgeDelta != null
@@ -158,7 +158,7 @@ function CardioCard({ snapshot }: { snapshot: HealthSnapshot }) {
 
       <p className="mt-4 text-[10px] leading-relaxed text-slate-500">
         VDOT is a performance-derived VO2max proxy (Daniels&apos; Running Formula); the percentile compares it to the
-        FRIEND registry treadmill standards (Kaminsky et al., Mayo Clin Proc 2015). Estimated from your running — not
+        FRIEND registry treadmill standards (Kaminsky et al., Mayo Clin Proc 2015). Estimated from your running, not
         a lab or device measurement.
       </p>
     </GradientCard>
@@ -182,7 +182,7 @@ function RestingHrContextRow({ snapshot }: { snapshot: HealthSnapshot }) {
     <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
       Your resting HR of <span className="font-semibold text-white/80">{rhr} bpm</span> sits in the{' '}
       <span className={`font-semibold ${tone}`}>{ctx.label.toLowerCase()}</span> vs the general population (AHA:
-      normal 60–100; trained endurance athletes 40–60). Day-to-day change is read against your own baseline above.
+      normal 60-100; trained endurance athletes 40-60). Day-to-day change is read against your own baseline above.
     </p>
   );
 }
@@ -195,7 +195,7 @@ function SleepCard({ snapshot }: { snapshot: HealthSnapshot }) {
       <GradientCard title="Sleep">
         <p className="mt-2 text-sm leading-relaxed text-white/80">
           Connect a watch that tracks sleep and we&apos;ll show your nightly duration and consistency against the
-          7–9 hour adult guideline.
+          7-9 hour adult guideline.
         </p>
       </GradientCard>
     );
@@ -208,11 +208,11 @@ function SleepCard({ snapshot }: { snapshot: HealthSnapshot }) {
         <StatTile label="Avg / night" value={`${sleep.avgHours}`} unit="h" valueClass={statusClass} />
         <StatTile
           label="Consistency"
-          value={sleep.stdHours != null ? `±${sleep.stdHours}` : '—'}
+          value={sleep.stdHours != null ? `±${sleep.stdHours}` : '-'}
           unit={sleep.stdHours != null ? 'h' : undefined}
           sub={a?.consistency ?? undefined}
         />
-        <StatTile label="Last night" value={sleep.latestHours != null ? `${sleep.latestHours}` : '—'} unit="h" />
+        <StatTile label="Last night" value={sleep.latestHours != null ? `${sleep.latestHours}` : '-'} unit="h" />
       </div>
       {a && (
         <p className={`mt-3 text-sm font-medium ${statusClass}`}>
@@ -223,7 +223,7 @@ function SleepCard({ snapshot }: { snapshot: HealthSnapshot }) {
         </p>
       )}
       <p className="mt-3 text-[10px] leading-relaxed text-slate-500">
-        Guideline: National Sleep Foundation / CDC recommend 7–9 h for adults; a steadier schedule is linked to
+        Guideline: National Sleep Foundation / CDC recommend 7-9 h for adults; a steadier schedule is linked to
         better recovery and health outcomes.
       </p>
     </GradientCard>
@@ -235,17 +235,17 @@ function BodyCard() {
   return (
     <GradientCard title="Body composition" aside="coming soon">
       <p className="mt-2 text-sm leading-relaxed text-white/80">
-        Weight and BMI trend will live here. Logging isn&apos;t wired up yet — this is a placeholder while we add
+        Weight and BMI trend will live here. Logging isn&apos;t wired up yet, this is a placeholder while we add
         weight entry.
       </p>
       <div className="mt-3 grid grid-cols-3 gap-2 opacity-50">
-        <StatTile label="Weight" value="—" unit="kg" />
-        <StatTile label="BMI" value="—" />
-        <StatTile label="Trend" value="—" />
+        <StatTile label="Weight" value="-" unit="kg" />
+        <StatTile label="BMI" value="-" />
+        <StatTile label="Trend" value="-" />
       </div>
       <p className="mt-3 text-[10px] leading-relaxed text-slate-500">
         BMI is a population screen (WHO bands) that doesn&apos;t separate muscle from fat, so it reads high for many
-        trained athletes — we&apos;ll surface it with that caveat once entry lands.
+        trained athletes, we&apos;ll surface it with that caveat once entry lands.
       </p>
     </GradientCard>
   );
@@ -273,7 +273,7 @@ export function HealthView({ snapshot }: { snapshot: HealthSnapshot }) {
 
       <CardioCard snapshot={snapshot} />
 
-      {/* Recovery — reuse the portal's card, then add the population context. */}
+      {/* Recovery, reuse the portal's card, then add the population context. */}
       {snapshot.hasWearable ? (
         <div>
           <RecoveryCard snapshot={snapshot.recovery} readiness={snapshot.readiness} />

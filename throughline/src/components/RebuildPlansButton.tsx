@@ -40,7 +40,7 @@ export function RebuildPlansButton() {
         className="rounded border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
         title="Regenerate all active athletes' plans with the current engine"
       >
-        {running ? 'Rebuilding…' : 'Rebuild all plans'}
+        {running ? 'Rebuilding...' : 'Rebuild all plans'}
       </button>
       {msg && <span className="text-xs text-slate-500">{msg}</span>}
     </span>

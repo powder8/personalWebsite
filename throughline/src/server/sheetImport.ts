@@ -46,14 +46,14 @@ export async function fetchSheetBuffer(url: string): Promise<Buffer> {
   const res = await fetch(exportUrlFor(id), { redirect: 'follow' });
   if (!res.ok) {
     if (res.status === 401 || res.status === 403) {
-      throw new Error('Sheet isn’t accessible — set sharing to “Anyone with the link → Viewer”.');
+      throw new Error('Sheet isn’t accessible, set sharing to “Anyone with the link → Viewer”.');
     }
     throw new Error(`Could not fetch the sheet (HTTP ${res.status}).`);
   }
   const buf = Buffer.from(await res.arrayBuffer());
   // A real .xlsx is a zip ("PK"). If we got HTML, sharing is wrong.
   if (buf.length < 4 || buf[0] !== 0x50 || buf[1] !== 0x4b) {
-    throw new Error('Got a login page instead of the file — set sharing to “Anyone with the link → Viewer”.');
+    throw new Error('Got a login page instead of the file, set sharing to “Anyone with the link → Viewer”.');
   }
   return buf;
 }

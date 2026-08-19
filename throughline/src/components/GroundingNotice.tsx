@@ -62,7 +62,7 @@ export function GroundingNotice({
             disabled={busy || done}
             className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
           >
-            {busy ? 'Updating…' : `Use my ${offer.label} (VDOT ${grounding.demonstrated?.vdot})`}
+            {busy ? 'Updating...' : `Use my ${offer.label} (VDOT ${grounding.demonstrated?.vdot})`}
           </button>
           <span className="text-[11px] text-slate-400">Re-tunes your training paces. Your coach can change it back.</span>
         </div>

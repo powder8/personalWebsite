@@ -204,7 +204,7 @@ export function TriGoalSetup({
             </select>
           </div>
           <div>
-            <label className={label}>…time</label>
+            <label className={label}>...time</label>
             <input name="runTime" placeholder="47:30" className={field} />
           </div>
         </div>
@@ -226,7 +226,7 @@ export function TriGoalSetup({
             <input name="swim400" placeholder="6:40" className={field} />
           </div>
           <div>
-            <label className={label}>…and 200 m time</label>
+            <label className={label}>...and 200 m time</label>
             <input name="swim200" placeholder="3:10" className={field} />
           </div>
         </div>
@@ -239,7 +239,7 @@ export function TriGoalSetup({
       <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-inset ring-white/10">
         <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Your week (optional)</div>
         <p className="mt-1 mb-3 text-[11px] text-slate-500">
-          I&apos;ll lay swim/bike/run onto the days you can actually train — swims only on pool days, the long ride+run on your long day.
+          I&apos;ll lay swim/bike/run onto the days you can actually train, swims only on pool days, the long ride+run on your long day.
         </p>
         <div className="space-y-3">
           <div>
@@ -253,7 +253,7 @@ export function TriGoalSetup({
           <div>
             <label className={label}>Long day (big ride + run)</label>
             <select name="longDay" defaultValue="5" className={field}>
-              <option value="">— none —</option>
+              <option value="">- none -</option>
               {DOW.map((i) => (
                 <option key={i} value={i}>{DOW_LABEL[i]}</option>
               ))}
@@ -269,7 +269,7 @@ export function TriGoalSetup({
         disabled={pending}
         className="rounded-full bg-lime-300 px-5 py-2.5 text-sm font-semibold text-[#0c1018] transition hover:bg-lime-200 disabled:opacity-50"
       >
-        {pending ? 'Building your plan…' : 'Build my triathlon plan'}
+        {pending ? 'Building your plan...' : 'Build my triathlon plan'}
       </button>
     </form>
   );

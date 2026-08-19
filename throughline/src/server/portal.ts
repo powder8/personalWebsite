@@ -79,7 +79,7 @@ export interface AthletePortal {
   athlete: typeof athletes.$inferSelect;
   today: string;
   readiness: { score: number | null; band: Band | null; sentence: string | null };
-  todaySession: PortalSession | null; // primary (first) — single-focal use
+  todaySession: PortalSession | null; // primary (first), single-focal use
   todaySessions: PortalSession[]; // ALL of today's sessions across disciplines (tri = up to 3)
   thisWeek: PortalWeek | null;
   comingWeeks: PortalWeek[];

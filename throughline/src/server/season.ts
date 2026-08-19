@@ -71,7 +71,7 @@ export async function setupSeason(
     await setAthletePaceConfig(db, athleteId, cfg);
   } else {
     zones = await getAthleteZones(db, athleteId);
-    if (!zones) throw new Error('No fitness anchor yet — provide a recent race or pace.');
+    if (!zones) throw new Error('No fitness anchor yet, provide a recent race or pace.');
   }
 
   // 2) Athlete goal summary (for the roster).

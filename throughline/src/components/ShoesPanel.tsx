@@ -86,7 +86,7 @@ export function ShoesPanel({
               <div className="mt-1.5 flex items-center justify-between">
                 <span className="text-[11px] text-slate-400">
                   {s.runs} run{s.runs === 1 ? '' : 's'}
-                  {s.wearPct >= 1 ? ' · past recommended — consider replacing' : s.wearPct >= 0.85 ? ' · getting worn' : ''}
+                  {s.wearPct >= 1 ? ' · past recommended, consider replacing' : s.wearPct >= 0.85 ? ' · getting worn' : ''}
                 </span>
                 <div className="flex gap-2 text-[11px]">
                   {!s.retiredAt && !s.isDefault && (
@@ -139,7 +139,7 @@ export function ShoesPanel({
           </div>
           <div className="flex items-center gap-3">
             <button type="submit" disabled={pending} className="rounded bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50">
-              {pending ? 'Saving…' : 'Add shoes'}
+              {pending ? 'Saving...' : 'Add shoes'}
             </button>
             {shoes.length > 0 && (
               <button type="button" onClick={() => setAdding(false)} className="text-xs text-slate-500 hover:underline">
@@ -172,7 +172,7 @@ export function ShoesPanel({
                   }
                   className="shrink-0 rounded border border-slate-300 px-2 py-1 text-xs"
                 >
-                  <option value="">— none —</option>
+                  <option value="">- none -</option>
                   {shoes.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}

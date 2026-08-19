@@ -56,7 +56,7 @@ export function bestSustainedEffort(
         hrDur += segs[j].durationSeconds;
       }
       if (dist < minMeters) continue; // window not long enough yet
-      if (dist > maxMeters) break; // overshot — longer windows only get bigger
+      if (dist > maxMeters) break; // overshot, longer windows only get bigger
       const vdot = vdotFromRace({ distanceMeters: dist, timeSeconds: time });
       if (!Number.isFinite(vdot) || vdot < 20 || vdot > 90) continue;
       if (!best || vdot > best.vdot) {

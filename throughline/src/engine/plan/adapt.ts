@@ -77,7 +77,7 @@ export function adaptWeek(
         optionalStrides: false,
         description: `Cross-train (${runningBlocked.allowedModalities.join('/')}) ~${minutesFor(
           next,
-        )} min — protect ${runningBlocked.bodyPart}. No running until cleared.`,
+        )} min, protect ${runningBlocked.bodyPart}. No running until cleared.`,
       };
       changes.push({
         day: d.day,
@@ -102,7 +102,7 @@ export function adaptWeek(
         warmup: undefined,
         cooldown: undefined,
         distanceMeters: reduced,
-        description: `Eased off the planned ${d.runType}: run easy, shorten as needed. Quality moved — don't force it today.`,
+        description: `Eased off the planned ${d.runType}: run easy, shorten as needed. Quality moved, don't force it today.`,
       };
       changes.push({
         day: d.day,
@@ -111,8 +111,8 @@ export function adaptWeek(
         after: describe(next),
         note:
           band === 'easy'
-            ? 'Readiness low — swap quality/long for easy (her: "cut shorter or take the day off").'
-            : `Soreness ${soreness}/10 — reduce intensity (her: "5 or even 4 miles if very sore").`,
+            ? 'Readiness low, swap quality/long for easy (her: "cut shorter or take the day off").'
+            : `Soreness ${soreness}/10, reduce intensity (her: "5 or even 4 miles if very sore").`,
       });
       return next;
     }
@@ -124,7 +124,7 @@ export function adaptWeek(
         reason: 'optional_dropped',
         before: 'optional strides',
         after: 'no strides',
-        note: 'Strides only if feeling good — readiness not green.',
+        note: 'Strides only if feeling good, readiness not green.',
       });
       next = { ...next, optionalStrides: false };
     }
@@ -139,7 +139,7 @@ export function adaptWeek(
       reason: 'missed_sessions',
       before: `${formatMiles(week.targetVolumeMeters)} target`,
       after: 'hold volume; re-periodize',
-      note: '2+ missed sessions — hold volume, do not cram. Re-periodize rather than make it up.',
+      note: '2+ missed sessions, hold volume, do not cram. Re-periodize rather than make it up.',
     });
   }
 

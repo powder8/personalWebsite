@@ -37,7 +37,7 @@ export default async function BikeSetupPage({ params }: { params: Promise<{ id: 
         <h1 className="text-2xl font-bold tracking-tight">Let&apos;s build your cycling plan, {firstName} 🚴</h1>
         <p className="mt-1 text-sm text-white/80">
           Tell me your FTP, your goal, and how much you can ride. I&apos;ll build a periodized power plan that ramps to
-          your event — the same engine behind our triathlon coaching, focused on the bike.
+          your event, the same engine behind our triathlon coaching, focused on the bike.
         </p>
       </div>
 

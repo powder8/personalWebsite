@@ -64,7 +64,7 @@ export function OnboardingWizard({
           <h1 className="text-2xl font-extrabold tracking-tight text-white">Welcome, {firstName} 👋</h1>
           <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-700">
             Throughline is your automatic running coach. Tell us a little about where you are and what you’re chasing,
-            and we’ll build — and keep adapting — a real day-by-day plan to get you there.
+            and we’ll build, and keep adapting, a real day-by-day plan to get you there.
           </p>
           <button
             onClick={() => setStep('connect')}
@@ -79,7 +79,7 @@ export function OnboardingWizard({
         <div className="rounded-3xl bg-[#11151f] p-7 shadow-lg ring-1 ring-inset ring-slate-700/50">
           <h2 className="text-xl font-bold tracking-tight text-white">Connect your runs</h2>
           <p className="mt-2 text-sm leading-relaxed text-slate-700">
-            Linking Strava is the best start — we’ll import your history and read your current fitness automatically, so
+            Linking Strava is the best start, we’ll import your history and read your current fitness automatically, so
             your paces are right from day one. You can always do this later.
           </p>
           <div className="mt-5 space-y-3">
@@ -92,7 +92,7 @@ export function OnboardingWizard({
               </a>
             ) : (
               <p className="rounded-xl bg-slate-800/60 px-4 py-3 text-center text-xs text-slate-400">
-                Strava isn’t set up on this server yet — enter your fitness manually for now.
+                Strava isn’t set up on this server yet, enter your fitness manually for now.
               </p>
             )}
             <button
@@ -117,9 +117,9 @@ export function OnboardingWizard({
           <p className="mt-1 mb-4 text-sm text-slate-700">
             {hasAnchor
               ? 'Got your fitness from your runs. Now pick a goal and we’ll build the plan.'
-              : 'A rough read of where you are and what you’re training for — we’ll handle the rest.'}
+              : 'A rough read of where you are and what you’re training for, we’ll handle the rest.'}
           </p>
-          {/* Quick "about you" — drives age-grading + whether cycle tracking shows */}
+          {/* Quick "about you", drives age-grading + whether cycle tracking shows */}
           <div className="mb-4">
             <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">Sex (for pacing & tracking)</div>
             <div className="flex gap-2">

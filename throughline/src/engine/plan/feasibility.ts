@@ -112,15 +112,15 @@ export function assessGoalFeasibility(input: GoalFeasibilityInput): GoalFeasibil
   } else if (gap <= achievableGain + 0.5) {
     verdict = 'on_track';
     headline = 'Your goal is on track';
-    note = `${goalName} needs about +${gap.toFixed(1)} VDOT, and a solid ${trainableWeeks}-week build at your level typically adds ~${achievableGain.toFixed(1)}. Right in range — stay consistent and it’s yours.`;
+    note = `${goalName} needs about +${gap.toFixed(1)} VDOT, and a solid ${trainableWeeks}-week build at your level typically adds ~${achievableGain.toFixed(1)}. Right in range, stay consistent and it’s yours.`;
   } else if (gap <= optimisticGain + 1) {
     verdict = 'stretch';
-    headline = 'A real stretch — reachable if it all clicks';
+    headline = 'A real stretch, reachable if it all clicks';
     note = `${goalName} asks for +${gap.toFixed(1)} VDOT in ${trainableWeeks} trainable weeks (~${requiredWeeklyGain}/wk). A strong block typically adds ~${achievableGain.toFixed(1)} (~${typicalWeeklyGain.toFixed(2)}/wk), so it’s the ceiling, not the expectation. Realistic race-day target: ~${projLabel}. Chase the goal, but treat ${projLabel} as success too.`;
   } else {
     verdict = 'unrealistic';
-    headline = 'Not this race — let’s aim honestly';
-    note = `${goalName} needs +${gap.toFixed(1)} VDOT, but ${trainableWeeks} weeks realistically adds ~${achievableGain.toFixed(1)} at your level. A normal build to that goal takes ~${weeksNeededForGoal} weeks. For this race, ~${projLabel} is a strong, realistic target — then we set the bigger goal for a later date.`;
+    headline = 'Not this race, let’s aim honestly';
+    note = `${goalName} needs +${gap.toFixed(1)} VDOT, but ${trainableWeeks} weeks realistically adds ~${achievableGain.toFixed(1)} at your level. A normal build to that goal takes ~${weeksNeededForGoal} weeks. For this race, ~${projLabel} is a strong, realistic target, then we set the bigger goal for a later date.`;
   }
 
   return {

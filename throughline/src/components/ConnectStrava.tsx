@@ -117,7 +117,7 @@ export function ConnectStrava({
     cancelRef.current = false;
     setRunning(true);
     setResumePrompt(false);
-    if (!silent) setMsg(full || resume ? 'Importing your history…' : 'Syncing…');
+    if (!silent) setMsg(full || resume ? 'Importing your history...' : 'Syncing...');
 
     let total = 0;
     let after: number | null = resume ? readCursor() : null;
@@ -136,7 +136,7 @@ export function ConnectStrava({
           res = await fetch(`/api/athletes/${athleteId}/strava/sync${url}`, { method: 'POST' });
         } catch {
           if (++consecutiveErrors >= 3) {
-            if (!silent) setMsg('Network trouble — your progress is saved. Tap "Resume import" to continue.');
+            if (!silent) setMsg('Network trouble, your progress is saved. Tap "Resume import" to continue.');
             break;
           }
           await cancellableSleep(2000);
@@ -145,7 +145,7 @@ export function ConnectStrava({
         const j: SyncResponse = await res.json().catch(() => ({ ok: false, error: 'Bad response.' }));
 
         if (!j.ok) {
-          if (!silent) setMsg(j.error ?? 'Sync failed — progress saved; tap "Resume import" to continue.');
+          if (!silent) setMsg(j.error ?? 'Sync failed, progress saved; tap "Resume import" to continue.');
           break;
         }
         consecutiveErrors = 0;
@@ -156,10 +156,10 @@ export function ConnectStrava({
           if (j.nextAfter != null) writeCursor(j.nextAfter);
           const wait = j.retryAfterSec ?? 120;
           if (wait > 180) {
-            if (!silent) setMsg(`Strava rate limit hit (${total} so far). Progress saved — tap "Resume import" in a few minutes.`);
+            if (!silent) setMsg(`Strava rate limit hit (${total} so far). Progress saved, tap "Resume import" in a few minutes.`);
             break;
           }
-          if (!silent) setMsg(`Rate limited — pausing ${wait}s… (${total} imported so far) · tap Cancel to stop`);
+          if (!silent) setMsg(`Rate limited, pausing ${wait}s... (${total} imported so far) · tap Cancel to stop`);
           await cancellableSleep(wait * 1000);
           if (cancelRef.current) break;
           url = j.nextAfter != null ? `?after=${j.nextAfter}` : url;
@@ -167,8 +167,8 @@ export function ConnectStrava({
         }
 
         if (j.done || j.nextAfter == null) {
-          writeCursor(null); // finished — clear resume state
-          if (!silent) setMsg(total > 0 ? `Done — ${total} activities synced.` : "You're up to date — nothing new to import.");
+          writeCursor(null); // finished, clear resume state
+          if (!silent) setMsg(total > 0 ? `Done, ${total} activities synced.` : "You're up to date, nothing new to import.");
           if (!silent || total > 0) setTimeout(() => window.location.reload(), silent ? 250 : 1200);
           break;
         }
@@ -176,7 +176,7 @@ export function ConnectStrava({
         // Guard: the cursor must move forward, else we'd loop forever.
         if (after != null && j.nextAfter! <= after) {
           writeCursor(null);
-          if (!silent) setMsg(`Done — ${total} activities synced.`);
+          if (!silent) setMsg(`Done, ${total} activities synced.`);
           if (total > 0) setTimeout(() => window.location.reload(), 1200);
           break;
         }
@@ -184,7 +184,7 @@ export function ConnectStrava({
         after = j.nextAfter!;
         writeCursor(after);
         url = `?after=${after}`;
-        if (!silent) setMsg(`Imported ${total} activities…`);
+        if (!silent) setMsg(`Imported ${total} activities...`);
       }
     } finally {
       setRunning(false);
@@ -222,7 +222,7 @@ export function ConnectStrava({
         Strava connected ✓
       </span>
 
-      {/* Reconnect link — always visible so the user can re-auth for private-activity scope */}
+      {/* Reconnect link, always visible so the user can re-auth for private-activity scope */}
       <div className="text-[11px] text-slate-400">
         Need to re-authorize?{' '}
         <a
@@ -286,7 +286,7 @@ export function ConnectStrava({
             disabled={running}
             className="rounded bg-sky-700 px-3 py-1 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
           >
-            {running ? 'Importing…' : 'Import Strava history'}
+            {running ? 'Importing...' : 'Import Strava history'}
           </button>
         ) : (
           <>
@@ -296,7 +296,7 @@ export function ConnectStrava({
               disabled={running}
               className="rounded border border-slate-300 px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
             >
-              {running ? 'Working…' : 'Sync now'}
+              {running ? 'Working...' : 'Sync now'}
             </button>
             <button
               type="button"

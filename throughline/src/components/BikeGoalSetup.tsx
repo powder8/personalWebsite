@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { parseGpxRoute } from '@/lib/gpx';
 
 /** "22" → 22:00, "1:45:00" → h:m:s, "1.45.00"/"1 45 00" → same. */
 function parseClock(s: string): number | null {
@@ -35,6 +36,76 @@ export function BikeGoalSetup({
   const [pending, setPending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [distKm, setDistKm] = useState('');
+  const [elevM, setElevM] = useState('');
+  const [routeNote, setRouteNote] = useState<string | null>(null);
+  const [routeUrl, setRouteUrl] = useState('');
+  const [lookingUp, setLookingUp] = useState(false);
+  const [ftpVal, setFtpVal] = useState(defaultFtp != null ? String(defaultFtp) : '');
+  const [ftpNote, setFtpNote] = useState<string | null>(null);
+  const [detecting, setDetecting] = useState(false);
+
+  async function onDetectFtp() {
+    setDetecting(true);
+    setFtpNote(null);
+    try {
+      const res = await fetch(`/api/athletes/${athleteId}/estimate-ftp`, { method: 'POST' });
+      const j = await res.json();
+      if (j.ok && j.ftpWatts) {
+        setFtpVal(String(j.ftpWatts));
+        setFtpNote(`≈ ${j.ftpWatts} W, best 20-min power from ${j.sampleSize} recent ride${j.sampleSize === 1 ? '' : 's'} (${j.confidence} confidence). Adjust if you know better.`);
+      } else if (j.ok) {
+        setFtpNote('No power-meter rides found in your recent Strava, enter your FTP below.');
+      } else {
+        setFtpNote(j.error ?? 'Couldn’t estimate, enter your FTP below.');
+      }
+    } catch {
+      setFtpNote('Network error, enter your FTP below.');
+    } finally {
+      setDetecting(false);
+    }
+  }
+
+  function applyRoute(name: string | null, distanceMeters: number, elevationGainMeters: number) {
+    setDistKm((distanceMeters / 1000).toFixed(1));
+    setElevM(String(Math.round(elevationGainMeters)));
+    setRouteNote(
+      `Loaded ${name ?? 'route'}, ${(distanceMeters / 1000).toFixed(1)} km · ${Math.round(elevationGainMeters).toLocaleString()} m climbing.`,
+    );
+  }
+
+  async function onGpx(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.currentTarget.files?.[0];
+    if (!file) return;
+    setRouteNote(null);
+    try {
+      const stats = parseGpxRoute(await file.text());
+      if (!stats) return setRouteNote("Couldn't read that GPX, enter distance & climbing by hand.");
+      applyRoute(stats.name, stats.distanceMeters, stats.elevationGainMeters);
+    } catch {
+      setRouteNote("Couldn't read that file, enter distance & climbing by hand.");
+    }
+  }
+
+  async function onStravaLookup() {
+    if (!routeUrl.trim()) return;
+    setLookingUp(true);
+    setRouteNote(null);
+    try {
+      const res = await fetch(`/api/athletes/${athleteId}/route-lookup`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ url: routeUrl }),
+      });
+      const j = await res.json();
+      if (j.ok) applyRoute(j.name, j.distanceMeters, j.elevationGainMeters);
+      else setRouteNote(j.error ?? 'Lookup failed, enter distance & climbing by hand.');
+    } catch {
+      setRouteNote('Network error, enter distance & climbing by hand.');
+    } finally {
+      setLookingUp(false);
+    }
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -43,14 +114,22 @@ export function BikeGoalSetup({
     const ftp = Number(fd.get('ftp') || 0);
     if (!(ftp > 0)) return setErr('Enter your cycling FTP in watts.');
     const targetRaw = String(fd.get('targetTime') || '').trim();
+    const targetTimeSeconds = targetRaw ? parseClock(targetRaw) ?? undefined : undefined;
+    const distKm = Number(fd.get('distanceKm') || 0);
+    if (targetTimeSeconds && !(distKm > 0)) {
+      return setErr('Add the race distance so a target time means something.');
+    }
 
     const body = {
       eventName: String(fd.get('eventName') || '') || undefined,
       date: String(fd.get('date') || ''),
-      targetTimeSeconds: targetRaw ? parseClock(targetRaw) ?? undefined : undefined,
+      distanceMeters: distKm > 0 ? distKm * 1000 : undefined,
+      elevationGainMeters: Number(fd.get('elevationM') || 0) || undefined,
+      targetTimeSeconds,
       weeklyHours: Number(fd.get('weeklyHours') || 0),
       ftpWatts: ftp,
       weightKg: Number(fd.get('weightKg') || 0) || undefined,
+      targetFtpWatts: Number(fd.get('targetFtp') || 0) || undefined,
       dateOfBirth: String(fd.get('dob') || '') || undefined,
     };
 
@@ -81,7 +160,7 @@ export function BikeGoalSetup({
         <div className="rounded-2xl bg-emerald-400/10 p-4 ring-1 ring-inset ring-emerald-400/30">
           <h3 className="text-lg font-bold text-white">Your cycling plan is ready 🚴</h3>
           <p className="mt-1.5 text-sm leading-relaxed text-white/85">
-            Built and live — periodized power sessions ramping to your event. Head to your plan to see this week.
+            Built and live, periodized power sessions ramping to your event. Head to your plan to see this week.
           </p>
         </div>
         <a
@@ -99,7 +178,7 @@ export function BikeGoalSetup({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={label}>Goal event (optional)</label>
-          <input name="eventName" placeholder="Gran fondo, TT, FTP block…" className={field} />
+          <input name="eventName" placeholder="Gran fondo, TT, FTP block..." className={field} />
         </div>
         <div>
           <label className={label}>Event / target date</label>
@@ -113,17 +192,81 @@ export function BikeGoalSetup({
           <input type="number" name="weeklyHours" min="1" max="25" step="0.5" defaultValue="6" required className={field} />
         </div>
         <div>
-          <label className={label}>Target time (optional)</label>
-          <input name="targetTime" placeholder="2:45:00" className={field} />
+          <label className={label}>Goal FTP, watts (optional)</label>
+          <input type="number" name="targetFtp" min="60" max="500" placeholder="265" className={field} />
         </div>
       </div>
 
+      {/* Race goal, distance + climbing make a target time mean something. */}
       <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-inset ring-white/10">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Your cycling fitness</div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Your race (optional)</div>
+          <label className="cursor-pointer rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:bg-white/15">
+            ⬆ Import GPX
+            <input type="file" accept=".gpx,application/gpx+xml,text/xml" onChange={onGpx} className="sr-only" />
+          </label>
+        </div>
+
+        {/* Paste a Strava route link → auto-fill distance + climbing (via your token). */}
+        <div className="mt-3 flex gap-2">
+          <input
+            value={routeUrl}
+            onChange={(e) => setRouteUrl(e.target.value)}
+            placeholder="Paste a Strava route link (strava.com/routes/...)"
+            className={field}
+          />
+          <button
+            type="button"
+            onClick={onStravaLookup}
+            disabled={lookingUp || !routeUrl.trim()}
+            className="shrink-0 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:bg-white/15 disabled:opacity-40"
+          >
+            {lookingUp ? 'Looking up...' : 'Look up'}
+          </button>
+        </div>
+
+        <div className="mt-3 grid grid-cols-3 gap-3">
+          <div>
+            <label className={label}>Distance (km)</label>
+            <input type="number" name="distanceKm" min="5" max="400" step="0.1" placeholder="160" value={distKm} onChange={(e) => setDistKm(e.target.value)} className={field} />
+          </div>
+          <div>
+            <label className={label}>Climbing (m)</label>
+            <input type="number" name="elevationM" min="0" max="8000" step="10" placeholder="1850" value={elevM} onChange={(e) => setElevM(e.target.value)} className={field} />
+          </div>
+          <div>
+            <label className={label}>Target time</label>
+            <input name="targetTime" placeholder="5:30:00" className={field} />
+          </div>
+        </div>
+        {routeNote ? (
+          <p className={`mt-2 text-[11px] font-medium ${/couldn|failed|error|denied|connect|find|rate/i.test(routeNote) ? 'text-amber-300' : 'text-lime-300'}`}>{routeNote}</p>
+        ) : (
+          <p className="mt-2 text-[11px] text-slate-500">
+            Paste a Strava route link or import a GPX (Strava / RideWithGPS / Komoot / Garmin), or just type distance &amp; total climbing from the race page.
+          </p>
+        )}
+      </div>
+
+      <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-inset ring-white/10">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Your cycling fitness</div>
+          <button
+            type="button"
+            onClick={onDetectFtp}
+            disabled={detecting}
+            className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:bg-white/15 disabled:opacity-40"
+          >
+            {detecting ? 'Reading rides...' : '⚡ Detect FTP from Strava'}
+          </button>
+        </div>
+        {ftpNote && (
+          <p className={`mt-2 text-[11px] font-medium ${/couldn|error|connect|no power|rate/i.test(ftpNote) ? 'text-amber-300' : 'text-lime-300'}`}>{ftpNote}</p>
+        )}
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
             <label className={label}>🚴 FTP (watts)</label>
-            <input type="number" name="ftp" min="60" max="500" defaultValue={defaultFtp ?? undefined} placeholder="240" required className={field} />
+            <input type="number" name="ftp" min="60" max="500" value={ftpVal} onChange={(e) => setFtpVal(e.target.value)} placeholder="240" required className={field} />
           </div>
           <div>
             <label className={label}>Body weight (kg)</label>
@@ -135,7 +278,7 @@ export function BikeGoalSetup({
           <input type="date" name="dob" defaultValue={defaultDob ?? undefined} className={field} />
         </div>
         <p className="mt-2 text-[11px] text-slate-500">
-          FTP is your ~1-hour max power — from a ramp test, a 20-min test (× 0.95), or your head unit&apos;s estimate.
+          FTP is your ~1-hour max power, from a ramp test, a 20-min test (× 0.95), or your head unit&apos;s estimate.
         </p>
       </div>
 
@@ -146,7 +289,7 @@ export function BikeGoalSetup({
         disabled={pending}
         className="rounded-full bg-lime-300 px-5 py-2.5 text-sm font-semibold text-[#0c1018] transition hover:bg-lime-200 disabled:opacity-50"
       >
-        {pending ? 'Building your plan…' : 'Build my cycling plan'}
+        {pending ? 'Building your plan...' : 'Build my cycling plan'}
       </button>
     </form>
   );

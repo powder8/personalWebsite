@@ -42,7 +42,7 @@ function targetLabel(zones: PowerZones, key: PowerZoneKey): string {
   if (zones.zones) return wattsLabel(zones.zones[key]);
   const hr = zones.hrZones?.[key];
   if (!hr) return key;
-  return HR_UNRELIABLE.has(key) ? `${bpmLabel(hr)} (HR unreliable — ride by RPE)` : bpmLabel(hr);
+  return HR_UNRELIABLE.has(key) ? `${bpmLabel(hr)} (HR unreliable, ride by RPE)` : bpmLabel(hr);
 }
 /** Watt bounds for a segment, present only when the athlete has a power meter. */
 function wattTargets(zones: PowerZones, key: PowerZoneKey): Pick<WorkoutSegment, 'targetLoWatts' | 'targetHiWatts'> {
@@ -91,7 +91,7 @@ const TEMPO_TEMPLATES: BikeQualityTemplate[] = [
       const t = targetLabel(z, 'tempo');
       return [
         intervalWork('tempo', reps, 15 * 60, 5 * 60, z,
-          `${reps} × 15 min @ ${t} · 5 min easy spin between — steady, "brisk" muscular endurance`),
+          `${reps} × 15 min @ ${t} · 5 min easy spin between, steady, "brisk" muscular endurance`),
       ];
     },
     prose: (wm, z) => `${clampInt(wm / 15, 2, 4)} × 15 min @ ${targetLabel(z, 'tempo')} with 5 min easy`,
@@ -105,7 +105,7 @@ const TEMPO_TEMPLATES: BikeQualityTemplate[] = [
       const t = targetLabel(z, 'tempo');
       return [
         intervalWork('tempo', 2, each * 60, 5 * 60, z,
-          `2 × ${each} min @ ${t} · 5 min easy between — hold a smooth, controlled effort`),
+          `2 × ${each} min @ ${t} · 5 min easy between, hold a smooth, controlled effort`),
       ];
     },
     prose: (wm, z) => `2 × ${clampInt(wm / 2, 15, 30)} min @ ${targetLabel(z, 'tempo')} with 5 min easy`,
@@ -122,7 +122,7 @@ const SWEETSPOT_TEMPLATES: BikeQualityTemplate[] = [
       const t = targetLabel(z, 'sweetspot');
       return [
         intervalWork('sweetspot', reps, 12 * 60, 4 * 60, z,
-          `${reps} × 12 min @ ${t} · 4 min easy spin between — max aerobic return per unit fatigue`),
+          `${reps} × 12 min @ ${t} · 4 min easy spin between, max aerobic return per unit fatigue`),
       ];
     },
     prose: (wm, z) => `${clampInt(wm / 12, 2, 4)} × 12 min @ ${targetLabel(z, 'sweetspot')} with 4 min easy`,
@@ -136,7 +136,7 @@ const SWEETSPOT_TEMPLATES: BikeQualityTemplate[] = [
       const t = targetLabel(z, 'sweetspot');
       return [
         intervalWork('sweetspot', reps, 15 * 60, 5 * 60, z,
-          `${reps} × 15 min @ ${t} · 5 min easy between — settle in, aerobically strong`),
+          `${reps} × 15 min @ ${t} · 5 min easy between, settle in, aerobically strong`),
       ];
     },
     prose: (wm, z) => `${clampInt(wm / 15, 2, 4)} × 15 min @ ${targetLabel(z, 'sweetspot')} with 5 min easy`,
@@ -153,7 +153,7 @@ const THRESHOLD_TEMPLATES: BikeQualityTemplate[] = [
       const t = targetLabel(z, 'threshold');
       return [
         intervalWork('threshold', reps, 8 * 60, 4 * 60, z,
-          `${reps} × 8 min @ ${t} · 4 min easy spin between — comfortably hard, controlled TT effort`),
+          `${reps} × 8 min @ ${t} · 4 min easy spin between, comfortably hard, controlled TT effort`),
       ];
     },
     prose: (wm, z) => `${clampInt(wm / 8, 3, 5)} × 8 min @ ${targetLabel(z, 'threshold')} with 4 min easy`,
@@ -167,7 +167,7 @@ const THRESHOLD_TEMPLATES: BikeQualityTemplate[] = [
       const t = targetLabel(z, 'threshold');
       return [
         intervalWork('threshold', 2, each * 60, 8 * 60, z,
-          `2 × ${each} min @ ${t} · 8 min easy between — steady, hold form through the second rep`),
+          `2 × ${each} min @ ${t} · 8 min easy between, steady, hold form through the second rep`),
       ];
     },
     prose: (wm, z) => `2 × ${clampInt(wm / 2, 10, 25)} min @ ${targetLabel(z, 'threshold')} with 8 min easy`,
@@ -183,7 +183,7 @@ const THRESHOLD_TEMPLATES: BikeQualityTemplate[] = [
       const t = targetLabel(z, 'threshold');
       return [
         intervalWork('threshold', blocks, 12 * 60, 5 * 60, z,
-          `${blocks} × [3 × (2 min over / 2 min under)] around ${t} · 5 min easy between blocks — surge and settle without going anaerobic`),
+          `${blocks} × [3 × (2 min over / 2 min under)] around ${t} · 5 min easy between blocks, surge and settle without going anaerobic`),
       ];
     },
     prose: (wm, z) => `${clampInt(wm / 12, 2, 4)} × (3× 2min over / 2min under) around ${targetLabel(z, 'threshold')}`,
@@ -200,7 +200,7 @@ const VO2MAX_TEMPLATES: BikeQualityTemplate[] = [
       const t = targetLabel(z, 'vo2max');
       return [
         intervalWork('vo2max', reps, 3 * 60, 3 * 60, z,
-          `${reps} × 3 min @ ${t} · 3 min easy spin (1:1) — even efforts, don't blow the first`),
+          `${reps} × 3 min @ ${t} · 3 min easy spin (1:1), even efforts, don't blow the first`),
       ];
     },
     prose: (wm, z) => `${clampInt(wm / 3, 4, 6)} × 3 min @ ${targetLabel(z, 'vo2max')} with 3 min easy`,
@@ -214,7 +214,7 @@ const VO2MAX_TEMPLATES: BikeQualityTemplate[] = [
       const t = targetLabel(z, 'vo2max');
       return [
         intervalWork('vo2max', reps, 4 * 60, 4 * 60, z,
-          `${reps} × 4 min @ ${t} · 4 min easy spin (1:1) — hold the target to the last rep`),
+          `${reps} × 4 min @ ${t} · 4 min easy spin (1:1), hold the target to the last rep`),
       ];
     },
     prose: (wm, z) => `${clampInt(wm / 4, 4, 6)} × 4 min @ ${targetLabel(z, 'vo2max')} with 4 min easy`,
@@ -229,7 +229,7 @@ const VO2MAX_TEMPLATES: BikeQualityTemplate[] = [
       const t = targetLabel(z, 'vo2max');
       return [
         intervalWork('vo2max', sets, 10 * 60, 5 * 60, z,
-          `${sets} × (10 × 30 s @ ${t} / 30 s easy) · 5 min easy between sets — punchy, repeatable`),
+          `${sets} × (10 × 30 s @ ${t} / 30 s easy) · 5 min easy between sets, punchy, repeatable`),
       ];
     },
     prose: (wm, z) => `${clampInt(wm / 10, 2, 3)} × (10 × 30/30) @ ${targetLabel(z, 'vo2max')}`,
@@ -247,7 +247,7 @@ const ANAEROBIC_TEMPLATES: BikeQualityTemplate[] = [
       const t = targetLabel(z, 'anaerobic');
       return [
         intervalWork('anaerobic', reps, 60, 3 * 60, z,
-          `${reps} × 1 min @ ${t} · 3 min easy spin between — hard from the gun, tracked by duration not TSS`),
+          `${reps} × 1 min @ ${t} · 3 min easy spin between, hard from the gun, tracked by duration not TSS`),
       ];
     },
     prose: (wm, z) => `${clampInt(wm / 4, 4, 8)} × 1 min @ ${targetLabel(z, 'anaerobic')} with 3 min easy`,
@@ -265,7 +265,7 @@ const SPRINT_TEMPLATES: BikeQualityTemplate[] = [
       const t = targetLabel(z, 'sprint');
       return [
         intervalWork('sprint', reps, 15, 4 * 60, z,
-          `${reps} × 15 s max @ ${t} · full recovery (3–5 min) between — all-out, quality over quantity`),
+          `${reps} × 15 s max @ ${t} · full recovery (3-5 min) between, all-out, quality over quantity`),
       ];
     },
     prose: (wm, _z) => `${clampInt(wm / 4, 6, 10)} × 15 s max, full recovery`,
@@ -297,7 +297,7 @@ function warmupSegment(wuCdMinutes: number, zones: PowerZones): WorkoutSegment {
     zone: 'endurance',
     durationSeconds: Math.round(wuCdMinutes * 60),
     ...wattTargets(zones, 'endurance'),
-    note: `${wuCdMinutes} min building recovery→endurance @ ${targetLabel(zones, 'endurance')}, then 2–3 × 30 s openers to VO2 to sharpen the legs`,
+    note: `${wuCdMinutes} min building recovery→endurance @ ${targetLabel(zones, 'endurance')}, then 2-3 × 30 s openers to VO2 to sharpen the legs`,
   };
 }
 function cooldownSegment(wuCdMinutes: number, zones: PowerZones): WorkoutSegment {
@@ -306,7 +306,7 @@ function cooldownSegment(wuCdMinutes: number, zones: PowerZones): WorkoutSegment
     zone: 'recovery',
     durationSeconds: Math.round(wuCdMinutes * 60),
     ...wattTargets(zones, 'recovery'),
-    note: `${wuCdMinutes} min easy spin @ ${targetLabel(zones, 'recovery')} — let the heart rate come down`,
+    note: `${wuCdMinutes} min easy spin @ ${targetLabel(zones, 'recovery')}, let the heart rate come down`,
   };
 }
 
@@ -318,7 +318,7 @@ function continuousWork(zone: PowerZoneKey, workMinutes: number, zones: PowerZon
     zone,
     durationSeconds: m * 60,
     ...wattTargets(zones, zone),
-    note: `${m} min continuous @ ${targetLabel(zones, zone)} — one steady aerobic effort`,
+    note: `${m} min continuous @ ${targetLabel(zones, zone)}, one steady aerobic effort`,
   };
 }
 
@@ -356,7 +356,7 @@ export function buildBikeQualityDescription(
 ): string {
   const template = pickTemplate(zone, seed);
   const main = template
-    ? `${template.label} — ${template.prose(workMinutes, zones)}`
+    ? `${template.label}, ${template.prose(workMinutes, zones)}`
     : `${Math.round(workMinutes)} min @ ${targetLabel(zones, zone)}`;
   return `${cap(main)}; ${wuCdMinutes} min warm-up + openers and ${wuCdMinutes} min cool-down (${Math.round(dayMinutes)} min total)`;
 }

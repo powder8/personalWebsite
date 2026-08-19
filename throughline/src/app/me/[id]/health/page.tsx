@@ -38,7 +38,7 @@ export default async function HealthPage({ params }: { params: Promise<{ id: str
       <div className="px-1">
         <h1 className="text-xl font-semibold text-slate-900">Your health</h1>
         <p className="text-sm text-slate-500">
-          Where your fitness and recovery stand — against your own baseline and your age group.
+          Where your fitness and recovery stand, against your own baseline and your age group.
         </p>
       </div>
 

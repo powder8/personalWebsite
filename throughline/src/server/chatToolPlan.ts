@@ -35,12 +35,12 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
   {
     name: 'adjust_paces_window',
     description:
-      'Temporarily ease (slower) or sharpen (faster) the athlete\'s prescribed paces over a date window — e.g. "run easy this week" or "paces feel too hard". This is a windowed nudge in seconds per mile, not a permanent fitness change. Resolve relative dates to YYYY-MM-DD.',
+      'Temporarily ease (slower) or sharpen (faster) the athlete\'s prescribed paces over a date window, e.g. "run easy this week" or "paces feel too hard". This is a windowed nudge in seconds per mile, not a permanent fitness change. Resolve relative dates to YYYY-MM-DD.',
     input_schema: {
       type: 'object',
       properties: {
         direction: { type: 'string', enum: ['easier', 'faster'], description: 'easier = slow paces down; faster = speed them up.' },
-        secondsPerMile: { type: 'number', description: 'Magnitude, 1–60 s/mi.' },
+        secondsPerMile: { type: 'number', description: 'Magnitude, 1-60 s/mi.' },
         from: { type: 'string', description: 'Start date, YYYY-MM-DD.' },
         to: { type: 'string', description: 'Optional end date (inclusive), YYYY-MM-DD.' },
         note: { type: 'string', description: 'Short reason.' },
@@ -51,7 +51,7 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
   {
     name: 'set_training_goal',
     description:
-      "Set or change the athlete's training goal and REBUILD their plan from today: finish a distance, race for a time, or build general fitness. Use ONLY when the athlete clearly commits (e.g. 'let's target a 5K on August 8') — confirm distance + date (+ target time if racing for time) before calling. Estimate currentWeeklyMiles from the recent-training data in context if they don't state it. By default reuses their existing fitness benchmark.",
+      "Set or change the athlete's training goal and REBUILD their plan from today: finish a distance, race for a time, or build general fitness. Use ONLY when the athlete clearly commits (e.g. 'let's target a 5K on August 8'), confirm distance + date (+ target time if racing for time) before calling. Estimate currentWeeklyMiles from the recent-training data in context if they don't state it. By default reuses their existing fitness benchmark.",
     input_schema: {
       type: 'object',
       properties: {
@@ -75,12 +75,12 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
   {
     name: 'set_fitness_anchor',
     description:
-      "Override the athlete's fitness anchor (the number all paces derive from) when they have a new benchmark — a recent race result or a known VDOT. This retunes future planned paces. Use only when the athlete/coach clearly states a new performance or value, and confirm the specifics first.",
+      "Override the athlete's fitness anchor (the number all paces derive from) when they have a new benchmark, a recent race result or a known VDOT. This retunes future planned paces. Use only when the athlete/coach clearly states a new performance or value, and confirm the specifics first.",
     input_schema: {
       type: 'object',
       properties: {
         kind: { type: 'string', enum: ['vdot', 'race'], description: 'vdot = a known VDOT number; race = a recent race result.' },
-        vdot: { type: 'number', description: 'VDOT 20–90 (kind=vdot).' },
+        vdot: { type: 'number', description: 'VDOT 20-90 (kind=vdot).' },
         raceDistanceMeters: { type: 'number', description: 'Race distance in meters (kind=race), e.g. 5000, 10000, 21097.5, 42195.' },
         raceTimeSeconds: { type: 'number', description: 'Race time in seconds (kind=race).' },
       },
@@ -121,7 +121,7 @@ export function planToolAction(name: string, input: Record<string, unknown>): Pl
       const range = to && to !== from ? `${from} → ${to}` : from;
       return {
         type: 'directive',
-        directive: { type: m.type, from, to, factor: m.factor, label: note ? `${m.label} — ${note}` : m.label },
+        directive: { type: m.type, from, to, factor: m.factor, label: note ? `${m.label}, ${note}` : m.label },
         summary: `${m.label} applied for ${range}. The plan reshapes around it; your coach can see and adjust this.`,
       };
     }
@@ -134,12 +134,12 @@ export function planToolAction(name: string, input: Record<string, unknown>): Pl
       const note = input.note ? String(input.note) : null;
       if (direction !== 'easier' && direction !== 'faster') return { error: 'direction must be easier or faster.' };
       if (!DATE_RE.test(from) || (to && !DATE_RE.test(to))) return { error: 'Dates must be YYYY-MM-DD.' };
-      if (!(sec >= 1 && sec <= 60)) return { error: 'secondsPerMile must be 1–60.' };
+      if (!(sec >= 1 && sec <= 60)) return { error: 'secondsPerMile must be 1-60.' };
       const delta = direction === 'easier' ? sec : -sec;
       const range = to && to !== from ? `${from} → ${to}` : `from ${from}`;
       return {
         type: 'directive',
-        directive: { type: 'pace_adjust', from, to, deltaSecPerMile: delta, label: note ? `Paces ${direction} ${sec}s/mi — ${note}` : `Paces ${direction} ${sec}s/mi` },
+        directive: { type: 'pace_adjust', from, to, deltaSecPerMile: delta, label: note ? `Paces ${direction} ${sec}s/mi, ${note}` : `Paces ${direction} ${sec}s/mi` },
         summary: `Paces ${direction} by ${sec}s/mi ${range}. Coach-reviewable; remove it anytime.`,
       };
     }
@@ -185,7 +185,7 @@ export function planToolAction(name: string, input: Record<string, unknown>): Pl
       const kind = String(input.kind);
       if (kind === 'vdot') {
         const vdot = Number(input.vdot);
-        if (!(vdot >= 20 && vdot <= 90)) return { error: 'VDOT must be 20–90.' };
+        if (!(vdot >= 20 && vdot <= 90)) return { error: 'VDOT must be 20-90.' };
         return { type: 'anchor', anchor: { kind: 'vdot', vdot }, describe: `Fitness anchor set to VDOT ${vdot}` };
       }
       if (kind === 'race') {

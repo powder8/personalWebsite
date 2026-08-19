@@ -90,7 +90,7 @@ export const ZONE_IF: Readonly<Record<string, number>> = {
   threshold: 0.98,
   intervals: 1.05,
   vo2max: 1.05,
-  sprint: 1.1, // swim sprint band (aerobic kernel under-weights it — lowConfidence)
+  sprint: 1.1, // swim sprint band (aerobic kernel under-weights it, lowConfidence)
   rep: 1.1,
 };
 

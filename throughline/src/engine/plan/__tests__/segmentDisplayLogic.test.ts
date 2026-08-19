@@ -29,14 +29,14 @@ test('run continuous headline is unchanged (distanceMeters)', () => {
 test('bike interval headline: reps × minutes @ watt band', () => {
   assert.equal(
     segmentHeadline({ reps: 5, repSeconds: 480, targetLoWatts: 228, targetHiWatts: 263 }),
-    '5 × 8 min @ 228–263 W',
+    '5 × 8 min @ 228-263 W',
   );
 });
 
 test('bike continuous headline: minutes @ watt band', () => {
   assert.equal(
     segmentHeadline({ durationSeconds: 2700, targetLoWatts: 150, targetHiWatts: 180 }),
-    '45 min @ 150–180 W',
+    '45 min @ 150-180 W',
   );
 });
 
@@ -49,7 +49,7 @@ test('bike headline without a power meter drops the @ watts suffix', () => {
 test('swim interval headline: reps × metres @ CSS pace band', () => {
   assert.equal(
     segmentHeadline({ reps: 11, repMeters: 100, targetFastSecPer100: 76, targetSlowSecPer100: 80 }),
-    '11 × 100 m @ 1:16–1:20/100m',
+    '11 × 100 m @ 1:16-1:20/100m',
   );
 });
 
@@ -63,7 +63,7 @@ test('swim headline collapses a point band to a single pace', () => {
 test('swim continuous / drill headline uses distanceMeters', () => {
   assert.equal(
     segmentHeadline({ distanceMeters: 400, targetFastSecPer100: 88, targetSlowSecPer100: 98 }),
-    '400 m @ 1:28–1:38/100m',
+    '400 m @ 1:28-1:38/100m',
   );
 });
 
@@ -84,9 +84,9 @@ test('formatDuration reads whole minutes as minutes, sub-minute as seconds', () 
 });
 
 test('bikePowerSuffix / swimPaceSuffix render bands', () => {
-  assert.equal(bikePowerSuffix({ targetLoWatts: 228, targetHiWatts: 263 }), '228–263 W');
+  assert.equal(bikePowerSuffix({ targetLoWatts: 228, targetHiWatts: 263 }), '228-263 W');
   assert.equal(bikePowerSuffix({}), '');
-  assert.equal(swimPaceSuffix({ targetFastSecPer100: 76, targetSlowSecPer100: 80 }), '1:16–1:20/100m');
+  assert.equal(swimPaceSuffix({ targetFastSecPer100: 76, targetSlowSecPer100: 80 }), '1:16-1:20/100m');
   assert.equal(swimPaceSuffix({}), '');
 });
 
@@ -96,7 +96,7 @@ test('sessionMetricLabel: run miles unchanged, bike minutes, swim km', () => {
     sessionMetricLabel({ discipline: 'run', distanceMeters: 12874.75, durationSeconds: null }),
     '8.0 mi',
   );
-  assert.equal(sessionMetricLabel({ discipline: 'run', distanceMeters: null, durationSeconds: null }), '—');
+  assert.equal(sessionMetricLabel({ discipline: 'run', distanceMeters: null, durationSeconds: null }), '-');
   assert.equal(
     sessionMetricLabel({ discipline: 'bike', distanceMeters: 0, durationSeconds: 4500 }),
     '75 min',

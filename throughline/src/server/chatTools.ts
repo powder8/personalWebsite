@@ -45,7 +45,7 @@ export async function executeChatTool(
       const r = await setupAthleteGoal(db, actor.athleteId, actor.today, plan.goal);
       return {
         ok: true,
-        summary: `${plan.describe} — built your ${r.weeks}-week plan. See "Your season" for the blocks and "Race plan" for your target window and warm-up races.`,
+        summary: `${plan.describe}, built your ${r.weeks}-week plan. See "Your season" for the blocks and "Race plan" for your target window and warm-up races.`,
       };
     }
     // anchor

@@ -81,7 +81,7 @@ export function secPerKmToMinPerMile(secPerKm: number): string {
 }
 
 export function paceRangeLabel(range: PaceRange): string {
-  return `${secPerKmToMinPerMile(range.fastSecPerKm)}–${secPerKmToMinPerMile(range.slowSecPerKm)}/mi`;
+  return `${secPerKmToMinPerMile(range.fastSecPerKm)}-${secPerKmToMinPerMile(range.slowSecPerKm)}/mi`;
 }
 
 export function metersToMiles(m: number): number {

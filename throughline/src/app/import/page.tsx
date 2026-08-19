@@ -37,7 +37,7 @@ export default async function ImportPage() {
 
       <Card title="How it reads the sheet">
         <ul className="list-disc space-y-1 pl-5 text-sm text-slate-600">
-          <li>Each weekly tab (e.g. “April 11–17”) is parsed into days.</li>
+          <li>Each weekly tab (e.g. “April 11-17”) is parsed into days.</li>
           <li>
             Mileage ranges that Sheets turned into dates (e.g. “7-8” → a date) are reversed back to
             miles automatically.

@@ -48,7 +48,7 @@ const THRESHOLD_TEMPLATES: QualityTemplate[] = [
       const reps = clampInt(wm, 3, 8);
       const p = paceRangeLabel(z.zones.threshold);
       return [{ role: 'work', zone: 'threshold', reps, repMeters: milesToMeters(1), restSeconds: 60,
-        note: `${reps} × 1 mi @ ${p} · 60s standing/easy-jog rest — comfortably hard, controlled` }];
+        note: `${reps} × 1 mi @ ${p} · 60s standing/easy-jog rest, comfortably hard, controlled` }];
     },
     prose(wm, z) {
       const reps = clampInt(wm, 3, 8);
@@ -62,7 +62,7 @@ const THRESHOLD_TEMPLATES: QualityTemplate[] = [
     work(wm, z) {
       const m = roundMiles(wm);
       return [{ role: 'work', zone: 'threshold', distanceMeters: milesToMeters(m),
-        note: `${m} mi continuous @ ${paceRangeLabel(z.zones.threshold)} — one sustained effort, no breaks` }];
+        note: `${m} mi continuous @ ${paceRangeLabel(z.zones.threshold)}, one sustained effort, no breaks` }];
     },
     prose(wm, z) {
       return `${roundMiles(wm)} mi continuous @ ${paceRangeLabel(z.zones.threshold)}`;
@@ -76,7 +76,7 @@ const THRESHOLD_TEMPLATES: QualityTemplate[] = [
       const reps = clampInt(wm / 0.62, 4, 10);
       const p = paceRangeLabel(z.zones.threshold);
       return [{ role: 'work', zone: 'threshold', reps, repMeters: 1000, restSeconds: 45,
-        note: `${reps} × 1000m @ ${p} · 45s easy-jog rest — smooth and repeatable` }];
+        note: `${reps} × 1000m @ ${p} · 45s easy-jog rest, smooth and repeatable` }];
     },
     prose(wm, z) {
       return `${clampInt(wm / 0.62, 4, 10)} × 1000m @ ${paceRangeLabel(z.zones.threshold)} with 45s jog`;
@@ -90,7 +90,7 @@ const THRESHOLD_TEMPLATES: QualityTemplate[] = [
       const half = roundMiles(wm / 2);
       const p = paceRangeLabel(z.zones.threshold);
       return [{ role: 'work', zone: 'threshold', reps: 2, repMeters: milesToMeters(half), restSeconds: 120,
-        note: `2 × ${half} mi @ ${p} · 2 min easy jog between — hold form through the second rep` }];
+        note: `2 × ${half} mi @ ${p} · 2 min easy jog between, hold form through the second rep` }];
     },
     prose(wm, z) {
       return `2 × ${roundMiles(wm / 2)} mi @ ${paceRangeLabel(z.zones.threshold)} with 2 min jog`;
@@ -107,7 +107,7 @@ const INTERVAL_TEMPLATES: QualityTemplate[] = [
       const reps = clampInt(wm, 3, 6);
       const p = paceRangeLabel(z.zones.interval);
       return [{ role: 'work', zone: 'interval', reps, repMeters: milesToMeters(1), restSeconds: 180,
-        note: `${reps} × 1 mi @ ${p} · 3 min easy jog between — even efforts, don't sprint the first` }];
+        note: `${reps} × 1 mi @ ${p} · 3 min easy jog between, even efforts, don't sprint the first` }];
     },
     prose(wm, z) {
       return `${clampInt(wm, 3, 6)} × 1 mi @ ${paceRangeLabel(z.zones.interval)} with 3 min jog`;
@@ -121,7 +121,7 @@ const INTERVAL_TEMPLATES: QualityTemplate[] = [
       const reps = clampInt(wm / 0.62, 4, 8);
       const p = paceRangeLabel(z.zones.interval);
       return [{ role: 'work', zone: 'interval', reps, repMeters: 1000, restSeconds: 150,
-        note: `${reps} × 1000m @ ${p} · 2:30 jog between — strong and smooth` }];
+        note: `${reps} × 1000m @ ${p} · 2:30 jog between, strong and smooth` }];
     },
     prose(wm, z) {
       return `${clampInt(wm / 0.62, 4, 8)} × 1000m @ ${paceRangeLabel(z.zones.interval)} with 2:30 jog`;
@@ -135,7 +135,7 @@ const INTERVAL_TEMPLATES: QualityTemplate[] = [
       const reps = clampInt(wm / 0.5, 5, 10);
       const p = paceRangeLabel(z.zones.interval);
       return [{ role: 'work', zone: 'interval', reps, repMeters: 800, restSeconds: 120,
-        note: `${reps} × 800m @ ${p} · 2 min jog between — pick it up in the last two` }];
+        note: `${reps} × 800m @ ${p} · 2 min jog between, pick it up in the last two` }];
     },
     prose(wm, z) {
       return `${clampInt(wm / 0.5, 5, 10)} × 800m @ ${paceRangeLabel(z.zones.interval)} with 2 min jog`;
@@ -152,7 +152,7 @@ const REP_TEMPLATES: QualityTemplate[] = [
       const reps = clampInt(wm / 0.25, 6, 12);
       const p = paceRangeLabel(z.zones.rep);
       return [{ role: 'work', zone: 'rep', reps, repMeters: 400, restSeconds: 120,
-        note: `${reps} × 400m @ ${p} · full recovery (walk/jog ~2 min until fresh) — quick, relaxed turnover` }];
+        note: `${reps} × 400m @ ${p} · full recovery (walk/jog ~2 min until fresh), quick, relaxed turnover` }];
     },
     prose(wm, z) {
       return `${clampInt(wm / 0.25, 6, 12)} × 400m @ ${paceRangeLabel(z.zones.rep)}, full recovery`;
@@ -167,7 +167,7 @@ const REP_TEMPLATES: QualityTemplate[] = [
       const sets = clampInt(wm / (perSet * 0.19), 2, 4);
       const p = paceRangeLabel(z.zones.rep);
       return [{ role: 'work', zone: 'rep', reps: sets * perSet, repMeters: 300, restSeconds: 180,
-        note: `${sets} × (${perSet} × 300m @ ${p}, 100m jog) · 3 min between sets — sharp and smooth` }];
+        note: `${sets} × (${perSet} × 300m @ ${p}, 100m jog) · 3 min between sets, sharp and smooth` }];
     },
     prose(wm, z) {
       const sets = clampInt(wm / 0.57, 2, 4);
@@ -182,7 +182,7 @@ const REP_TEMPLATES: QualityTemplate[] = [
       const reps = clampInt(wm / 0.125, 8, 16);
       const p = paceRangeLabel(z.zones.rep);
       return [{ role: 'work', zone: 'rep', reps, repMeters: 200, restSeconds: 90,
-        note: `${reps} × 200m @ ${p} · 200m easy jog between — fast but loose, never straining` }];
+        note: `${reps} × 200m @ ${p} · 200m easy jog between, fast but loose, never straining` }];
     },
     prose(wm, z) {
       return `${clampInt(wm / 0.125, 8, 16)} × 200m @ ${paceRangeLabel(z.zones.rep)} with 200m jog`;
@@ -209,7 +209,7 @@ function warmupSegment(wuCd: number, zones: PaceZones): WorkoutSegment {
     role: 'warmup',
     zone: 'easy',
     distanceMeters: milesToMeters(wuCd),
-    note: `${wuCd} mi easy @ ${paceRangeLabel(zones.zones.easy)}, then 3–4 mobility drills + 4 × 20s strides to open up`,
+    note: `${wuCd} mi easy @ ${paceRangeLabel(zones.zones.easy)}, then 3-4 mobility drills + 4 × 20s strides to open up`,
   };
 }
 function cooldownSegment(wuCd: number, zones: PaceZones): WorkoutSegment {
@@ -217,7 +217,7 @@ function cooldownSegment(wuCd: number, zones: PaceZones): WorkoutSegment {
     role: 'cooldown',
     zone: 'easy',
     distanceMeters: milesToMeters(wuCd),
-    note: `${wuCd} mi very easy @ ${paceRangeLabel(zones.zones.easy)} — let the heart rate come down`,
+    note: `${wuCd} mi very easy @ ${paceRangeLabel(zones.zones.easy)}, let the heart rate come down`,
   };
 }
 
@@ -259,7 +259,7 @@ export function buildQualityDescription(
 ): string {
   const template = pickTemplate(zone, seed);
   const main = template
-    ? `${template.label} — ${template.prose(workMiles, zones)}`
+    ? `${template.label}, ${template.prose(workMiles, zones)}`
     : `${roundMiles(workMiles)} mi @ ${paceRangeLabel(zones.zones[zone])}`;
   return `${cap(main)}; ${wuCd} mi warm-up + drills/strides and ${wuCd} mi cool-down (${dayMiles} mi total)`;
 }

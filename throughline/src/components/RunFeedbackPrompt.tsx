@@ -72,7 +72,7 @@ export function RunFeedbackPrompt({
           </span>
         )}
       </div>
-      <p className="mt-1 text-xs text-slate-400">Tell your coach what the data can’t see — it shapes the debrief above.</p>
+      <p className="mt-1 text-xs text-slate-400">Tell your coach what the data can’t see, it shapes the debrief above.</p>
 
       <div className="mt-3 flex gap-2">
         {FEELS.map((f) => (
@@ -112,9 +112,9 @@ export function RunFeedbackPrompt({
           disabled={pending || saved}
           className="rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-[#0c1018] transition hover:bg-lime-200 disabled:opacity-50"
         >
-          {saved ? 'Saved ✓' : pending ? 'Saving…' : existing ? 'Update note' : 'Send to coach'}
+          {saved ? 'Saved ✓' : pending ? 'Saving...' : existing ? 'Update note' : 'Send to coach'}
         </button>
-        {saved && <span className="text-xs text-emerald-300">Logged — refreshing your debrief…</span>}
+        {saved && <span className="text-xs text-emerald-300">Logged, refreshing your debrief...</span>}
         {err && <span className="text-xs text-rose-400">{err}</span>}
       </div>
     </div>

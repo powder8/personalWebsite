@@ -12,8 +12,12 @@ import {
 const MI = 1609.344;
 const planned = (over: Partial<CalPlanned> = {}): CalPlanned => ({
   sessionType: 'easy',
+  discipline: 'run',
   zone: 'easy',
   miles: 5,
+  durationMinutes: 0,
+  meters: 0,
+  loadTss: 0,
   paceFastSecPerKm: 300,
   paceSlowSecPerKm: 330,
   description: null,
@@ -173,6 +177,50 @@ test('primary run is the longest when multiple runs in a day', () => {
   assert.equal(day.primaryRun?.activityId, 'pm');
   assert.ok(Math.abs(day.actuals.reduce((s, a) => s + a.miles, 0) - 9) < 1e-9);
   assert.equal(day.status, 'done'); // 9 total >= 80% of 8
+});
+
+// --- discipline-aware calendar (cyclist) ------------------------------------
+
+test('a planned BIKE day is a real session, not "rest" (upcoming in the future)', () => {
+  const today = '2026-06-10';
+  const bikeDay = '2026-06-12';
+  const weeks = assembleCalendar({
+    today,
+    weekStarts: [mondayOf(today)],
+    plannedByDay: new Map([[bikeDay, planned({ discipline: 'bike', sessionType: 'endurance', miles: 0, durationMinutes: 45 })]]),
+    actualsByDay: new Map(),
+    phaseByWeekStart: new Map(),
+  });
+  const day = weeks[0].days.find((d) => d.day === bikeDay)!;
+  assert.equal(day.status, 'upcoming'); // was wrongly 'rest' when miles-only
+  assert.equal(weeks[0].primaryDiscipline, 'bike');
+  assert.ok(Math.abs(weeks[0].plannedMinutes - 45) < 1e-9);
+  assert.equal(weeks[0].plannedMiles, 0);
+});
+
+test('a past planned bike day → done when a ride was logged, missed when not', () => {
+  const today = '2026-06-14';
+  const rideDay = '2026-06-09';
+  const missDay = '2026-06-10';
+  const weeks = assembleCalendar({
+    today,
+    weekStarts: [mondayOf('2026-06-09')],
+    plannedByDay: new Map([
+      [rideDay, planned({ discipline: 'bike', sessionType: 'endurance', miles: 0, durationMinutes: 60 })],
+      [missDay, planned({ discipline: 'bike', sessionType: 'threshold', miles: 0, durationMinutes: 50 })],
+    ]),
+    actualsByDay: new Map([
+      [rideDay, [run({ activityId: 'ride', sport: 'bike', isRun: false, miles: 18, durationSeconds: 3600 })]],
+    ]),
+    phaseByWeekStart: new Map(),
+  });
+  const w = weeks[0];
+  assert.equal(w.days.find((d) => d.day === rideDay)!.status, 'done');
+  assert.equal(w.days.find((d) => d.day === missDay)!.status, 'missed');
+  assert.ok(Math.abs(w.actualMinutes - 60) < 1e-9); // ride duration counted
+  assert.equal(w.sessionsPlanned, 2);
+  assert.equal(w.sessionsDone, 1);
+  assert.equal(w.adherencePct, 50);
 });
 
 void MI;

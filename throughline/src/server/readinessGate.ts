@@ -60,13 +60,13 @@ export function decideReadinessGate(i: ReadinessGateInput): ReadinessGate {
     return {
       kind: 'ease',
       title: "Let's take today down a notch",
-      body: "Your recovery markers are low and you're feeling it too. Swap today's hard work for easy miles or a shorter effort — consistency over the month beats forcing one session.",
+      body: "Your recovery markers are low and you're feeling it too. Swap today's hard work for easy miles or a shorter effort, consistency over the month beats forcing one session.",
     };
   }
 
   return {
     kind: 'hold',
-    title: "Markers are low, but you feel good — keeping today",
-    body: "Your recovery data is a little low, but you're feeling fine, so we'll run today as planned. Start easy; if the legs feel flat in the first mile, back off — no hero sessions.",
+    title: "Markers are low, but you feel good, keeping today",
+    body: "Your recovery data is a little low, but you're feeling fine, so we'll run today as planned. Start easy; if the legs feel flat in the first mile, back off, no hero sessions.",
   };
 }

@@ -36,14 +36,14 @@ export function decideRecoveryEase(recentBands: (Band | null)[]): RecoveryEase |
     return {
       factor: 0.75,
       days: 4,
-      reason: 'Your recovery has read low 3 days running — easing this block ~25% so the body can catch up.',
+      reason: 'Your recovery has read low 3 days running, easing this block ~25% so the body can catch up.',
     };
   }
   if (easy >= 2) {
     return {
       factor: 0.85,
       days: 3,
-      reason: 'Recovery has trended low the last few days — trimming the next few sessions ~15% to stay ahead of it.',
+      reason: 'Recovery has trended low the last few days, trimming the next few sessions ~15% to stay ahead of it.',
     };
   }
   return null;

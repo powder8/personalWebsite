@@ -28,6 +28,8 @@ import { decideReadinessGate } from '@/server/readinessGate';
 import { GoalTrackerHero } from '@/components/GoalTrackerHero';
 import { TriGoalTrackerHero } from '@/components/TriGoalTrackerHero';
 import { getTriGoalTracker } from '@/server/triGoalTracker';
+import { BikeGoalTrackerHero } from '@/components/BikeGoalTrackerHero';
+import { getBikeGoalTracker } from '@/server/bikeGoalTracker';
 import { YourSports } from '@/components/YourSports';
 import { getAthleteDisciplines } from '@/server/disciplines';
 import { ConnectStrava } from '@/components/ConnectStrava';
@@ -59,11 +61,11 @@ function isRestSession(s: PortalSession | null): boolean {
 function sessionTargetLabel(s: PortalSession): string | null {
   if (s.discipline === 'bike') {
     return s.targetPowerLoWatts != null && s.targetPowerHiWatts != null
-      ? `${Math.round(s.targetPowerLoWatts)}–${Math.round(s.targetPowerHiWatts)} W`
+      ? `${Math.round(s.targetPowerLoWatts)}-${Math.round(s.targetPowerHiWatts)} W`
       : null;
   }
   if (s.discipline === 'swim') return null; // per-100m pace lives in the segments
-  return s.paceFastSecPerKm != null ? `${pace(s.paceFastSecPerKm)}–${pace(s.paceSlowSecPerKm)}` : null;
+  return s.paceFastSecPerKm != null ? `${pace(s.paceFastSecPerKm)}-${pace(s.paceSlowSecPerKm)}` : null;
 }
 
 /** Build the discipline-aware "today" lite for the next-step decision. */
@@ -151,6 +153,12 @@ export default async function PortalPage({
   // Triathletes with a TIMED goal get the multi-sport tracker (per-leg verdict +
   // binding leg) instead of the single-sport one. Null for everyone else.
   const triGoalTracker = needsGoal ? null : await getTriGoalTracker(db, id, today);
+  // A standalone cyclist (FTP anchor, no run VDOT) gets the bike-native tracker
+  // (goal-FTP verdict) rather than the run-based one. Precedence: tri → bike → run.
+  const isCyclist =
+    (disciplines.statuses.find((s) => s.discipline === 'bike')?.anchorSet ?? false) &&
+    !(disciplines.statuses.find((s) => s.discipline === 'run')?.anchorSet ?? false);
+  const bikeGoalTracker = needsGoal || triGoalTracker || !isCyclist ? null : await getBikeGoalTracker(db, id, today);
 
   const nextStep = decideNextStep({
     firstName,
@@ -216,7 +224,7 @@ export default async function PortalPage({
             <>
               <h1 className="text-2xl font-bold tracking-tight">You raced {goalRace.name}! 🎉</h1>
               <p className="mt-1 text-sm text-white/80">
-                Big effort. The fitness you built fades fast if it sits — pick the next goal and we&apos;ll build the
+                Big effort. The fitness you built fades fast if it sits, pick the next goal and we&apos;ll build the
                 plan that keeps it.
               </p>
             </>
@@ -224,7 +232,7 @@ export default async function PortalPage({
             <>
               <h1 className="text-2xl font-bold tracking-tight">What are you chasing?</h1>
               <p className="mt-1 text-sm text-white/80">
-                Pick a race or a goal and I&apos;ll build your week-by-week plan — every run specific, adjusted to how
+                Pick a race or a goal and I&apos;ll build your week-by-week plan, every run specific, adjusted to how
                 your body is responding.
               </p>
             </>
@@ -269,11 +277,13 @@ export default async function PortalPage({
       {/* Where you stand */}
       {triGoalTracker ? (
         <TriGoalTrackerHero tracker={triGoalTracker} />
+      ) : bikeGoalTracker ? (
+        <BikeGoalTrackerHero tracker={bikeGoalTracker} athleteId={athlete.id} />
       ) : (
         goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} />
       )}
 
-      {/* Today — the one thing to do now, with the specific workout. A
+      {/* Today, the one thing to do now, with the specific workout. A
           triathlete with several sessions today gets the stacked multi-sport
           view; everyone else gets the single-focal next-step banner. */}
       {showTodayStack ? (
@@ -313,7 +323,7 @@ export default async function PortalPage({
         </div>
       )}
 
-      {/* Your sports — always-present path to add a discipline (nav target #sports). */}
+      {/* Your sports, always-present path to add a discipline (nav target #sports). */}
       <div id="sports" className="scroll-mt-4" />
       <YourSports athleteId={athlete.id} disciplines={disciplines} hasTriGoal={!!triGoalTracker} />
 
@@ -348,7 +358,7 @@ export default async function PortalPage({
       {!latestRun && crossTraining.sessions === 0 && !calendar.hasActuals && (
         <Card title="Connect your watch">
           <p className="mb-3 text-xs text-slate-500">
-            Your runs and rides show up here automatically — with a coach&apos;s debrief on every run.
+            Your runs and rides show up here automatically, with a coach&apos;s debrief on every run.
           </p>
           <ConnectStrava athleteId={athlete.id} connected={strava.connected} configured={strava.configured} />
         </Card>
@@ -362,17 +372,17 @@ export default async function PortalPage({
           <TrainingCalendar weeks={calendar.weeks} today={today} athleteId={athlete.id} />
         ) : (
           <p className="text-sm text-slate-500">
-            No published plan yet — set a goal above and your calendar fills in.
+            No published plan yet, set a goal above and your calendar fills in.
           </p>
         )}
       </Card>
 
-      {/* Change goal / target time — collapsed; the tracker's CTA lands here. */}
+      {/* Change goal / target time, collapsed; the tracker's CTA lands here. */}
       <div id="goal-setup" className="scroll-mt-4" />
       <Card title="Your goal">
         <p className="mb-2 text-xs text-slate-500">
           {goalRace.name} · {goalRace.date}
-          {goalTracker?.cta ? ' — add a target time to unlock the on-pace verdict.' : ''}
+          {goalTracker?.cta ? ', add a target time to unlock the on-pace verdict.' : ''}
         </p>
         <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal />
       </Card>

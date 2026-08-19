@@ -54,7 +54,7 @@ export async function runMonitor(opts: { dryRun?: boolean } = {}): Promise<Monit
     const adaptation = await getAdaptationState(a.id, today);
     if (adaptation?.easeBack && !adaptation.easeBackApplied) {
       const eb = adaptation.easeBack;
-      const label = `Auto-eased after ${adaptation.layoffDays} days off — trimmed ~${Math.round((1 - eb.factor) * 100)}% so the return feels good, not brutal.`;
+      const label = `Auto-eased after ${adaptation.layoffDays} days off, trimmed ~${Math.round((1 - eb.factor) * 100)}% so the return feels good, not brutal.`;
       if (!opts.dryRun) {
         await createDirective(db, a.id, {
           type: 'reduce_volume',

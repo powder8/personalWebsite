@@ -59,7 +59,7 @@ export function ImportForm() {
         </label>
         <label className="text-xs text-slate-600">
           Email (unique id)
-          <input name="email" type="email" required placeholder="moira@…" className={`mt-0.5 w-full ${field}`} />
+          <input name="email" type="email" required placeholder="moira@..." className={`mt-0.5 w-full ${field}`} />
         </label>
       </div>
 
@@ -75,7 +75,7 @@ export function ImportForm() {
             <input
               value={l.url}
               onChange={(e) => update(i, { url: e.target.value })}
-              placeholder="https://docs.google.com/spreadsheets/d/…"
+              placeholder="https://docs.google.com/spreadsheets/d/..."
               className={`flex-1 ${field}`}
             />
             <input
@@ -102,7 +102,7 @@ export function ImportForm() {
         disabled={pending}
         className="rounded bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
       >
-        {pending ? 'Importing…' : 'Import from links'}
+        {pending ? 'Importing...' : 'Import from links'}
       </button>
 
       {result?.error && (

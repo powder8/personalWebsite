@@ -36,7 +36,7 @@ const WINDOW_CHIP: Record<string, string> = {
 export function RacePlanCard({ plan, athleteId }: { plan: RacePlan; athleteId: string }) {
   return (
     <div>
-      {/* Target window — grounded in current fitness */}
+      {/* Target window, grounded in current fitness */}
       {plan.target && (
         <div className="rounded-2xl bg-slate-50 p-4">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
@@ -46,7 +46,7 @@ export function RacePlanCard({ plan, athleteId }: { plan: RacePlan; athleteId: s
             <span className="text-3xl font-extrabold tracking-tight text-slate-900 tabular-nums">
               {fmtTime(plan.target.stretchSeconds)}
             </span>
-            <span className="text-lg font-semibold text-slate-400">–</span>
+            <span className="text-lg font-semibold text-slate-400">-</span>
             <span className="text-3xl font-extrabold tracking-tight text-slate-500 tabular-nums">
               {fmtTime(plan.target.solidSeconds)}
             </span>
@@ -90,7 +90,7 @@ export function RacePlanCard({ plan, athleteId }: { plan: RacePlan; athleteId: s
                     {w.label}
                   </span>
                   <span className="text-xs font-medium tabular-nums text-slate-600">
-                    {fmtShort(w.fromDate)} – {fmtShort(w.toDate)}
+                    {fmtShort(w.fromDate)} - {fmtShort(w.toDate)}
                   </span>
                 </div>
                 <div className="mt-1.5 text-sm text-slate-700">

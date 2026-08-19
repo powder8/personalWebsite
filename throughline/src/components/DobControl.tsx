@@ -51,7 +51,7 @@ export function DobControl({ athleteId, initial }: { athleteId: string; initial:
         disabled={pending}
         className="rounded bg-sky-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
       >
-        {pending ? 'Saving…' : 'Save'}
+        {pending ? 'Saving...' : 'Save'}
       </button>
       {saved && <span className="text-sm text-emerald-300">Saved ✓</span>}
       {err && <span className="text-sm text-rose-600">{err}</span>}

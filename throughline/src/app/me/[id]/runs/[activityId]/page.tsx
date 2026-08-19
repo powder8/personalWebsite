@@ -32,7 +32,7 @@ const fmtDur = (s: number) => {
     : `${m}:${String(sec).padStart(2, '0')}`;
 };
 const paceMi = (secPerKm: number | null) =>
-  secPerKm == null ? '—' : `${secPerKmToMinPerMile(secPerKm)}/mi`;
+  secPerKm == null ? '-' : `${secPerKmToMinPerMile(secPerKm)}/mi`;
 const lapPaceSecPerKm = (lap: LapSeg): number | null =>
   lap.distanceMeters > 0 ? lap.durationSeconds / (lap.distanceMeters / 1000) : null;
 
@@ -110,13 +110,13 @@ export default async function RunDetailPage({
         <p className="text-sm text-slate-400">{day}{shoeName ? ` · ${shoeName}` : ''}</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">{run.name ?? 'Run'}</h1>
         <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
-          <Stat label="Distance" value={miles != null ? `${miles.toFixed(2)} mi` : '—'} />
-          <Stat label="Time" value={run.durationSeconds != null ? fmtDur(run.durationSeconds) : '—'} />
+          <Stat label="Distance" value={miles != null ? `${miles.toFixed(2)} mi` : '-'} />
+          <Stat label="Time" value={run.durationSeconds != null ? fmtDur(run.durationSeconds) : '-'} />
           <Stat label="Avg pace" value={paceMi(run.avgPaceSecPerKm)} />
           {gap?.significant && <Stat label="GAP" value={paceMi(gap.gapSecPerKm)} accent />}
           <Stat
             label="Elevation"
-            value={run.elevationGainMeters != null ? `${Math.round(run.elevationGainMeters * 3.28084)} ft` : '—'}
+            value={run.elevationGainMeters != null ? `${Math.round(run.elevationGainMeters * 3.28084)} ft` : '-'}
           />
           {run.avgHr != null && <Stat label="Avg HR" value={`${run.avgHr} bpm`} />}
           {run.maxHr != null && <Stat label="Max HR" value={`${run.maxHr} bpm`} />}
@@ -125,7 +125,7 @@ export default async function RunDetailPage({
         {gap?.significant && (
           <p className="mt-3 text-[11px] text-slate-400">
             GAP (grade-adjusted pace) is your flat-equivalent effort over {Math.round(gap.climbMeters * 3.28084)} ft
-            of climb — the fairer read of how hard this run actually was.
+            of climb, the fairer read of how hard this run actually was.
           </p>
         )}
       </div>
@@ -147,11 +147,11 @@ export default async function RunDetailPage({
         </Card>
       ) : (
         <Card title="Route">
-          <p className="text-sm text-slate-500">No route captured for this run — newly synced runs include it.</p>
+          <p className="text-sm text-slate-500">No route captured for this run, newly synced runs include it.</p>
         </Card>
       )}
 
-      {/* Intervals section — shown when lap button data forms a bimodal pattern */}
+      {/* Intervals section, shown when lap button data forms a bimodal pattern */}
       {intervalResult && laps.length > 0 && (
         <Card
           title={`Intervals · ${intervalResult.repCount} × ~${roundToNearest(intervalResult.repAvgDistMeters, 25)}m`}
@@ -204,7 +204,7 @@ export default async function RunDetailPage({
                       {fmtDur(lap.durationSeconds)}
                     </td>
                     <td className="py-1.5 text-right text-xs tabular-nums text-slate-400">
-                      {lap.avgHr ?? '—'}
+                      {lap.avgHr ?? '-'}
                     </td>
                   </tr>
                 );
@@ -245,17 +245,17 @@ export default async function RunDetailPage({
             {intervalResult.recoveryType && (
               <p className="text-[11px] leading-relaxed text-slate-400">
                 {intervalResult.recoveryType === 'walk'
-                  ? 'Walking recovery = near-complete rest between reps. This targets neuromuscular speed and power — each rep starts fresh.'
+                  ? 'Walking recovery = near-complete rest between reps. This targets neuromuscular speed and power, each rep starts fresh.'
                   : intervalResult.recoveryType === 'jog'
-                    ? 'Jogging recovery keeps aerobic demand up between reps — the defining feature of VO2max work. The body learns to clear lactate and repeat near-maximal efforts.'
-                    : 'Float recovery is short and demanding — the system never fully restores before the next rep. This targets lactate threshold and is closer to tempo physiology than classic speed work.'}
+                    ? 'Jogging recovery keeps aerobic demand up between reps, the defining feature of VO2max work. The body learns to clear lactate and repeat near-maximal efforts.'
+                    : 'Float recovery is short and demanding, the system never fully restores before the next rep. This targets lactate threshold and is closer to tempo physiology than classic speed work.'}
               </p>
             )}
           </div>
         </Card>
       )}
 
-      {/* Laps — shown when lap button data exists but no bimodal interval pattern */}
+      {/* Laps, shown when lap button data exists but no bimodal interval pattern */}
       {!intervalResult && laps.length >= 2 && (
         <Card title={`Laps · ${laps.length}`}>
           <table className="w-full text-sm">
@@ -285,7 +285,7 @@ export default async function RunDetailPage({
                       {fmtDur(lap.durationSeconds)}
                     </td>
                     <td className="py-1.5 text-right text-xs tabular-nums text-slate-400">
-                      {lap.avgHr ?? '—'}
+                      {lap.avgHr ?? '-'}
                     </td>
                   </tr>
                 );
@@ -327,16 +327,16 @@ export default async function RunDetailPage({
                   <td className="py-1.5 text-right text-xs tabular-nums text-slate-500">
                     {s.elevDiffMeters != null
                       ? `${s.elevDiffMeters >= 0 ? '+' : ''}${Math.round(s.elevDiffMeters * 3.28084)} ft`
-                      : '—'}
+                      : '-'}
                   </td>
-                  <td className="py-1.5 text-right text-xs tabular-nums text-slate-500">{s.avgHr ?? '—'}</td>
+                  <td className="py-1.5 text-right text-xs tabular-nums text-slate-500">{s.avgHr ?? '-'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
           <p className="text-sm text-slate-500">
-            No splits yet — they arrive with newly synced runs. The fastest mile glows lime.
+            No splits yet, they arrive with newly synced runs. The fastest mile glows lime.
           </p>
         )}
       </Card>

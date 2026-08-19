@@ -27,12 +27,12 @@ function volumeLabel(s: PortalSession): string {
 function targetLabel(s: PortalSession): string | null {
   if (s.discipline === 'bike') {
     return s.targetPowerLoWatts != null && s.targetPowerHiWatts != null
-      ? `${Math.round(s.targetPowerLoWatts)}–${Math.round(s.targetPowerHiWatts)} W`
+      ? `${Math.round(s.targetPowerLoWatts)}-${Math.round(s.targetPowerHiWatts)} W`
       : null;
   }
   if (s.discipline === 'swim') return null;
   return s.paceFastSecPerKm != null
-    ? `${secPerKmToMinPerMile(s.paceFastSecPerKm)}/mi–${secPerKmToMinPerMile(s.paceSlowSecPerKm ?? s.paceFastSecPerKm)}/mi`
+    ? `${secPerKmToMinPerMile(s.paceFastSecPerKm)}/mi-${secPerKmToMinPerMile(s.paceSlowSecPerKm ?? s.paceFastSecPerKm)}/mi`
     : null;
 }
 
@@ -52,7 +52,7 @@ export function TodayStack({ sessions }: { sessions: PortalSession[] }) {
       </h2>
       <p className="mt-1.5 text-sm leading-relaxed text-white/80">
         {isBrick
-          ? 'A full day across the sports — the bike and run are a brick, so ride then run straight off the bike.'
+          ? 'A full day across the sports, the bike and run are a brick, so ride then run straight off the bike.'
           : 'A few sessions today, one per sport. Take them in order and treat each as its own workout.'}
       </p>
 

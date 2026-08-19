@@ -17,7 +17,7 @@ export interface BlockRace {
 }
 
 export interface TrainingBlock {
-  phase: string; // base | build | peak | taper | …
+  phase: string; // base | build | peak | taper | ...
   startDay: string;
   endDay: string;
   weeks: number;

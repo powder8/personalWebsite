@@ -68,7 +68,7 @@ export function swimPaceSuffix(s: DisplaySegment): string {
   const { targetFastSecPer100: fast, targetSlowSecPer100: slow } = s;
   if (fast == null && slow == null) return '';
   if (fast != null && slow != null && Math.round(fast) !== Math.round(slow)) {
-    return `${formatSecPer100(fast)}–${formatSecPer100(slow)}/100m`;
+    return `${formatSecPer100(fast)}-${formatSecPer100(slow)}/100m`;
   }
   return `${formatSecPer100((fast ?? slow)!)}/100m`;
 }
@@ -122,11 +122,11 @@ export function sessionMetricLabel(input: {
 }): string {
   if (input.discipline === 'bike') {
     const sec = input.durationSeconds ?? 0;
-    return sec > 0 ? `${Math.round(sec / 60)} min` : '—';
+    return sec > 0 ? `${Math.round(sec / 60)} min` : '-';
   }
   if (input.discipline === 'swim') {
     const m = input.distanceMeters ?? 0;
-    return m > 0 ? `${(m / 1000).toFixed(1)} km` : '—';
+    return m > 0 ? `${(m / 1000).toFixed(1)} km` : '-';
   }
-  return input.distanceMeters == null ? '—' : `${(input.distanceMeters / 1609.344).toFixed(1)} mi`;
+  return input.distanceMeters == null ? '-' : `${(input.distanceMeters / 1609.344).toFixed(1)} mi`;
 }

@@ -84,7 +84,7 @@ export async function buildPlanIcs(db: DB, athleteId: string, from?: string): Pr
     'PRODID:-//Throughline//Training Plan//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    `X-WR-CALNAME:${esc(`${athlete.fullName.split(' ')[0]} — Throughline`)}`,
+    `X-WR-CALNAME:${esc(`${athlete.fullName.split(' ')[0]}. Throughline`)}`,
     'X-PUBLISHED-TTL:PT6H',
     'REFRESH-INTERVAL;VALUE=DURATION:PT6H',
   ];
@@ -106,14 +106,14 @@ export async function buildPlanIcs(db: DB, athleteId: string, from?: string): Pr
     const typeLabel = adj.sessionType.replace('_', ' ');
     const milesLabel =
       adj.distanceMeters != null && adj.distanceMeters > 0
-        ? ` — ${(adj.distanceMeters / MI).toFixed(1)} mi`
+        ? `, ${(adj.distanceMeters / MI).toFixed(1)} mi`
         : '';
     const summary = `${emoji} ${cap(typeLabel)}${milesLabel}`;
 
     const descParts: string[] = [];
     if (adj.paceFastSecPerKm != null) {
       descParts.push(
-        `Pace ${secPerKmToMinPerMile(adj.paceFastSecPerKm)}–${secPerKmToMinPerMile(adj.paceSlowSecPerKm ?? adj.paceFastSecPerKm)}/mi`,
+        `Pace ${secPerKmToMinPerMile(adj.paceFastSecPerKm)}-${secPerKmToMinPerMile(adj.paceSlowSecPerKm ?? adj.paceFastSecPerKm)}/mi`,
       );
     }
     if (s.description) descParts.push(s.description);

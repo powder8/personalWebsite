@@ -78,10 +78,10 @@ export interface GlobalSwimModel {
 }
 
 export const DEFAULT_TT_FACTORS: TtFactorBucket[] = [
-  { maxDurationSec: 90, factor: 1.12 }, // ~50–100 m sprint TT: well above CSS
-  { maxDurationSec: 180, factor: 1.06 }, // ~100–200 m: above CSS
-  { maxDurationSec: 420, factor: 1.0 }, // ~300–400 m: ≈ CSS (near-threshold)
-  { maxDurationSec: 900, factor: 0.99 }, // ~800–1000 m: just below CSS
+  { maxDurationSec: 90, factor: 1.12 }, // ~50-100 m sprint TT: well above CSS
+  { maxDurationSec: 180, factor: 1.06 }, // ~100-200 m: above CSS
+  { maxDurationSec: 420, factor: 1.0 }, // ~300-400 m: ≈ CSS (near-threshold)
+  { maxDurationSec: 900, factor: 0.99 }, // ~800-1000 m: just below CSS
   { maxDurationSec: Number.POSITIVE_INFINITY, factor: 0.97 }, // 1500 m+: below CSS
 ];
 

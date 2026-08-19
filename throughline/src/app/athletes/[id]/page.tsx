@@ -37,7 +37,7 @@ function pace(sec: number | null): string {
   return sec == null ? '' : `${secPerKmToMinPerMile(sec)}/mi`;
 }
 function miles(m: number | null): string {
-  return m == null ? '—' : (m / 1609.344).toFixed(1);
+  return m == null ? '-' : (m / 1609.344).toFixed(1);
 }
 function dow(day: string): string {
   const [y, mo, d] = day.split('-').map(Number);
@@ -88,7 +88,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
   } = detail;
 
   const paceMi = (secPerKm: number | null) =>
-    secPerKm == null ? '—' : `${secPerKmToMinPerMile(secPerKm)}/mi`;
+    secPerKm == null ? '-' : `${secPerKmToMinPerMile(secPerKm)}/mi`;
 
   const ADJ_LABEL: Record<string, string> = {
     pace_adjust: 'Slower paces',
@@ -124,7 +124,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      {/* Insights — lead with it; this is the differentiator */}
+      {/* Insights, lead with it; this is the differentiator */}
       {insights && (insights.buildProfile || insights.suggestions.length > 0) && (
         <Card title="Insights" className="border-sky-400/30 bg-sky-400/10">
           {insights.buildProfile && (
@@ -168,7 +168,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
         </Card>
       )}
 
-      {/* Coaching assistant — ask or change this athlete's plan */}
+      {/* Coaching assistant, ask or change this athlete's plan */}
       <Card title="Coaching assistant">
         <TrainingChat athleteId={athlete.id} configured={chatConfigured()} audience="coach" />
       </Card>
@@ -192,7 +192,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
         </Card>
       )}
 
-      {/* Proposed adaptations (assisted mode) — the monitor suggests, you decide */}
+      {/* Proposed adaptations (assisted mode), the monitor suggests, you decide */}
       {proposals.length > 0 && (
         <Card title="Proposed adaptations" className="border-amber-400/30 bg-amber-400/10">
           <p className="mb-3 text-xs text-slate-500">
@@ -223,7 +223,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
       )}
 
       {/* Today's readiness */}
-      <Card title={`Readiness — ${TODAY}`}>
+      <Card title={`Readiness, ${TODAY}`}>
         <div className="flex items-center gap-3">
           <BandBadge band={(readinessToday?.band as Band) ?? null} score={readinessToday?.score ?? null} />
           <p className="text-sm text-slate-700">{readinessToday?.sentence ?? 'No assessment today.'}</p>
@@ -311,7 +311,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
       {/* Imported training history */}
       {activitySummary.count > 0 && (
         <Card
-          title={`Training history — ${activitySummary.count} activities · ${activitySummary.totalMiles} mi${
+          title={`Training history, ${activitySummary.count} activities · ${activitySummary.totalMiles} mi${
             activitySummary.firstDay ? ` (${activitySummary.firstDay} → ${activitySummary.lastDay})` : ''
           }`}
         >
@@ -330,7 +330,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
                 {activities.map((a, i) => (
                   <tr key={`${a.day}-${i}`}>
                     <td className="px-2 py-1 text-slate-600">{a.day}</td>
-                    <td className="px-2 py-1 text-slate-700">{a.name ?? <span className="text-slate-300">—</span>}</td>
+                    <td className="px-2 py-1 text-slate-700">{a.name ?? <span className="text-slate-300">-</span>}</td>
                     <td className="px-2 py-1 text-slate-700">{a.distanceMiles} mi</td>
                     <td className="px-2 py-1 text-slate-500">{paceMi(a.paceSecPerKm)}</td>
                     <td className="px-2 py-1 capitalize text-slate-500">{a.sport.replace('_', ' ')}</td>
@@ -339,7 +339,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
               </tbody>
             </table>
           </div>
-          <p className="mt-2 text-xs text-slate-400">All {activities.length} imported runs — scroll to browse.</p>
+          <p className="mt-2 text-xs text-slate-400">All {activities.length} imported runs, scroll to browse.</p>
         </Card>
       )}
 
@@ -388,7 +388,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           </div>
           <p className="mt-2 text-xs text-slate-400">
             Banister CTL/ATL/TSB from training load
-            {fitness.estimated ? ' (volume-estimated — no HR/power on these activities)' : ''}. Last{' '}
+            {fitness.estimated ? ' (volume-estimated, no HR/power on these activities)' : ''}. Last{' '}
             {fitness.points.length} days.
           </p>
         </Card>
@@ -446,7 +446,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
       )}
 
       {/* Current plan week */}
-      <Card title={currentWeek ? `This week — ${currentWeek.plan.phase ?? ''} (cycle ${currentWeek.plan.cycle ?? '—'})` : 'This week'}>
+      <Card title={currentWeek ? `This week, ${currentWeek.plan.phase ?? ''} (cycle ${currentWeek.plan.cycle ?? '-'})` : 'This week'}>
         {currentWeek ? (
           <>
             <table className="w-full text-sm">
@@ -474,7 +474,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
                         )}
                         {s.targetPaceFastSecPerKm != null && (
                           <span className="ml-2 text-xs text-slate-400">
-                            {pace(s.targetPaceFastSecPerKm)}–{pace(s.targetPaceSlowSecPerKm)}
+                            {pace(s.targetPaceFastSecPerKm)}-{pace(s.targetPaceSlowSecPerKm)}
                           </span>
                         )}
                         {s.targetPowerLowWatts != null && s.targetPowerHighWatts != null && (
@@ -568,7 +568,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
                             {s.discipline === 'run'
                               ? s.targetDistanceMeters
                                 ? `${miles(s.targetDistanceMeters)} mi`
-                                : '—'
+                                : '-'
                               : sessionMetricLabel({
                                   discipline: s.discipline,
                                   distanceMeters: s.targetDistanceMeters,
@@ -584,7 +584,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
                             )}
                             {s.targetPaceFastSecPerKm != null && (
                               <span className="ml-2 text-xs text-slate-400">
-                                {pace(s.targetPaceFastSecPerKm)}–{pace(s.targetPaceSlowSecPerKm)}
+                                {pace(s.targetPaceFastSecPerKm)}-{pace(s.targetPaceSlowSecPerKm)}
                               </span>
                             )}
                             {s.targetPowerLowWatts != null && s.targetPowerHighWatts != null && (
@@ -638,7 +638,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
             ))}
           </div>
           <p className="mt-2 text-xs text-slate-500">
-            Daniels VDOT race-equivalent times — the cross-effort yardstick for progression.
+            Daniels VDOT race-equivalent times, the cross-effort yardstick for progression.
           </p>
         </Card>
       )}
@@ -725,9 +725,9 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
             {checkIns.map((c) => (
               <tr key={c.id}>
                 <td className="py-1.5 text-slate-600">{c.day}</td>
-                <td className="py-1.5 text-slate-700">{c.soreness ?? '—'}</td>
-                <td className="py-1.5 text-slate-700">{c.energy ?? '—'}</td>
-                <td className="py-1.5 text-slate-700">{c.yesterdayRpe ?? '—'}</td>
+                <td className="py-1.5 text-slate-700">{c.soreness ?? '-'}</td>
+                <td className="py-1.5 text-slate-700">{c.energy ?? '-'}</td>
+                <td className="py-1.5 text-slate-700">{c.yesterdayRpe ?? '-'}</td>
               </tr>
             ))}
           </tbody>
@@ -746,7 +746,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           </p>
           {cycle.lateLuteal && (
             <p className="mt-1 text-xs font-medium text-amber-200">
-              Late luteal — fatigue more likely. Consider easing key sessions / avoiding A-races this window.
+              Late luteal, fatigue more likely. Consider easing key sessions / avoiding A-races this window.
             </p>
           )}
           <p className="mt-1 text-[11px] text-slate-400">Athlete opted in. Phase shown for planning; dates stay private to her.</p>
@@ -811,7 +811,7 @@ function raceGoal(r: {
   const parts: string[] = [];
   if (r.targetTimeSeconds) parts.push(`goal ${fmtTime(r.targetTimeSeconds)}`);
   if (r.targetPaceSecPerKm) parts.push(`${secPerKmToMinPerMile(r.targetPaceSecPerKm)}/mi`);
-  return parts.length ? parts.join(' · ') : r.goalType === 'effort' ? 'effort' : '—';
+  return parts.length ? parts.join(' · ') : r.goalType === 'effort' ? 'effort' : '-';
 }
 
 function SignalCell({
@@ -828,7 +828,7 @@ function SignalCell({
     <div>
       <div className="flex items-baseline justify-between">
         <span className="text-xs font-medium text-slate-600">{label}</span>
-        <span className="text-sm tabular-nums text-slate-800">{last == null ? '—' : last.toFixed(1)}</span>
+        <span className="text-sm tabular-nums text-slate-800">{last == null ? '-' : last.toFixed(1)}</span>
       </div>
       <div className="mt-1">
         <Sparkline values={series.map((s) => s.value)} width={180} height={32} stroke={stroke} />

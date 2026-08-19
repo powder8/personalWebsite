@@ -23,7 +23,7 @@ interface EaseDirective {
 
 /** The specific workout for a training day (shown inline on 'today' steps). */
 export interface TodaySessionDetail {
-  paceLabel: string | null; // "5:11/mi–5:24/mi"
+  paceLabel: string | null; // "5:11/mi-5:24/mi"
   segments: PortalSegment[];
   description: string | null;
   terrain: string | null;
@@ -69,7 +69,7 @@ export function NextStepBanner({
         </p>
       )}
 
-      {/* The specific workout, inline — reps, paces, recoveries. */}
+      {/* The specific workout, inline, reps, paces, recoveries. */}
       {session && (session.segments.length > 0 || session.description) && (
         <div className="mt-3 rounded-2xl bg-white/5 p-3.5 ring-1 ring-inset ring-white/10">
           {session.paceLabel && (

@@ -229,7 +229,7 @@ export function allocateTriBudget(input: TriAllocationInput): TriAllocation {
     notes.push(
       `Budget (${round1(weeklyHours)} h) is below the swim+bike+run floors (${round1(
         totalFloorHours,
-      )} h). Floors scaled to ${Math.round(floorScale * 100)}% — this is a maintenance week; consistency beats heroics.`,
+      )} h). Floors scaled to ${Math.round(floorScale * 100)}%, this is a maintenance week; consistency beats heroics.`,
     );
   }
 
@@ -300,20 +300,20 @@ function sportRationale(
   if (d === 'swim') {
     parts.push(
       isLimiter
-        ? 'Your limiter — technique is the highest time-yield fix, so we push swim above its floor with frequent, skill-focused sessions.'
+        ? 'Your limiter, technique is the highest time-yield fix, so we push swim above its floor with frequent, skill-focused sessions.'
         : `Held near its efficiency floor: swim is only ~10% of a ${distance} and its raw fitness-per-hour is low. Keep the feel for the water (frequency over duration), spend the surplus on the bike.`,
     );
   } else if (d === 'bike') {
     parts.push(
       isLimiter
-        ? 'Your limiter — and the biggest investable block: the bike is ~half the day and absorbs load cheaply, so it gets the lion’s share.'
-        : 'The workhorse: ~half the race clock, best aerobic return per hour, lowest injury cost — so it gets the largest share of the surplus, and its fitness transfers to the run.',
+        ? 'Your limiter, and the biggest investable block: the bike is ~half the day and absorbs load cheaply, so it gets the lion’s share.'
+        : 'The workhorse: ~half the race clock, best aerobic return per hour, lowest injury cost, so it gets the largest share of the surplus, and its fitness transfers to the run.',
     );
   } else {
     parts.push(
       isLimiter
-        ? 'Your limiter — and where long-course races unravel. Extra run hours, but capped by run’s recovery cost so we build durability without breaking you.'
-        : 'Durability decides the back half. Enough run to protect impact-tolerance and race-day durability, but dosed carefully — run is the costliest hour to recover from.',
+        ? 'Your limiter, and where long-course races unravel. Extra run hours, but capped by run’s recovery cost so we build durability without breaking you.'
+        : 'Durability decides the back half. Enough run to protect impact-tolerance and race-day durability, but dosed carefully, run is the costliest hour to recover from.',
     );
   }
   parts.push(`(~${round1(floorH)} h floor + ~${round1(surplusH)} h surplus.)`);

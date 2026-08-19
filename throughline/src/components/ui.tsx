@@ -8,7 +8,7 @@ const BAND_STYLES: Record<Band, string> = {
 };
 
 export function BandBadge({ band, score }: { band: Band | null; score?: number | null }) {
-  if (!band) return <span className="text-slate-400">—</span>;
+  if (!band) return <span className="text-slate-400">-</span>;
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${BAND_STYLES[band]}`}

@@ -40,14 +40,14 @@ export function ConsistencyStrip({ stats }: { stats: ConsistencyStats }) {
         />
         <Stat value={`${stats.runs28d}`} label="runs · 4 wks" />
         <Stat
-          value={stats.adherence28dPct != null ? `${stats.adherence28dPct}%` : '—'}
+          value={stats.adherence28dPct != null ? `${stats.adherence28dPct}%` : '-'}
           label="run plan"
           sublabel="miles vs target"
         />
       </div>
       {stats.crossTrain28d > 0 && (
         <p className="mt-3 border-t border-white/10 pt-2 text-[11px] text-slate-400">
-          {stats.crossTrain28d} cross-training day{stats.crossTrain28d === 1 ? '' : 's'} this month — counts in your streak and active weeks.
+          {stats.crossTrain28d} cross-training day{stats.crossTrain28d === 1 ? '' : 's'} this month, counts in your streak and active weeks.
         </p>
       )}
     </div>

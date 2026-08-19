@@ -112,5 +112,5 @@ test('formatSecPer100 renders m:ss', () => {
 
 test('swimPaceLabel renders a per-100 range', () => {
   const z = buildSwimZones(CSS);
-  assert.equal(swimPaceLabel(z.zones.threshold), '1:18–1:22 /100m');
+  assert.equal(swimPaceLabel(z.zones.threshold), '1:18-1:22 /100m');
 });

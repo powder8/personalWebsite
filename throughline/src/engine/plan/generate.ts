@@ -246,7 +246,7 @@ export function generateWeek(
       zone,
       distanceMeters: milesToMeters(miles),
       description: `${cap(ZONE_LABEL[zone])} run, ${miles} mi @ ${paceRangeLabel(zones.zones[zone])}${
-        base.optionalStrides ? '. 4–6 × 20" strides if feeling good' : ''
+        base.optionalStrides ? '. 4-6 × 20" strides if feeling good' : ''
       }`,
     };
   });
@@ -291,7 +291,7 @@ function longRunSegments(
       role: 'cooldown',
       zone: 'easy',
       distanceMeters: milesToMeters(finish),
-      note: `${finish} mi easy to finish — controlled, leave a bit on the table`,
+      note: `${finish} mi easy to finish, controlled, leave a bit on the table`,
     },
   ];
 }
@@ -305,19 +305,19 @@ function longRunDescription(
   if ((phase === 'build' || phase === 'peak') && miles >= 12) {
     return `Long run ${miles} mi: easy aerobic with marathon-pace segments @ ${paceRangeLabel(
       zones.zones.marathon,
-    )}. Stay controlled — leave a bit on the table.`;
+    )}. Stay controlled, leave a bit on the table.`;
   }
   return `Long run ${miles} mi @ ${paceRangeLabel(zones.zones[embeddedZone])}, relaxed aerobic effort.`;
 }
 
 function defaultRationale(phase: PlannedWeek['phase'], weeksToRace: number, longMiles: number): string {
   const head = {
-    base: 'Base week — build aerobic volume and consistency.',
-    build: 'Build week — sharpen threshold/interval fitness while volume ramps.',
-    peak: 'Peak week — highest load; long runs touch marathon pace.',
-    taper: 'Taper — reduce volume, keep a touch of intensity, arrive fresh.',
+    base: 'Base week, build aerobic volume and consistency.',
+    build: 'Build week, sharpen threshold/interval fitness while volume ramps.',
+    peak: 'Peak week, highest load; long runs touch marathon pace.',
+    taper: 'Taper, reduce volume, keep a touch of intensity, arrive fresh.',
   }[phase];
-  return `${head} ${weeksToRace} week(s) to race. Long run ${longMiles} mi. Consistency over heroics — leave a bit on the table so you recover for the next key session.`;
+  return `${head} ${weeksToRace} week(s) to race. Long run ${longMiles} mi. Consistency over heroics, leave a bit on the table so you recover for the next key session.`;
 }
 
 function cap(s: string): string {

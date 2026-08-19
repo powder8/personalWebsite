@@ -37,7 +37,7 @@ export async function setupBikeSeason(
   input: BikeSeasonSetupInput,
 ): Promise<BikeSeasonSetupResult> {
   const zones = await getAthletePowerZones(db, athleteId);
-  if (!zones) throw new Error('No cycling fitness anchor yet — set your FTP first.');
+  if (!zones) throw new Error('No cycling fitness anchor yet, set your FTP first.');
 
   const peakTss = Math.round(tssFromHours(input.weeklyHours, TYPICAL_WEEKLY_IF.bike));
 

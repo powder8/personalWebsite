@@ -11,6 +11,12 @@ import { connectedAccounts, rawEvents, activities } from '@/db/schema';
 import { strava, normalizeActivity, type StravaActivity } from '@/providers/strava';
 import { stravaEnv } from '@/providers/strava/env';
 import { payloadHash } from '@/lib/hash';
+import {
+  pickFtpCandidates,
+  ftpFromWattsStream,
+  combineFtpEstimates,
+  type RideSummary,
+} from '@/lib/ftpEstimate';
 
 const TOKEN_SKEW_MS = 5 * 60 * 1000; // refresh if expiring within 5 min
 
@@ -90,6 +96,103 @@ async function ensureAccessToken(db: DB, acct: StravaAccount): Promise<string> {
   return refreshed.accessToken;
 }
 
+export interface StravaRouteStats {
+  name: string | null;
+  distanceMeters: number;
+  elevationGainMeters: number;
+}
+
+/**
+ * Fetch a Strava route's distance + total elevation via the athlete's own token.
+ * `routeId` MUST be the validated numeric id from parseStravaRouteId — the URL is
+ * built here (never the user's pasted link), so there's no SSRF surface. Public
+ * routes work with our `read` scope; private ones need the owner + read_all.
+ */
+export async function fetchStravaRoute(db: DB, athleteId: string, routeId: string): Promise<StravaRouteStats> {
+  if (!/^\d{4,}$/.test(routeId)) throw new Error('Invalid route id.');
+  const acct = await getStravaAccount(db, athleteId);
+  if (!acct || acct.status !== 'active') throw new Error('Connect your Strava account first.');
+  const token = await ensureAccessToken(db, acct);
+  const { apiBaseUrl } = stravaEnv();
+
+  const res = await fetch(`${apiBaseUrl}/routes/${routeId}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (res.status === 404) throw new Error("Couldn't find that route, is the link right, and is the route public?");
+  if (res.status === 401 || res.status === 403) throw new Error('Strava wouldn’t share that route, make it public, or reconnect Strava.');
+  if (res.status === 429) throw new Error('Strava is rate-limiting right now, try again in a minute.');
+  if (!res.ok) throw new Error(`Strava route lookup failed (HTTP ${res.status}).`);
+
+  const j = (await res.json()) as { name?: string; distance?: number; elevation_gain?: number };
+  const distanceMeters = Number(j.distance) || 0;
+  const elevationGainMeters = Math.max(0, Number(j.elevation_gain) || 0);
+  if (!(distanceMeters > 0)) throw new Error('That route has no distance data.');
+  return { name: j.name ?? null, distanceMeters, elevationGainMeters };
+}
+
+export interface FtpEstimateResult {
+  ftpWatts: number;
+  confidence: 'high' | 'medium' | 'low';
+  sampleSize: number;
+}
+
+/**
+ * Estimate the athlete's FTP from their recent Strava rides: pick real-power
+ * sustained rides, pull the watts stream for the hardest few, take the best
+ * 20-min power × 0.95. Returns null when there's no usable power data (no power
+ * meter, or all rides too short) — the caller falls back to manual entry.
+ */
+export async function estimateFtpFromStrava(db: DB, athleteId: string): Promise<FtpEstimateResult | null> {
+  const acct = await getStravaAccount(db, athleteId);
+  if (!acct || acct.status !== 'active') throw new Error('Connect your Strava account first.');
+  const token = await ensureAccessToken(db, acct);
+  const { apiBaseUrl } = stravaEnv();
+  const auth = { Authorization: `Bearer ${token}` };
+
+  const after = Math.floor((Date.now() - 120 * 86400000) / 1000); // last ~4 months
+  const listRes = await fetch(`${apiBaseUrl}/athlete/activities?after=${after}&per_page=100`, { headers: auth });
+  if (listRes.status === 429) throw new Error('Strava is rate-limiting right now, try again in a minute.');
+  if (!listRes.ok) throw new Error(`Strava activity fetch failed (HTTP ${listRes.status}).`);
+
+  const acts = (await listRes.json()) as Array<{
+    id: number;
+    type?: string;
+    sport_type?: string;
+    moving_time?: number;
+    weighted_average_watts?: number;
+    device_watts?: boolean;
+  }>;
+  const rides: RideSummary[] = acts
+    .filter((a) => {
+      const s = a.sport_type ?? a.type;
+      return s === 'Ride' || s === 'VirtualRide' || s === 'GravelRide' || s === 'MountainBikeRide';
+    })
+    .map((a) => ({
+      id: a.id,
+      durationSeconds: a.moving_time ?? 0,
+      weightedAvgWatts: a.weighted_average_watts ?? null,
+      deviceWatts: !!a.device_watts,
+    }));
+
+  const candidates = pickFtpCandidates(rides);
+  if (candidates.length === 0) return null;
+
+  const perRideFtp: number[] = [];
+  for (const c of candidates) {
+    try {
+      const sRes = await fetch(`${apiBaseUrl}/activities/${c.id}/streams?keys=time,watts&key_by_type=true`, { headers: auth });
+      if (!sRes.ok) continue;
+      const s = (await sRes.json()) as { time?: { data?: number[] }; watts?: { data?: number[] } };
+      const times = s.time?.data;
+      const watts = s.watts?.data;
+      if (!times || !watts || times.length < 60) continue;
+      const ftp = ftpFromWattsStream(times, watts);
+      if (ftp > 0) perRideFtp.push(ftp);
+    } catch {
+      /* skip a ride whose stream failed */
+    }
+  }
+  return combineFtpEstimates(perRideFtp);
+}
+
 /** The unix-seconds cursor for the next pull: just after the latest synced activity. */
 async function lastSyncedAfter(db: DB, athleteId: string, fallbackDays: number): Promise<number> {
   const [latest] = await db
@@ -107,7 +210,7 @@ export interface SyncResult {
   imported: number; // NEW raw events captured this call
   done: boolean; // false → more pages remain; call again with `afterOverride: nextAfter`
   nextAfter: number | null; // unix cursor to continue from
-  rateLimited?: boolean; // Strava 429 — back off and resume from nextAfter
+  rateLimited?: boolean; // Strava 429, back off and resume from nextAfter
   retryAfterSec?: number; // suggested wait before resuming (when rateLimited)
 }
 

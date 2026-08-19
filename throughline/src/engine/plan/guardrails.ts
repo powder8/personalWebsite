@@ -47,14 +47,14 @@ export function evaluateGuardrails(input: GuardrailInput): GuardrailResult {
   if (!input.hasRecentData) {
     escalations.push({
       kind: 'stale_data',
-      reason: 'No recent data to assess readiness — holding for a human before publishing.',
+      reason: 'No recent data to assess readiness, holding for a human before publishing.',
     });
   }
 
   if (input.hasActiveInjury) {
     escalations.push({
       kind: 'active_injury',
-      reason: 'Active injury on file — injury management should be confirmed by a human.',
+      reason: 'Active injury on file, injury management should be confirmed by a human.',
     });
   }
 
@@ -62,7 +62,7 @@ export function evaluateGuardrails(input: GuardrailInput): GuardrailResult {
   if (lowCount >= GUARDRAIL_THRESHOLDS.lowReadinessCount) {
     escalations.push({
       kind: 'repeated_low_readiness',
-      reason: `Readiness low on ${lowCount} recent days — possible illness/overreaching; needs review.`,
+      reason: `Readiness low on ${lowCount} recent days, possible illness/overreaching; needs review.`,
     });
   }
 
@@ -72,7 +72,7 @@ export function evaluateGuardrails(input: GuardrailInput): GuardrailResult {
   ) {
     escalations.push({
       kind: 'large_plan_change',
-      reason: `Proposed plan changes ${input.planChangedSessions}/${input.planTotalSessions} sessions — large swing; confirm before publishing.`,
+      reason: `Proposed plan changes ${input.planChangedSessions}/${input.planTotalSessions} sessions, large swing; confirm before publishing.`,
     });
   }
 
