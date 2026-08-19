@@ -35,6 +35,7 @@ export * from './guardrails';
 export * from './directives';
 export * from './strategy';
 export * from './triAllocatorLogic';
+export * from './dualSportAllocatorLogic';
 export * from './triGoalTimeLogic';
 export * from './attainabilityLogic';
 export * from './triFeasibilityLogic';

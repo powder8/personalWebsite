@@ -72,8 +72,10 @@ function runAvgSpeedMetersPerSec(runZones: TrainingZones): number {
   return RUN_TRAINING_PACE_RATIO * thresholdSpeed;
 }
 
-/** Convert the run leg's weekly hours → weekly miles (its periodizer currency). */
-function runWeeklyMilesFromHours(hours: number, runZones: TrainingZones): number {
+/** Convert the run leg's weekly hours → weekly miles (its periodizer currency).
+ *  Exported so the dual-sport (run+bike) coordinator can size a standalone run
+ *  plan from its allocated hours share the same way the tri run leg is sized. */
+export function runWeeklyMilesFromHours(hours: number, runZones: TrainingZones): number {
   const meters = hours * 3600 * runAvgSpeedMetersPerSec(runZones);
   return meters / METERS_PER_MILE;
 }
