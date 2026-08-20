@@ -145,6 +145,12 @@ export interface TriFeasibilityInput {
   personalBests?: Partial<Record<Discipline, { anchor: number; ageAtPB: number }>>;
   intensities?: TriRaceIntensities;
   course?: BikeCourseProfile;
+  /**
+   * Disciplines the athlete isn't training YET (a phased triathlon build — e.g.
+   * swim starts in a later block). Their leg is reported but marked `deferred`,
+   * carries no verdict weight, and never becomes the binding leg.
+   */
+  deferred?: Discipline[];
 }
 
 export interface TriLegFeasibility extends AnchorFeasibility {
@@ -154,6 +160,8 @@ export interface TriLegFeasibility extends AnchorFeasibility {
   ceiling?: number;
   /** True when the goal for this leg sits above that ceiling (not attainable). */
   aboveCeiling?: boolean;
+  /** True when the athlete isn't training this sport yet — no honest verdict. */
+  deferred?: boolean;
 }
 
 export interface TriFeasibility {
@@ -253,6 +261,7 @@ export function assessTriFeasibility(input: TriFeasibilityInput): TriFeasibility
       requiredWeeklyGainLabel: `${rwg.toFixed(precision)} ${UNIT_LABEL[discipline]}/wk`,
       ceiling,
       aboveCeiling,
+      deferred: input.deferred?.includes(discipline) || undefined,
     };
   };
 
@@ -264,17 +273,19 @@ export function assessTriFeasibility(input: TriFeasibilityInput): TriFeasibility
 
   // Binding leg = worst verdict; tie-break by the largest shortfall relative to
   // what a normal build yields (how many "build-blocks" short the leg is).
+  // Deferred sports (not being trained yet) can't be the binding leg.
   const shortfall = (l: AnchorFeasibility) =>
     l.gap <= 0 ? -Infinity : l.achievableGain > 0 ? l.gap / l.achievableGain : Infinity;
   const order: Discipline[] = ['swim', 'bike', 'run'];
-  const bindingLeg = order.reduce((worst, disc) => {
+  const contenders = order.filter((d) => !legs[d].deferred);
+  const bindingLeg = (contenders.length ? contenders : order).reduce((worst, disc) => {
     const a = legs[disc];
     const b = legs[worst];
     if (VERDICT_RANK[a.verdict] !== VERDICT_RANK[b.verdict]) {
       return VERDICT_RANK[a.verdict] > VERDICT_RANK[b.verdict] ? disc : worst;
     }
     return shortfall(a) > shortfall(b) ? disc : worst;
-  }, order[0]);
+  }, (contenders.length ? contenders : order)[0]);
 
   const realisticFinishSeconds =
     legs.swim.projectedTimeSeconds +

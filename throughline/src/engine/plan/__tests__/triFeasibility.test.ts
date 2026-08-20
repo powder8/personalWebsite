@@ -192,3 +192,30 @@ test('aggregate: prose names the binding leg and both clocks', () => {
   assert.match(f.note, new RegExp(f.bindingLeg));
   assert.ok(f.headline.length > 0);
 });
+
+// ── Deferred discipline (phased build: swim starts later) ────────────────────
+test('a deferred sport is flagged, carries no verdict weight, and never binds', () => {
+  const finish = 5 * 3600 + 30 * 60; // 70.3 target
+  const g = decomposeGoalTime({ distance: '70.3', targetFinishSeconds: finish, anchors: ANCHORS, riderMassKg: MASS });
+  const f = assessTriFeasibility({
+    decomposition: g,
+    currentAnchors: ANCHORS,
+    weeksToRace: 40,
+    riderMassKg: MASS,
+    deferred: ['swim'],
+  });
+  assert.equal(f.legs.swim.deferred, true, 'swim leg is marked deferred');
+  assert.notEqual(f.bindingLeg, 'swim', 'a deferred leg is never the binding leg');
+  assert.ok(['bike', 'run'].includes(f.bindingLeg));
+  // Bike + run legs are unaffected — still get real verdicts.
+  assert.equal(f.legs.bike.deferred, undefined);
+  assert.equal(f.legs.run.deferred, undefined);
+});
+
+test('with nothing deferred, the binding leg is unchanged (no behavior drift)', () => {
+  const finish = 5 * 3600 + 10 * 60;
+  const g = decomposeGoalTime({ distance: '70.3', targetFinishSeconds: finish, anchors: ANCHORS, riderMassKg: MASS });
+  const base = assessTriFeasibility({ decomposition: g, currentAnchors: ANCHORS, weeksToRace: 30, riderMassKg: MASS });
+  const withEmpty = assessTriFeasibility({ decomposition: g, currentAnchors: ANCHORS, weeksToRace: 30, riderMassKg: MASS, deferred: [] });
+  assert.equal(base.bindingLeg, withEmpty.bindingLeg);
+});

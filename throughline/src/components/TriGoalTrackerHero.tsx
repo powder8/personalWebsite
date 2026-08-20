@@ -84,7 +84,30 @@ export function TriGoalTrackerHero({ tracker }: { tracker: TriGoalTracker }) {
           const leg = f.legs[d];
           const lt = TONE[VERDICT_TONE[leg.verdict]];
           // When everything's within reach there's no limiter to flag.
-          const binding = d === f.bindingLeg && f.verdict !== 'ahead';
+          const binding = d === f.bindingLeg && f.verdict !== 'ahead' && !leg.deferred;
+
+          // A sport you're not training yet (phased build): report it plainly,
+          // no verdict, no limiter — you'll add it when its block starts.
+          if (leg.deferred) {
+            return (
+              <div
+                key={d}
+                className="flex items-center gap-3 rounded-2xl bg-white/[0.03] px-3.5 py-2.5 opacity-70 ring-1 ring-inset ring-white/10"
+              >
+                <span aria-hidden className="text-base grayscale">{EMOJI[d]}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+                    {NAME[d]}
+                    <span className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-400 ring-1 ring-inset ring-white/15">
+                      not started
+                    </span>
+                  </div>
+                  <div className="text-xs text-slate-500">Starts in a later block, no anchor set yet.</div>
+                </div>
+                <span className="h-2 w-2 shrink-0 rounded-full bg-slate-600" title="deferred" />
+              </div>
+            );
+          }
           return (
             <div
               key={d}

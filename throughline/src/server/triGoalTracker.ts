@@ -24,6 +24,11 @@ import {
 
 const TRI_DISTANCES = new Set<string>(['sprint', 'olympic', '70.3', 'ironman']);
 
+/** Placeholder swim CSS (m/s) used when swim training hasn't started — roughly a
+ *  novice-triathlete threshold (~1:40/100m). Only shapes the deferred swim leg's
+ *  provisional split; it never drives a verdict (the leg is marked deferred). */
+const DEFERRED_SWIM_CSS = 1.0;
+
 /** Whole years old at `onDay` given a 'YYYY-MM-DD' date of birth. */
 function ageAt(dob: string, onDay: string): number {
   const [by, bm, bd] = dob.split('-').map(Number);
@@ -40,6 +45,8 @@ export interface TriGoalTracker {
   distance: TriDistance;
   targetFinishSeconds: number;
   feasibility: TriFeasibility;
+  /** True when swim training hasn't started yet — the swim leg is provisional. */
+  swimDeferred: boolean;
 }
 
 export async function getTriGoalTracker(
@@ -62,10 +69,16 @@ export async function getTriGoalTracker(
     getAthleteWeightKg(db, athleteId),
     db.select().from(athletes).where(eq(athletes.id, athleteId)).limit(1).then((r) => r[0]),
   ]);
-  if (vdot == null || ftp == null || css == null) return null; // need all three anchors
+  // Need the sports you're actually TRAINING (bike + run). Swim can come later
+  // in a phased build — when there's no CSS yet we defer it: a placeholder anchor
+  // keeps the bike/run decomposition strength-relative, and the swim leg is
+  // reported as "not training yet" rather than given a misleading verdict.
+  if (vdot == null || ftp == null) return null;
+  const swimDeferred = css == null;
+  const swimAnchor = css ?? DEFERRED_SWIM_CSS;
 
   const distance = race.distanceLabel as TriDistance;
-  const anchors = { run: vdot, bike: ftp, swim: css };
+  const anchors = { run: vdot, bike: ftp, swim: swimAnchor };
   const riderMassKg = weightKg ?? DEFAULT_RIDER_MASS_KG;
   const msLeft = Date.parse(race.date) - Date.parse(today);
   const weeksToRace = Math.max(1, Math.round(msLeft / (7 * 86400000)));
@@ -95,6 +108,7 @@ export async function getTriGoalTracker(
     riderMassKg,
     ageYears,
     weeklyHours,
+    deferred: swimDeferred ? ['swim'] : undefined,
   });
 
   return {
@@ -104,5 +118,6 @@ export async function getTriGoalTracker(
     distance,
     targetFinishSeconds: race.targetTimeSeconds,
     feasibility,
+    swimDeferred,
   };
 }
