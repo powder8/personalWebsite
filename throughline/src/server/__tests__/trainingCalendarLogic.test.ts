@@ -52,7 +52,7 @@ test('planned run hit → done with a positive verdict; week mileage aggregates'
   const weeks = assembleCalendar({
     today,
     weekStarts: [weekStart],
-    plannedByDay: new Map([[today, planned({ miles: 5 })]]),
+    plannedByDay: new Map([[today, [planned({ miles: 5 })]]]),
     actualsByDay: new Map([[today, [run({ miles: 5 })]]]),
     phaseByWeekStart: new Map([[weekStart, 'base']]),
   });
@@ -75,7 +75,7 @@ test('planned run with nothing logged → missed', () => {
   const weeks = assembleCalendar({
     today,
     weekStarts: [mondayOf(today)],
-    plannedByDay: new Map([[planDay, planned({ miles: 6 })]]),
+    plannedByDay: new Map([[planDay, [planned({ miles: 6 })]]]),
     actualsByDay: new Map(),
     phaseByWeekStart: new Map(),
   });
@@ -90,7 +90,7 @@ test('ran short → partial', () => {
   const weeks = assembleCalendar({
     today,
     weekStarts: [mondayOf(today)],
-    plannedByDay: new Map([[today, planned({ miles: 10 })]]),
+    plannedByDay: new Map([[today, [planned({ miles: 10 })]]]),
     actualsByDay: new Map([[today, [run({ miles: 4 })]]]), // <80%
     phaseByWeekStart: new Map(),
   });
@@ -102,7 +102,7 @@ test('unplanned run on a rest day → extra with bonus verdict', () => {
   const weeks = assembleCalendar({
     today,
     weekStarts: [mondayOf(today)],
-    plannedByDay: new Map([[today, planned({ sessionType: 'rest', miles: 0 })]]),
+    plannedByDay: new Map([[today, [planned({ sessionType: 'rest', miles: 0 })]]]),
     actualsByDay: new Map([[today, [run({ miles: 3 })]]]),
     phaseByWeekStart: new Map(),
   });
@@ -133,7 +133,7 @@ test('today with a planned run but nothing logged yet → upcoming, not missed',
   const weeks = assembleCalendar({
     today,
     weekStarts: [mondayOf(today)],
-    plannedByDay: new Map([[today, planned({ miles: 8 })]]),
+    plannedByDay: new Map([[today, [planned({ miles: 8 })]]]),
     actualsByDay: new Map(),
     phaseByWeekStart: new Map(),
   });
@@ -151,7 +151,7 @@ test('future planned run → upcoming, no verdict', () => {
   const weeks = assembleCalendar({
     today,
     weekStarts: [mondayOf(today)],
-    plannedByDay: new Map([[future, planned({ miles: 8 })]]),
+    plannedByDay: new Map([[future, [planned({ miles: 8 })]]]),
     actualsByDay: new Map(),
     phaseByWeekStart: new Map(),
   });
@@ -167,7 +167,7 @@ test('primary run is the longest when multiple runs in a day', () => {
   const weeks = assembleCalendar({
     today,
     weekStarts: [mondayOf(today)],
-    plannedByDay: new Map([[today, planned({ miles: 8 })]]),
+    plannedByDay: new Map([[today, [planned({ miles: 8 })]]]),
     actualsByDay: new Map([
       [today, [run({ activityId: 'am', miles: 3 }), run({ activityId: 'pm', miles: 6 })]],
     ]),
@@ -187,7 +187,7 @@ test('a planned BIKE day is a real session, not "rest" (upcoming in the future)'
   const weeks = assembleCalendar({
     today,
     weekStarts: [mondayOf(today)],
-    plannedByDay: new Map([[bikeDay, planned({ discipline: 'bike', sessionType: 'endurance', miles: 0, durationMinutes: 45 })]]),
+    plannedByDay: new Map([[bikeDay, [planned({ discipline: 'bike', sessionType: 'endurance', miles: 0, durationMinutes: 45 })]]]),
     actualsByDay: new Map(),
     phaseByWeekStart: new Map(),
   });
@@ -206,8 +206,8 @@ test('a past planned bike day → done when a ride was logged, missed when not',
     today,
     weekStarts: [mondayOf('2026-06-09')],
     plannedByDay: new Map([
-      [rideDay, planned({ discipline: 'bike', sessionType: 'endurance', miles: 0, durationMinutes: 60 })],
-      [missDay, planned({ discipline: 'bike', sessionType: 'threshold', miles: 0, durationMinutes: 50 })],
+      [rideDay, [planned({ discipline: 'bike', sessionType: 'endurance', miles: 0, durationMinutes: 60 })]],
+      [missDay, [planned({ discipline: 'bike', sessionType: 'threshold', miles: 0, durationMinutes: 50 })]],
     ]),
     actualsByDay: new Map([
       [rideDay, [run({ activityId: 'ride', sport: 'bike', isRun: false, miles: 18, durationSeconds: 3600 })]],
@@ -224,3 +224,30 @@ test('a past planned bike day → done when a ride was logged, missed when not',
 });
 
 void MI;
+
+test('a brick day keeps BOTH sports: plannedAll lists them and weekly totals sum both', () => {
+  const today = '2026-06-10';
+  const weekStart = mondayOf(today);
+  const weeks = assembleCalendar({
+    today,
+    weekStarts: [weekStart],
+    // Same day: a bike session AND a run session (a brick) — neither is dropped.
+    plannedByDay: new Map([
+      [today, [
+        planned({ discipline: 'bike', sessionType: 'endurance', miles: 0, durationMinutes: 60 }),
+        planned({ discipline: 'run', sessionType: 'easy', miles: 4 }),
+      ]],
+    ]),
+    actualsByDay: new Map(),
+    phaseByWeekStart: new Map([[weekStart, 'build']]),
+  });
+  const day = weeks[0].days.find((d) => d.day === today)!;
+  assert.equal(day.plannedAll.length, 2, 'both sessions survive');
+  assert.ok(day.plannedAll.some((p) => p.discipline === 'bike'));
+  assert.ok(day.plannedAll.some((p) => p.discipline === 'run'));
+  // Primary (run-first) drives status/grading.
+  assert.equal(day.planned?.discipline, 'run');
+  // Weekly totals count BOTH sports, not just the primary.
+  assert.ok(Math.abs(weeks[0].plannedMiles - 4) < 1e-9, 'run miles counted');
+  assert.ok(Math.abs(weeks[0].plannedMinutes - 60) < 1e-9, 'bike minutes counted');
+});

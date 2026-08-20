@@ -69,11 +69,10 @@ export async function getTrainingCalendar(
 
   const directiveRows = await listActiveDirectives(db, athleteId);
 
-  const plannedByDay = new Map<string, CalPlanned>();
+  const plannedByDay = new Map<string, CalPlanned[]>();
   const phaseByWeekStart = new Map<string, string | null>();
   for (const r of planRows) {
     phaseByWeekStart.set(r.weekStart, r.phase);
-    if (plannedByDay.has(r.day)) continue; // first session per day wins
     const adj = applyDirectives(
       {
         day: r.day,
@@ -85,7 +84,7 @@ export async function getTrainingCalendar(
       directiveRows,
     );
     const discipline = (r.discipline ?? 'run') as 'run' | 'bike' | 'swim';
-    plannedByDay.set(r.day, {
+    const session: CalPlanned = {
       sessionType: adj.sessionType,
       discipline,
       zone: r.zone,
@@ -98,7 +97,10 @@ export async function getTrainingCalendar(
       paceSlowSecPerKm: adj.paceSlowSecPerKm,
       description: r.description,
       adjustments: adj.adjustments,
-    });
+    };
+    const existing = plannedByDay.get(r.day);
+    if (existing) existing.push(session);
+    else plannedByDay.set(r.day, [session]);
   }
 
   // All activities in range — runs AND cross-training.
