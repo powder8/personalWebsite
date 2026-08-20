@@ -43,9 +43,14 @@ export function GoalTrackerHero({ tracker, athleteId }: { tracker: GoalTracker; 
     <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 shadow-lg">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <div className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.chip}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${t.fill}`} />
-            {VERDICT_LABEL[tracker.verdict]}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-sky-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-300 ring-1 ring-inset ring-sky-400/25">
+              🏃 Run
+            </span>
+            <div className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.chip}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${t.fill}`} />
+              {VERDICT_LABEL[tracker.verdict]}
+            </div>
           </div>
           <p className="mt-2 text-sm text-slate-400">{tracker.raceLine}</p>
           <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-white">{tracker.headline}</h1>
