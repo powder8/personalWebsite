@@ -58,11 +58,17 @@ function plannedDetail(p: CalPlanned): string {
   if (p.discipline === 'swim') return `${Math.round(p.meters)} m`;
   return `${mi(p.miles)} mi`;
 }
-/** Weekly total in the dominant discipline's unit (run weeks unchanged: "X/Y mi"). */
+/** Weekly total per ACTIVE sport, so a multi-sport week shows where the time
+ *  goes ("🏃 12/15 mi · 🚴 90/120 min"). A single-sport week keeps the bare unit
+ *  (pure-run weeks unchanged: "X/Y mi"). */
 function weekVolume(w: CalWeek): string {
-  if (w.primaryDiscipline === 'bike') return `${Math.round(w.actualMinutes)}/${Math.round(w.plannedMinutes)} min`;
-  if (w.primaryDiscipline === 'swim') return `${(w.actualMeters / 1000).toFixed(1)}/${(w.plannedMeters / 1000).toFixed(1)} km`;
-  return `${mi(w.actualMiles)}/${mi(w.plannedMiles)} mi`;
+  const parts: string[] = [];
+  if (w.plannedMiles > 0 || w.actualMiles > 0) parts.push(`🏃 ${mi(w.actualMiles)}/${mi(w.plannedMiles)} mi`);
+  if (w.plannedMinutes > 0 || w.actualMinutes > 0) parts.push(`🚴 ${Math.round(w.actualMinutes)}/${Math.round(w.plannedMinutes)} min`);
+  if (w.plannedMeters > 0 || w.actualMeters > 0) parts.push(`🏊 ${(w.actualMeters / 1000).toFixed(1)}/${(w.plannedMeters / 1000).toFixed(1)} km`);
+  if (parts.length === 0) return `${mi(w.actualMiles)}/${mi(w.plannedMiles)} mi`;
+  if (parts.length === 1) return parts[0].replace(/^\S+\s/, ''); // drop the lone emoji
+  return parts.join(' · ');
 }
 const DISC_EMOJI: Record<string, string> = { run: '🏃', bike: '🚴', swim: '🏊' };
 const DISC_NOUN: Record<string, string> = { run: 'run', bike: 'ride', swim: 'swim' };
@@ -191,7 +197,9 @@ function Week({
 
 function DayCell({ d, selected, onClick }: { d: CalDay; selected: boolean; onClick: () => void }) {
   const plannedType = d.planned?.sessionType ?? null;
-  const hasWork = plannedHasWork(d.planned);
+  const workSessions = d.plannedAll.filter(plannedHasWork);
+  const hasWork = workSessions.length > 0;
+  const multi = workSessions.length > 1;
   const glyph = statusGlyph(d);
   const empty = !hasWork && d.actuals.length === 0;
 
@@ -213,12 +221,21 @@ function DayCell({ d, selected, onClick }: { d: CalDay; selected: boolean; onCli
       <span className={`text-[9px] font-bold uppercase ${selected ? 'text-[#0c1018]/60' : d.isToday ? 'text-[#0c1018]/50' : 'text-slate-400'}`}>
         {DOW[d.dow]} {dayNum(d.day)}
       </span>
-      {/* Planned target */}
+      {/* Planned target. A multi-sport day shows a chip per discipline; a
+          single-sport day keeps the compact colour-dot + volume. */}
       {hasWork ? (
-        <>
-          <span className={`h-1.5 w-1.5 rounded-full ${SESSION_COLOR[plannedType!] ?? 'bg-slate-300'}`} />
-          <span className="text-[10px] font-semibold leading-none tabular-nums">{plannedCell(d.planned!)}</span>
-        </>
+        multi ? (
+          <span className="flex items-center gap-0.5 text-[11px] leading-none" title={workSessions.map((p) => `${p.discipline} ${plannedDetail(p)}`).join(' · ')}>
+            {workSessions.map((p, i) => (
+              <span key={i}>{DISC_EMOJI[p.discipline]}</span>
+            ))}
+          </span>
+        ) : (
+          <>
+            <span className={`h-1.5 w-1.5 rounded-full ${SESSION_COLOR[plannedType!] ?? 'bg-slate-300'}`} />
+            <span className="text-[10px] font-semibold leading-none tabular-nums">{plannedCell(workSessions[0])}</span>
+          </>
+        )
       ) : plannedType === 'rest' ? (
         <span className={`text-[9px] ${selected ? 'text-[#0c1018]/40' : 'text-slate-500'}`}>rest</span>
       ) : (
@@ -261,27 +278,31 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
         </div>
       )}
 
-      {/* Planned */}
-      {plannedHasWork(d.planned) ? (
-        <div>
-          <div className="flex items-center gap-1.5">
-            <span className={`h-2 w-2 rounded-full ${SESSION_COLOR[d.planned!.sessionType] ?? 'bg-slate-300'}`} />
-            <span className="font-medium text-slate-700">
-              {d.planned!.discipline !== 'run' && <span className="mr-0.5">{DISC_EMOJI[d.planned!.discipline]}</span>}
-              Planned: {sessionLabel(d.planned!)} · {plannedDetail(d.planned!)}
-            </span>
-            {d.planned!.discipline === 'run' && d.planned!.paceFastSecPerKm != null && (
-              <span className="text-xs tabular-nums text-slate-400">
-                {pace(d.planned!.paceFastSecPerKm)}-{pace(d.planned!.paceSlowSecPerKm)}
-              </span>
-            )}
-          </div>
-          {d.planned!.adjustments.length > 0 && (
-            <div className="mt-1 inline-block rounded bg-amber-400/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-600">
-              {d.planned!.adjustments.join('; ')}
+      {/* Planned — one block per session that day (a tri day lists all sports). */}
+      {d.plannedAll.filter(plannedHasWork).length > 0 ? (
+        <div className="space-y-2">
+          {d.plannedAll.filter(plannedHasWork).map((p, i) => (
+            <div key={i}>
+              <div className="flex items-center gap-1.5">
+                <span className={`h-2 w-2 rounded-full ${SESSION_COLOR[p.sessionType] ?? 'bg-slate-300'}`} />
+                <span className="font-medium text-slate-700">
+                  <span className="mr-0.5">{DISC_EMOJI[p.discipline]}</span>
+                  Planned: {sessionLabel(p)} · {plannedDetail(p)}
+                </span>
+                {p.discipline === 'run' && p.paceFastSecPerKm != null && (
+                  <span className="text-xs tabular-nums text-slate-400">
+                    {pace(p.paceFastSecPerKm)}-{pace(p.paceSlowSecPerKm)}
+                  </span>
+                )}
+              </div>
+              {p.adjustments.length > 0 && (
+                <div className="mt-1 inline-block rounded bg-amber-400/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-600">
+                  {p.adjustments.join('; ')}
+                </div>
+              )}
+              {p.description && <p className="mt-0.5 text-xs text-slate-500">{p.description}</p>}
             </div>
-          )}
-          {d.planned!.description && <p className="mt-0.5 text-xs text-slate-500">{d.planned!.description}</p>}
+          ))}
         </div>
       ) : d.planned?.sessionType === 'rest' && d.actuals.length === 0 ? (
         <p className="text-slate-500">Rest day, nothing scheduled.</p>

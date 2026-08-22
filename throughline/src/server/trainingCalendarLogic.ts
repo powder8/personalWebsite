@@ -38,6 +38,14 @@ export function plannedHasWork(p: CalPlanned | null): boolean {
   return p.miles > 0;
 }
 
+/** The primary session of a (possibly multi-sport) day: a real run session wins
+ *  (it carries the detailed grading), else the first session with real work,
+ *  else null. Keeps single-sport days byte-identical to the old one-per-day map. */
+export function pickPrimaryPlanned(list: CalPlanned[]): CalPlanned | null {
+  const withWork = list.filter(plannedHasWork);
+  return withWork.find((p) => p.discipline === 'run') ?? withWork[0] ?? list[0] ?? null;
+}
+
 export interface CalActual {
   activityId: string;
   sport: string; // run | bike | swim | strength | cross_train | other
@@ -66,7 +74,10 @@ export interface CalDay {
   dow: number; // 0 = Mon ... 6 = Sun
   isToday: boolean;
   isFuture: boolean;
+  /** The day's PRIMARY planned session (run-first) — drives status/grading. */
   planned: CalPlanned | null;
+  /** EVERY planned session that day, across sports (for the multi-sport view). */
+  plannedAll: CalPlanned[];
   actuals: CalActual[];
   primaryRun: CalActual | null; // longest run that day, if any
   crossTrain: CalActual[]; // non-run activities
@@ -113,8 +124,9 @@ export interface AssembleInput {
   today: string;
   /** Mondays to render, oldest first. */
   weekStarts: string[];
-  /** Planned (already directive-overlaid) keyed by YYYY-MM-DD. */
-  plannedByDay: Map<string, CalPlanned>;
+  /** Planned (already directive-overlaid) keyed by YYYY-MM-DD. A day can hold
+   *  several sessions across sports (e.g. a bike + a run in a tri week). */
+  plannedByDay: Map<string, CalPlanned[]>;
   /** Actuals keyed by YYYY-MM-DD (a day can hold several). */
   actualsByDay: Map<string, CalActual[]>;
   /** Plan phase keyed by week-start Monday. */
@@ -169,7 +181,8 @@ export function assembleCalendar(input: AssembleInput): CalWeek[] {
 
     for (let i = 0; i < 7; i++) {
       const day = addDays(weekStart, i);
-      const planned = plannedByDay.get(day) ?? null;
+      const plannedAll = plannedByDay.get(day) ?? [];
+      const planned = pickPrimaryPlanned(plannedAll);
       const acts = actualsByDay.get(day) ?? [];
       const runs = acts.filter((a) => a.isRun);
       const crossTrain = acts.filter((a) => !a.isRun);
@@ -182,13 +195,15 @@ export function assembleCalendar(input: AssembleInput): CalWeek[] {
 
       const status = dayStatus(planned, acts, runMiles, crossTrain.length > 0, isFuture, isToday);
 
-      // Per-discipline planned/actual accumulation (run miles unchanged).
-      plannedMiles += planned?.miles ?? 0;
+      // Per-discipline planned/actual accumulation across EVERY session that day,
+      // so a tri week's run + bike + swim all count toward their own totals.
       actualMiles += runMiles;
-      if (plannedHasWork(planned)) {
-        plannedByDiscipline[planned!.discipline]++;
-        if (planned!.discipline === 'bike') plannedMinutes += planned!.durationMinutes;
-        if (planned!.discipline === 'swim') plannedMeters += planned!.meters;
+      for (const p of plannedAll) {
+        if (!plannedHasWork(p)) continue;
+        plannedByDiscipline[p.discipline]++;
+        if (p.discipline === 'run') plannedMiles += p.miles;
+        else if (p.discipline === 'bike') plannedMinutes += p.durationMinutes;
+        else if (p.discipline === 'swim') plannedMeters += p.meters;
       }
       for (const a of acts) {
         if (a.sport === 'bike') actualMinutes += (a.durationSeconds ?? 0) / 60;
@@ -231,6 +246,7 @@ export function assembleCalendar(input: AssembleInput): CalWeek[] {
         isToday: day === today,
         isFuture,
         planned,
+        plannedAll,
         actuals: acts,
         primaryRun,
         crossTrain,

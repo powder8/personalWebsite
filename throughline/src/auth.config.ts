@@ -55,7 +55,10 @@ const COACH_PREFIXES = ['/coach', '/athletes', '/escalations', '/feedback', '/im
  * /privacy. (The authenticated Whoop sync lives at /api/athletes/<id>/whoop/sync,
  * which stays gated by the athlete-ownership check below.)
  */
-const PUBLIC_PREFIXES = ['/signin', '/privacy', '/api/auth', '/api/whoop', '/api/webhooks', '/api/inngest', '/api/cron'];
+// '/api/health/apple' is the Apple Health push-ingest endpoint: an on-device
+// exporter authenticates it with its own per-athlete bearer token, not a browser
+// session, so the session gate must let it through (like the webhook endpoints).
+const PUBLIC_PREFIXES = ['/signin', '/privacy', '/api/auth', '/api/whoop', '/api/webhooks', '/api/inngest', '/api/cron', '/api/health/apple'];
 
 /**
  * Extract the athlete id an athlete-scoped path is addressing, so a non-coach

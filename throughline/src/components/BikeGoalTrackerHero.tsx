@@ -83,9 +83,14 @@ export function BikeGoalTrackerHero({ tracker, athleteId }: { tracker: BikeGoalT
     <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 shadow-lg">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <div className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide ${tone.text}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${tone.fill}`} />
-            🚴 {tracker.goalName}{verdict ? ` · ${VERDICT_LABEL[verdict]}` : ''}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-orange-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-orange-300 ring-1 ring-inset ring-orange-400/25">
+              🚴 Bike
+            </span>
+            <div className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide ${tone.text}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${tone.fill}`} />
+              {tracker.goalName}{verdict ? ` · ${VERDICT_LABEL[verdict]}` : ''}
+            </div>
           </div>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-white">{headline}</h1>
           <p className="mt-1 text-sm text-slate-400">{sub}</p>
