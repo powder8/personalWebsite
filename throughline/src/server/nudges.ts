@@ -5,13 +5,60 @@ import 'server-only';
  * (if anything) to send, dedupes against today's notifications log (one nudge
  * per athlete per local day), sends the email, and records it.
  */
-import { and, eq, gte, lte } from 'drizzle-orm';
+import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { athletes, activities, notifications } from '@/db/schema';
 import { getAthletePortal } from '@/server/portal';
 import { getAdaptationState } from '@/server/adaptation';
 import { decideNudge, type Nudge } from '@/server/nudgeLogic';
+import { getRacePlan } from '@/server/racePlan';
+import { getGoalProgress } from '@/server/goalProgress';
+import { buildCheckinMessage } from '@/server/progressCheckinLogic';
 import { sendNudgeEmail } from '@/lib/email';
+
+/** How often the progress check-in fires (days). */
+const CHECKIN_DAYS = 28;
+
+function clock(sec: number): string {
+  const h = Math.floor(sec / 3600);
+  const m = Math.round((sec % 3600) / 60);
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}` : `${m}m`;
+}
+
+/**
+ * The 4-week progress check-in: due when the last one was >= 28 days ago (or
+ * never) and the athlete has a timed goal with a projection + fitness history.
+ * Returns a priority nudge so it takes that day's single slot.
+ */
+async function maybeProgressCheckin(athleteId: string, firstName: string, today: string): Promise<Nudge | null> {
+  const db = await getDb();
+  const [last] = await db
+    .select({ sentAt: notifications.sentAt })
+    .from(notifications)
+    .where(and(eq(notifications.athleteId, athleteId), eq(notifications.kind, 'progress_checkin')))
+    .orderBy(desc(notifications.sentAt))
+    .limit(1);
+  if (last && (Date.now() - last.sentAt.getTime()) / 86400000 < CHECKIN_DAYS) return null;
+
+  const racePlan = await getRacePlan(db, athleteId, today);
+  if (!racePlan?.feasibility || racePlan.goal.targetTimeSeconds == null) return null; // need a timed goal + projection
+  const progress = await getGoalProgress(athleteId, today);
+  if (!progress) return null; // need fitness history to report a trend
+
+  const projectedSec = racePlan.feasibility.projectedTimeSeconds;
+  const goalSec = racePlan.goal.targetTimeSeconds;
+  const { subject, body } = buildCheckinMessage({
+    firstName,
+    distanceLabel: racePlan.goal.distanceLabel,
+    projectedLabel: clock(projectedSec),
+    goalLabel: clock(goalSec),
+    daysToGoal: Math.floor((Date.parse(racePlan.goal.date) - Date.parse(today)) / 86400000),
+    fitnessChangePct: progress.changePct,
+    fitnessDirection: progress.direction,
+    onPace: projectedSec <= goalSec,
+  });
+  return { kind: 'progress_checkin', subject, body };
+}
 
 const QUALITY = new Set(['threshold', 'tempo', 'intervals', 'interval', 'marathon', 'race']);
 const SESSION_LABEL: Record<string, string> = {
@@ -114,6 +161,10 @@ async function buildAndDecide(
   const db = await getDb();
   const portal = await getAthletePortal(athleteId);
   if (!portal) return null;
+
+  // Priority: the ~monthly progress check-in takes the day's single slot when due.
+  const checkin = await maybeProgressCheckin(athleteId, fullName.split(' ')[0], portal.today);
+  if (checkin) return checkin;
 
   // Did they already log a run on their local day?
   const [ranToday] = await db
