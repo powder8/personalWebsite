@@ -150,9 +150,18 @@ export function GoalSetup({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      {/* Name the sport up front — this editor sets your RUNNING goal (a separate
+          card sets cycling). Without it, a multisport athlete can't tell which
+          sport the "miles" fields belong to. */}
+      <div className="flex items-center gap-2">
+        <span className="inline-flex items-center gap-1 rounded-full bg-sky-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-300 ring-1 ring-inset ring-sky-400/30">
+          🏃 Running goal
+        </span>
+      </div>
+
       {/* Goal kind */}
       <div>
-        <div className="text-xs text-slate-600">What’s your goal?</div>
+        <div className="text-xs text-slate-600">What’s your running goal?</div>
         <div className="mt-1 flex flex-col gap-2 sm:flex-row">
           <button type="button" className={seg(kind === 'finish')} onClick={() => setKind('finish')}>
             Finish a distance
