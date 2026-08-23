@@ -34,7 +34,8 @@ export interface TriGoalInput {
   /** Bike anchor: FTP watts (+ body mass for the goal-time model). */
   bike: { ftpWatts: number; weightKg?: number };
   /** Swim anchor: an explicit CSS or a 400 m + 200 m time-trial pair. */
-  swim: { cssMetersPerSec?: number; test?: { t400Sec: number; t200Sec: number } };
+  /** Optional: omit when swim training starts in a later block (phased tri). */
+  swim?: { cssMetersPerSec?: number; test?: { t400Sec: number; t200Sec: number } };
   /** DOB drives the attainability ceiling; set here if not already on file. */
   dateOfBirth?: string;
   /**
@@ -71,15 +72,16 @@ export async function setupAthleteTriGoal(
     weightKg: input.bike.weightKg && input.bike.weightKg > 0 ? input.bike.weightKg : undefined,
   });
 
-  // --- Swim anchor (CSS) ---
-  let css = input.swim.cssMetersPerSec;
-  if ((css == null || css <= 0) && input.swim.test) {
+  // --- Swim anchor (CSS) — OPTIONAL for a phased triathlon. If the athlete
+  //     isn't swimming yet, we skip it; setupTriSeason builds bike+run now and
+  //     the goal tracker shows the swim leg as "not started" until they add it. ---
+  let css = input.swim?.cssMetersPerSec;
+  if ((css == null || css <= 0) && input.swim?.test) {
     css = cssFrom400_200(input.swim.test.t400Sec, input.swim.test.t200Sec) ?? undefined;
   }
-  if (!(css && css > 0)) {
-    throw new Error('Add your swim CSS, or a 400 m and 200 m time-trial to compute it.');
+  if (css && css > 0) {
+    await setAthleteSwimConfig(db, athleteId, { cssMetersPerSec: css });
   }
-  await setAthleteSwimConfig(db, athleteId, { cssMetersPerSec: css });
 
   // --- DOB (for the ceiling) — set only if provided and not already stronger data. ---
   if (input.dateOfBirth && DATE_RE.test(input.dateOfBirth)) {
