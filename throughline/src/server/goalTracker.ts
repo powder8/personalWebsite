@@ -22,6 +22,7 @@ export async function getGoalTracker(
   const daysAway = Math.floor((Date.parse(racePlan.goal.date) - Date.parse(today)) / 86400000);
   return buildGoalTracker({
     goalName: racePlan.goal.name,
+    distanceLabel: racePlan.goal.distanceLabel,
     daysAway,
     targetTimeSeconds: racePlan.goal.targetTimeSeconds,
     target: racePlan.target,

@@ -22,6 +22,7 @@ export interface GoalTracker {
   verdict: GoalVerdict;
   tone: GoalTone;
   raceLine: string; // race name, e.g. "Chicago Marathon"
+  distanceLabel: string | null; // what the target time is FOR, e.g. "Marathon"
   daysAway: number | null; // days to race day (for the countdown)
   headline: string; // "Sub-3:05 is in reach"
   projectionLine: string | null; // "projected today 3:07 → race day 3:04"
@@ -33,6 +34,9 @@ export interface GoalTracker {
   execNote: string | null; // execution read: "4 straight weeks of full training"
   advocateLine: string; // the single lever that moves the verdict
   cta: { label: string; href: string } | null;
+  /** For an out-of-reach goal: what it would take, when we reassess, and the
+   *  levers that actually move it. Null when the goal is on track. */
+  outlook: { requirement: string; cadence: string; factors: string } | null;
 }
 
 type Execution = 'strong' | 'okay' | 'slipping' | 'unknown';
@@ -90,6 +94,7 @@ function execNoteFor(exec: Execution, c: ConsistencyStats | null): string | null
 
 export interface BuildGoalTrackerInput {
   goalName: string;
+  distanceLabel?: string | null;
   daysAway: number | null;
   targetTimeSeconds: number | null;
   target: { solidSeconds: number; stretchSeconds: number } | null;
@@ -114,7 +119,7 @@ export function driftingAdvice(days: number | null): string {
 
 /** Pure verdict builder. Returns null when there is no goal to track. */
 export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | null {
-  const { goalName, daysAway, targetTimeSeconds, target, feasibility, consistency } = input;
+  const { goalName, distanceLabel = null, daysAway, targetTimeSeconds, target, feasibility, consistency } = input;
   if (!goalName) return null;
 
   const exec = executionLevel(consistency);
@@ -132,6 +137,7 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
       verdict: drifting ? 'drifting' : 'on_track',
       tone: drifting ? 'caution' : 'positive',
       raceLine,
+      distanceLabel,
       daysAway: days,
       headline: drifting ? 'You are drifting off plan' : `Building toward ${goalName}`,
       projectionLine: needsTime ? 'No target time set yet' : null,
@@ -149,6 +155,7 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
           ? driftingAdvice(days)
           : 'Keep stacking consistent weeks, that is what shows up on race day.',
       cta: needsTime ? { label: 'Set a target time', href: '#goal-setup' } : null,
+      outlook: null,
     };
   }
 
@@ -262,10 +269,35 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
             ? 'The goal is still alive. Nail this week\'s key session and long run and you\'re back on the line.'
             : atRiskAdvocate;
 
+  // For an out-of-reach goal, spell out the three things the athlete asked for:
+  // what it would actually take, when we reassess, and the levers that move it.
+  let outlook: GoalTracker['outlook'] = null;
+  if (verdict === 'at_risk') {
+    const rate =
+      feasibility.typicalWeeklyGain > 0
+        ? Math.max(1, Math.round((feasibility.requiredWeeklyGain / feasibility.typicalWeeklyGain) * 10) / 10)
+        : null;
+    const runwayClause =
+      weeksNeeded && weeksNeeded > weeksLeft
+        ? `a ~${weeksNeeded}-week build against the ${weeksLeft} weeks this race gives`
+        : `sustained, structured weeks from now to race day`;
+    outlook = {
+      requirement:
+        `${goalLabel ?? 'This goal'} needs your fitness to climb ` +
+        (rate ? `about ${rate}× faster than a strong training block delivers` : `faster than a normal build delivers`) +
+        `, ${runwayClause}. A strong result you can chase at THIS race is ~${projected}.`,
+      cadence:
+        `Your projected finish is recomputed from your fitness every time you open this. Expect a clear move about every 4 weeks, as each training block lands.`,
+      factors:
+        `What moves it: consistent weeks, real recovery between hard days, and staying injury-free. Chasing the number while tired sets you back.`,
+    };
+  }
+
   return {
     verdict,
     tone,
     raceLine,
+    distanceLabel,
     daysAway: days,
     headline,
     projectionLine,
@@ -279,5 +311,6 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
     execNote: verdict === 'at_risk' ? null : execNote,
     advocateLine,
     cta: verdict === 'at_risk' ? { label: 'Adjust goal or race', href: '#goal-setup' } : null,
+    outlook,
   };
 }

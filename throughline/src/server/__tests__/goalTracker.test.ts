@@ -160,3 +160,30 @@ test('drifting on race eve → arrive-rested framing, no cramming', () => {
   assert.doesNotMatch(g.advocateLine, /weeks/);
   assert.match(g.advocateLine, /banked|rest/i);
 });
+
+// --- distance context + out-of-reach outlook -------------------------------
+
+test('the tracker carries the goal distance so the target time has context', () => {
+  const g = buildGoalTracker({ ...base, distanceLabel: 'Marathon', feasibility: feas('on_track'), consistency: consistency(90, 4) })!;
+  assert.equal(g.distanceLabel, 'Marathon');
+});
+
+test('an out-of-reach goal gets an outlook: what it takes, cadence, and factors', () => {
+  const g = buildGoalTracker({
+    ...base,
+    distanceLabel: 'Marathon',
+    feasibility: { ...feas('unrealistic'), requiredWeeklyGain: 0.9, typicalWeeklyGain: 0.3, weeksNeededForGoal: 30, weeksToRace: 11 },
+    consistency: consistency(90, 4),
+  })!;
+  assert.equal(g.verdict, 'at_risk');
+  assert.ok(g.outlook, 'outlook present for an out-of-reach goal');
+  assert.match(g.outlook!.requirement, /faster than a strong training block|faster than a normal build/i);
+  assert.match(g.outlook!.requirement, /3× faster/); // 0.9 / 0.3
+  assert.match(g.outlook!.cadence, /every 4 weeks/i);
+  assert.match(g.outlook!.factors, /injury-free|recovery|consistent/i);
+});
+
+test('an on-track goal has no outlook (nothing to spell out)', () => {
+  const g = buildGoalTracker({ ...base, feasibility: feas('on_track'), consistency: consistency(90, 4) })!;
+  assert.equal(g.outlook, null);
+});

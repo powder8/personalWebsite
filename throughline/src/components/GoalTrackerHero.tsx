@@ -54,7 +54,10 @@ export function GoalTrackerHero({ tracker, athleteId, progress }: { tracker: Goa
               {VERDICT_LABEL[tracker.verdict]}
             </div>
           </div>
-          <p className="mt-2 text-sm text-slate-400">{tracker.raceLine}</p>
+          <p className="mt-2 text-sm text-slate-400">
+            {tracker.raceLine}
+            {tracker.distanceLabel ? ` · ${tracker.distanceLabel}` : ''}
+          </p>
           <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-white">{tracker.headline}</h1>
           {tracker.projectionLine && <p className="mt-1 text-sm text-slate-400">{tracker.projectionLine}</p>}
         </div>
@@ -102,6 +105,22 @@ export function GoalTrackerHero({ tracker, athleteId, progress }: { tracker: Goa
           <div className={`text-xs font-semibold ${t.text}`}>{tracker.execNote}</div>
         )}
         <p className="mt-1 text-sm leading-relaxed text-white/90">{tracker.advocateLine}</p>
+        {tracker.outlook && (
+          <dl className="mt-3 space-y-2 border-t border-white/10 pt-3">
+            {(
+              [
+                ['What it’d take', tracker.outlook.requirement],
+                ['Check-ins', tracker.outlook.cadence],
+                ['What moves it', tracker.outlook.factors],
+              ] as const
+            ).map(([term, desc]) => (
+              <div key={term}>
+                <dt className="text-[11px] font-semibold uppercase tracking-wide text-white/50">{term}</dt>
+                <dd className="text-sm leading-relaxed text-white/80">{desc}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
         {tracker.cta && (
           // Native anchor: a Next <Link> to a bare "#hash" does NOT reliably scroll
           // in the App Router. `#goal-setup` targets the goal editor (which opens
