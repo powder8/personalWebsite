@@ -112,3 +112,29 @@ function addDays(day: string, n: number): string {
   const [y, m, d] = day.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
 }
+
+/**
+ * Build the complete day grid for a window from LOGGED actuals, independent of
+ * whether a plan covers each day. This is the fix for the run undercount: a
+ * regenerated plan's weeks only span the recent stretch, so counting from plan
+ * days dropped earlier runs. Every day in [windowStart, today] gets an entry —
+ * plan status where one exists, otherwise 'extra' when anything was logged.
+ * Pure, so it's directly testable.
+ */
+export function assembleConsistencyDays(input: {
+  windowStart: string;
+  today: string;
+  statusByDay: Map<string, DayStatus>;
+  runMilesByDay: Map<string, number>;
+  crossDays: Set<string>;
+}): ConsistencyDay[] {
+  const { windowStart, today, statusByDay, runMilesByDay, crossDays } = input;
+  const days: ConsistencyDay[] = [];
+  for (let d = windowStart; d <= today; d = addDays(d, 1)) {
+    const miles = runMilesByDay.get(d) ?? 0;
+    const crossTrain = crossDays.has(d);
+    const status: DayStatus = statusByDay.get(d) ?? (miles > 0 || crossTrain ? 'extra' : 'rest');
+    days.push({ day: d, status, actualMiles: miles, crossTrain });
+  }
+  return days;
+}

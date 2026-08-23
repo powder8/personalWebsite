@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeConsistency, type ConsistencyDay } from '../consistencyLogic';
+import { computeConsistency, assembleConsistencyDays, type ConsistencyDay } from '../consistencyLogic';
 import type { DayStatus } from '@/server/compliance';
 
 const day = (d: string, status: DayStatus, miles = status === 'done' || status === 'extra' ? 4 : 0): ConsistencyDay => ({
@@ -88,4 +88,37 @@ test('cross-training alone is enough to show the strip', () => {
   const s = computeConsistency({ today: '2026-06-14', days, weeklyAdherence: [] });
   assert.equal(s.show, true);
   assert.equal(s.activeDays28d, 2);
+});
+
+// --- day-grid assembly: runs are counted from activities, not plan coverage ---
+
+test('assembleConsistencyDays counts runs even on days no plan covers', () => {
+  const today = '2026-08-28';
+  const windowStart = '2026-08-01';
+  // A plan covers ONLY the last few days (e.g. it was just regenerated).
+  const statusByDay = new Map<string, DayStatus>([
+    ['2026-08-26', 'done'],
+    ['2026-08-27', 'rest'],
+  ]);
+  // But the athlete actually ran 9 times across the window, mostly on days the
+  // (regenerated) plan doesn't cover.
+  const runDays = ['2026-08-03', '2026-08-06', '2026-08-09', '2026-08-12', '2026-08-15', '2026-08-18', '2026-08-21', '2026-08-24', '2026-08-26'];
+  const runMilesByDay = new Map(runDays.map((d) => [d, 5]));
+  const crossDays = new Set<string>(['2026-08-05', '2026-08-13']);
+
+  const days = assembleConsistencyDays({ windowStart, today, statusByDay, runMilesByDay, crossDays });
+
+  // Every calendar day in the window is present (not just plan days).
+  assert.equal(days.length, 28);
+  // Days outside plan coverage that had a run are 'extra' with real miles.
+  const aug3 = days.find((d) => d.day === '2026-08-03')!;
+  assert.equal(aug3.status, 'extra');
+  assert.equal(aug3.actualMiles, 5);
+  // Plan-covered days keep their plan status.
+  assert.equal(days.find((d) => d.day === '2026-08-26')!.status, 'done');
+
+  // The whole point: the stat now reflects all 9 runs, not just the 2 plan days.
+  const stats = computeConsistency({ today, days, weeklyAdherence: [] });
+  assert.equal(stats.runs28d, 9, 'all nine runs counted');
+  assert.equal(stats.crossTrain28d, 2, 'cross-training days counted too');
 });
