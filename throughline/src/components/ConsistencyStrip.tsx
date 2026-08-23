@@ -16,7 +16,7 @@ function Stat({ value, label, sublabel, accent }: { value: string; label: string
   );
 }
 
-export function ConsistencyStrip({ stats }: { stats: ConsistencyStats }) {
+export function ConsistencyStrip({ stats, multiSport = false }: { stats: ConsistencyStats; multiSport?: boolean }) {
   return (
     <div className="rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-5 shadow-lg">
       <div className="flex items-center justify-between gap-2">
@@ -29,25 +29,33 @@ export function ConsistencyStrip({ stats }: { stats: ConsistencyStats }) {
         <Stat
           value={`${stats.currentStreak}`}
           label="day streak"
-          sublabel="runs + XT"
+          sublabel={multiSport ? 'any sport' : 'runs + XT'}
           accent={stats.currentStreak >= 3}
         />
         <Stat
           value={`${stats.activeWeeks28d}/4`}
           label="active weeks"
-          sublabel="4+ days any activity"
+          sublabel="4+ days any sport"
           accent={stats.activeWeeks28d >= 3}
         />
         <Stat value={`${stats.runs28d}`} label="runs · 4 wks" />
-        <Stat
-          value={stats.adherence28dPct != null ? `${stats.adherence28dPct}%` : '-'}
-          label="run plan"
-          sublabel="miles vs target"
-        />
+        {/* A multisport athlete's bike/swim/strength are real sessions, not
+            "cross-training", and run-plan adherence is only a slice of their
+            week — so show their other-sport days instead. A single-sport runner
+            keeps the run-plan adherence tile. */}
+        {multiSport ? (
+          <Stat value={`${stats.crossTrain28d}`} label="other sports · 4 wks" sublabel="bike · swim · strength" />
+        ) : (
+          <Stat
+            value={stats.adherence28dPct != null ? `${stats.adherence28dPct}%` : '-'}
+            label="run plan"
+            sublabel="miles vs target"
+          />
+        )}
       </div>
-      {stats.crossTrain28d > 0 && (
+      {!multiSport && stats.crossTrain28d > 0 && (
         <p className="mt-3 border-t border-white/10 pt-2 text-[11px] text-slate-400">
-          {stats.crossTrain28d} cross-training day{stats.crossTrain28d === 1 ? '' : 's'} this month, counts in your streak and active weeks.
+          {stats.crossTrain28d} cross-training day{stats.crossTrain28d === 1 ? '' : 's'} this month, counted in your streak and active weeks.
         </p>
       )}
     </div>
