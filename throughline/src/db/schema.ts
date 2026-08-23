@@ -73,7 +73,11 @@ export const sportEnum = pgEnum('sport', [
  * the coaching engine actually periodizes for. 'run' is the original; 'bike'
  * and 'swim' are added behind the engine's discipline strategy seam.
  */
-export const disciplineEnum = pgEnum('discipline', ['run', 'bike', 'swim']);
+// run/bike/swim are the endurance disciplines (each has a fitness anchor + a race
+// goal). 'strength' is a SUPPORTING discipline — it has no race goal or anchor; it
+// interleaves with the endurance plan (durability, injury resistance) and is
+// scheduled at a simple weekly cadence rather than periodized.
+export const disciplineEnum = pgEnum('discipline', ['run', 'bike', 'swim', 'strength']);
 
 export const sessionTypeEnum = pgEnum('session_type', [
   'recovery',

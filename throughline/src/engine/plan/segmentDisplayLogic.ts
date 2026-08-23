@@ -116,11 +116,12 @@ export type Discipline = 'run' | 'bike' | 'swim';
  * column exactly (`'—'` for null, one decimal, no unit — the caller appends it).
  */
 export function sessionMetricLabel(input: {
-  discipline: Discipline;
+  discipline: Discipline | 'strength';
   distanceMeters: number | null;
   durationSeconds: number | null;
 }): string {
-  if (input.discipline === 'bike') {
+  // Bike and strength are both duration-prescribed.
+  if (input.discipline === 'bike' || input.discipline === 'strength') {
     const sec = input.durationSeconds ?? 0;
     return sec > 0 ? `${Math.round(sec / 60)} min` : '-';
   }

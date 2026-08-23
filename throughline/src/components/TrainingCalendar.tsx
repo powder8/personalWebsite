@@ -48,13 +48,13 @@ function dayNum(day: string): number {
 
 /** Compact planned volume in the day cell, per discipline: "5.0" · "45′" · "2.0k". */
 function plannedCell(p: CalPlanned): string {
-  if (p.discipline === 'bike') return `${Math.round(p.durationMinutes)}′`;
+  if (p.discipline === 'bike' || p.discipline === 'strength') return `${Math.round(p.durationMinutes)}′`;
   if (p.discipline === 'swim') return `${(p.meters / 1000).toFixed(1)}k`;
   return mi(p.miles);
 }
 /** Fuller planned volume in the day detail: "5.0 mi" · "45 min" · "2000 m". */
 function plannedDetail(p: CalPlanned): string {
-  if (p.discipline === 'bike') return `${Math.round(p.durationMinutes)} min`;
+  if (p.discipline === 'bike' || p.discipline === 'strength') return `${Math.round(p.durationMinutes)} min`;
   if (p.discipline === 'swim') return `${Math.round(p.meters)} m`;
   return `${mi(p.miles)} mi`;
 }
@@ -66,15 +66,17 @@ function weekVolume(w: CalWeek): string {
   if (w.plannedMiles > 0 || w.actualMiles > 0) parts.push(`🏃 ${mi(w.actualMiles)}/${mi(w.plannedMiles)} mi`);
   if (w.plannedMinutes > 0 || w.actualMinutes > 0) parts.push(`🚴 ${Math.round(w.actualMinutes)}/${Math.round(w.plannedMinutes)} min`);
   if (w.plannedMeters > 0 || w.actualMeters > 0) parts.push(`🏊 ${(w.actualMeters / 1000).toFixed(1)}/${(w.plannedMeters / 1000).toFixed(1)} km`);
+  if (w.plannedStrengthSessions > 0) parts.push(`💪 ${w.plannedStrengthSessions}×`);
   if (parts.length === 0) return `${mi(w.actualMiles)}/${mi(w.plannedMiles)} mi`;
   if (parts.length === 1) return parts[0].replace(/^\S+\s/, ''); // drop the lone emoji
   return parts.join(' · ');
 }
-const DISC_EMOJI: Record<string, string> = { run: '🏃', bike: '🚴', swim: '🏊' };
-const DISC_NOUN: Record<string, string> = { run: 'run', bike: 'ride', swim: 'swim' };
+const DISC_EMOJI: Record<string, string> = { run: '🏃', bike: '🚴', swim: '🏊', strength: '💪' };
+const DISC_NOUN: Record<string, string> = { run: 'run', bike: 'ride', swim: 'swim', strength: 'strength session' };
 
 /** Session label, discipline-neutral for bike/swim ("Long run" → "Long"). */
 function sessionLabel(p: CalPlanned): string {
+  if (p.discipline === 'strength') return 'Strength';
   const base = SESSION_LABEL[p.sessionType] ?? p.sessionType;
   return p.discipline === 'run' ? base : base.replace(/ run$/i, '');
 }
@@ -275,7 +277,7 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
   // ride on a bike day is the day's work, not "cross-training"). Runs keep the
   // full coach's-take path unchanged.
   const plannedDisc = d.planned?.discipline ?? null;
-  const sessionSport = plannedDisc === 'bike' || plannedDisc === 'swim' ? plannedDisc : null;
+  const sessionSport = plannedDisc === 'bike' || plannedDisc === 'swim' || plannedDisc === 'strength' ? plannedDisc : null;
   const sessionActual = sessionSport ? d.crossTrain.find((a) => a.sport === sessionSport) ?? null : null;
   const otherCross = d.crossTrain.filter((a) => a !== sessionActual);
   const missedNoun = plannedDisc ? DISC_NOUN[plannedDisc] : 'session';
