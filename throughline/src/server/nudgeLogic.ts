@@ -8,7 +8,7 @@
  * miles. We send at most one a day (the wrapper enforces that), and we stay
  * quiet when there's nothing useful to say (rest days, already ran, etc).
  */
-export type NudgeKind = 'workout_today' | 'streak_protect' | 'comeback';
+export type NudgeKind = 'workout_today' | 'streak_protect' | 'comeback' | 'progress_checkin';
 
 export interface NudgeInput {
   firstName: string;
