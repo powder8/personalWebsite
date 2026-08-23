@@ -242,10 +242,14 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
       : consistency.adherence28dPct != null
         ? `${Math.max(1, 100 - consistency.adherence28dPct)}% under plan`
         : `${consistency.runs28d} run${consistency.runs28d === 1 ? '' : 's'} in 4 weeks`;
+  // Affirm the ambitious goal and promise ONGOING EVALUATION rather than nagging
+  // to lower it — the projection is recomputed from current fitness every time,
+  // so "I'll keep checking your trajectory" is literally true. Adjusting stays a
+  // quiet option (the cta), not the daily push.
   const atRiskAdvocate =
     slipping && runsPhrase
-      ? `That ~${projected} already assumes you train consistently, and at ${runsPhrase} right now, even it is slipping. Get consistent and you protect it; ${goalLabel ?? 'the big goal'} stays the season target to build toward. Want a race-day goal with more room? Adjust it below.`
-      : `You're doing the work, ${goalLabel ?? 'it'} is simply a bigger jump than ${weeksLeft} weeks allow, so keep it as your season target. For this race, ~${projected} is a strong result to chase now. Want more room? Adjust it below.`;
+      ? `That ~${projected} assumes consistent training, and at ${runsPhrase} right now it's slipping. Get consistent and you protect it — ${goalLabel ?? 'the goal'} stays the season target, and I'll keep checking whether your trajectory is closing on it.`
+      : `You're doing the work — keep ${goalLabel ?? 'it'} as your season target and chase a strong ~${projected} at this race. I'll re-check your trajectory as you build; if your fitness climbs fast enough, ${goalLabel ?? 'it'} stays in play.`;
 
   const advocateLine =
     verdict === 'ahead'
@@ -274,6 +278,6 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
     // so the separate badge would just be a redundant scold.
     execNote: verdict === 'at_risk' ? null : execNote,
     advocateLine,
-    cta: verdict === 'at_risk' ? { label: 'Adjust your goal', href: '#goal-setup' } : null,
+    cta: verdict === 'at_risk' ? { label: 'Adjust goal or race', href: '#goal-setup' } : null,
   };
 }
