@@ -109,8 +109,11 @@ test('at_risk + slipping → attributes the two levers (consistency vs runway), 
   assert.equal(g.verdict, 'at_risk');
   // Consistency lever is surfaced IN CONTEXT — it protects the realistic
   // projection, and the copy says the projection already assumes it.
-  assert.match(g.advocateLine, /assumes you train consistently/i);
+  assert.match(g.advocateLine, /assumes consistent training/i);
   assert.match(g.advocateLine, /protect it/i);
+  // Frames ongoing EVALUATION, not a push to lower the goal.
+  assert.match(g.advocateLine, /trajectory/i);
+  assert.doesNotMatch(g.advocateLine, /adjust it below|more room/i);
   // Runway framing for the goal itself lives in the gap note.
   assert.match(g.gapNote!, /season goal/i);
   // No separate "runs logged" badge — the read is woven in, not a scold.

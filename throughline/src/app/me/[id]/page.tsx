@@ -146,7 +146,11 @@ export default async function PortalPage({
   const todayCheckIn = recentCheckIns.find((c) => c.day === today) ?? null;
   const goalDone = !!goalRace.name && goalRace.daysAway != null && goalRace.daysAway < 0;
   const needsGoal = !goalRace.name || goalDone;
-  const ranToday = latestRun?.day === today || adaptation?.layoffDays === 0;
+  // "Did today's session get done?" — discipline-aware: a completed bike / swim /
+  // strength session counts too, not just a run. The calendar day already matches
+  // the logged activity to the planned discipline, so a done day means done.
+  const todayCalDay = calendar.weeks.find((w) => w.isCurrent)?.days.find((d) => d.day === today) ?? null;
+  const ranToday = todayCalDay?.status === 'done' || latestRun?.day === today || adaptation?.layoffDays === 0;
 
   // Goal tracker hook — the "where do I stand?" verdict. Only when there's a
   // live goal to track (a finished/absent goal is handled by the goal-setup CTA).
