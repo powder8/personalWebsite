@@ -114,6 +114,14 @@ export function TrainingCalendar({
   const past = weeks.slice(0, splitAt);
   const nowAndAhead = weeks.slice(splitAt);
 
+  // Does this athlete train more than one sport? If so, every day cell shows its
+  // discipline icon (a bike-only plan of "55′" cells is unreadable otherwise).
+  // A single-sport athlete keeps the compact colour-dot + volume, unchanged.
+  const multiSport =
+    new Set(
+      weeks.flatMap((w) => w.days.flatMap((d) => d.plannedAll.filter(plannedHasWork).map((p) => p.discipline))),
+    ).size > 1;
+
   const toggle = (day: string) => setExpanded((cur) => (cur === day ? null : day));
 
   return (
@@ -125,13 +133,13 @@ export function TrainingCalendar({
           </summary>
           <div className="space-y-3 px-1 pb-2 pt-1">
             {past.map((w) => (
-              <Week key={w.weekStart} week={w} today={today} expanded={expanded} toggle={toggle} athleteId={athleteId} />
+              <Week key={w.weekStart} week={w} today={today} expanded={expanded} toggle={toggle} athleteId={athleteId} multiSport={multiSport} />
             ))}
           </div>
         </details>
       )}
       {nowAndAhead.map((w) => (
-        <Week key={w.weekStart} week={w} today={today} expanded={expanded} toggle={toggle} athleteId={athleteId} />
+        <Week key={w.weekStart} week={w} today={today} expanded={expanded} toggle={toggle} athleteId={athleteId} multiSport={multiSport} />
       ))}
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 px-1 pt-1 text-[11px] text-slate-400">
@@ -151,12 +159,14 @@ function Week({
   expanded,
   toggle,
   athleteId,
+  multiSport,
 }: {
   week: CalWeek;
   today: string;
   expanded: string | null;
   toggle: (day: string) => void;
   athleteId: string;
+  multiSport: boolean;
 }) {
   const expandedDay = week.days.find((d) => d.day === expanded) ?? null;
   return (
@@ -186,7 +196,7 @@ function Week({
 
       <div className="grid grid-cols-7 gap-1">
         {week.days.map((d) => (
-          <DayCell key={d.day} d={d} selected={d.day === expanded} onClick={() => toggle(d.day)} />
+          <DayCell key={d.day} d={d} selected={d.day === expanded} onClick={() => toggle(d.day)} multiSport={multiSport} />
         ))}
       </div>
 
@@ -195,7 +205,7 @@ function Week({
   );
 }
 
-function DayCell({ d, selected, onClick }: { d: CalDay; selected: boolean; onClick: () => void }) {
+function DayCell({ d, selected, onClick, multiSport }: { d: CalDay; selected: boolean; onClick: () => void; multiSport: boolean }) {
   const plannedType = d.planned?.sessionType ?? null;
   const workSessions = d.plannedAll.filter(plannedHasWork);
   const hasWork = workSessions.length > 0;
@@ -225,12 +235,21 @@ function DayCell({ d, selected, onClick }: { d: CalDay; selected: boolean; onCli
           single-sport day keeps the compact colour-dot + volume. */}
       {hasWork ? (
         multi ? (
+          // A brick day: one chip per discipline.
           <span className="flex items-center gap-0.5 text-[11px] leading-none" title={workSessions.map((p) => `${p.discipline} ${plannedDetail(p)}`).join(' · ')}>
             {workSessions.map((p, i) => (
               <span key={i}>{DISC_EMOJI[p.discipline]}</span>
             ))}
           </span>
+        ) : multiSport ? (
+          // Multi-sport athlete, single session: name the sport so a bike day
+          // reads "🚴 55′" not a bare "55′".
+          <>
+            <span className="text-[11px] leading-none">{DISC_EMOJI[workSessions[0].discipline]}</span>
+            <span className="text-[10px] font-semibold leading-none tabular-nums">{plannedCell(workSessions[0])}</span>
+          </>
         ) : (
+          // Single-sport athlete: compact colour-dot + volume (unchanged).
           <>
             <span className={`h-1.5 w-1.5 rounded-full ${SESSION_COLOR[plannedType!] ?? 'bg-slate-300'}`} />
             <span className="text-[10px] font-semibold leading-none tabular-nums">{plannedCell(workSessions[0])}</span>
