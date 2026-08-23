@@ -232,6 +232,13 @@
       "when": 1787173459473,
       "tag": "0032_provider_apple",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1787490332536,
+      "tag": "0033_discipline_strength",
+      "breakpoints": true
     }
   ]
 }

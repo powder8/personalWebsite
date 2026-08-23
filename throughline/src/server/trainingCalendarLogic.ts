@@ -15,12 +15,14 @@ import { pickPrimaryRun } from '@/server/runDayLogic';
 
 const MI = 1609.344;
 
+export type CalDiscipline = 'run' | 'bike' | 'swim' | 'strength';
+
 export interface CalPlanned {
   sessionType: string;
-  discipline: 'run' | 'bike' | 'swim';
+  discipline: CalDiscipline;
   zone: string | null;
   miles: number; // run volume
-  durationMinutes: number; // bike volume
+  durationMinutes: number; // bike + strength volume (minutes)
   meters: number; // swim volume
   loadTss: number;
   paceFastSecPerKm: number | null;
@@ -33,7 +35,7 @@ export interface CalPlanned {
  * day has miles 0 but real minutes — the run-only `miles > 0` test hid it.) */
 export function plannedHasWork(p: CalPlanned | null): boolean {
   if (!p || p.sessionType === 'rest') return false;
-  if (p.discipline === 'bike') return p.durationMinutes > 0;
+  if (p.discipline === 'bike' || p.discipline === 'strength') return p.durationMinutes > 0;
   if (p.discipline === 'swim') return p.meters > 0;
   return p.miles > 0;
 }
@@ -43,7 +45,15 @@ export function plannedHasWork(p: CalPlanned | null): boolean {
  *  else null. Keeps single-sport days byte-identical to the old one-per-day map. */
 export function pickPrimaryPlanned(list: CalPlanned[]): CalPlanned | null {
   const withWork = list.filter(plannedHasWork);
-  return withWork.find((p) => p.discipline === 'run') ?? withWork[0] ?? list[0] ?? null;
+  // Endurance leads (it carries the grading); strength is supporting, so it's the
+  // primary only on a strength-only day.
+  return (
+    withWork.find((p) => p.discipline === 'run') ??
+    withWork.find((p) => p.discipline !== 'strength') ??
+    withWork[0] ??
+    list[0] ??
+    null
+  );
 }
 
 export interface CalActual {
@@ -95,7 +105,9 @@ export interface CalWeek {
   actualMinutes: number; // bike actual minutes
   plannedMeters: number; // swim planned metres
   actualMeters: number; // swim actual metres
-  /** The week's dominant planned discipline — drives the weekly-total unit. */
+  plannedStrengthSessions: number; // supporting strength sessions planned this week
+  /** The week's dominant planned ENDURANCE discipline — drives the weekly-total
+   *  unit. Strength is supporting and never the primary. */
   primaryDiscipline: 'run' | 'bike' | 'swim';
   sessionsPlanned: number; // planned session days up to today (any discipline)
   sessionsDone: number;
@@ -175,9 +187,10 @@ export function assembleCalendar(input: AssembleInput): CalWeek[] {
     let actualMinutes = 0;
     let plannedMeters = 0;
     let actualMeters = 0;
+    let plannedStrengthSessions = 0;
     let sessionsPlanned = 0;
     let sessionsDone = 0;
-    const plannedByDiscipline: Record<'run' | 'bike' | 'swim', number> = { run: 0, bike: 0, swim: 0 };
+    const plannedByDiscipline: Record<CalDiscipline, number> = { run: 0, bike: 0, swim: 0, strength: 0 };
 
     for (let i = 0; i < 7; i++) {
       const day = addDays(weekStart, i);
@@ -204,6 +217,7 @@ export function assembleCalendar(input: AssembleInput): CalWeek[] {
         if (p.discipline === 'run') plannedMiles += p.miles;
         else if (p.discipline === 'bike') plannedMinutes += p.durationMinutes;
         else if (p.discipline === 'swim') plannedMeters += p.meters;
+        else if (p.discipline === 'strength') plannedStrengthSessions++;
       }
       for (const a of acts) {
         if (a.sport === 'bike') actualMinutes += (a.durationSeconds ?? 0) / 60;
@@ -274,6 +288,7 @@ export function assembleCalendar(input: AssembleInput): CalWeek[] {
       actualMinutes,
       plannedMeters,
       actualMeters,
+      plannedStrengthSessions,
       primaryDiscipline,
       sessionsPlanned,
       sessionsDone,

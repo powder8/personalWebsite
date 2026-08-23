@@ -11,6 +11,8 @@ import { ConnectWhoop } from '@/components/ConnectWhoop';
 import { getWhoopStatus } from '@/server/whoop';
 import { ConnectAppleHealth } from '@/components/ConnectAppleHealth';
 import { getAppleHealthStatus } from '@/server/appleHealth';
+import { SupportingStrength } from '@/components/SupportingStrength';
+import { getSupportingStrengthDays } from '@/server/strengthSeason';
 import { CalendarSubscribe } from '@/components/CalendarSubscribe';
 import { CycleTracking } from '@/components/CycleTracking';
 import { getCycle, computeCycle } from '@/server/cycle';
@@ -56,6 +58,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
     racePlan,
     whoopStatus,
     appleHealthStatus,
+    strengthDays,
   ] = await Promise.all([
     getTrainingInsights(id),
     getCycle(db, id),
@@ -67,6 +70,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
     getRacePlan(db, id, today),
     getWhoopStatus(db, id),
     getAppleHealthStatus(db, id),
+    getSupportingStrengthDays(db, id),
   ]);
 
   const hasAnchor = hasAnchorRaw != null;
@@ -174,6 +178,9 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
 
       {/* ── TRAINING ADJUSTMENTS ─────────────────────────────────────────── */}
       <SectionHeader>Adjust training</SectionHeader>
+      <Card title="Strength training">
+        <SupportingStrength athleteId={athlete.id} current={strengthDays} />
+      </Card>
       <Card title="Need to adjust your plan?">
         <p className="mb-3 text-xs text-slate-500">
           Travelling, slammed, or sick? Tell your coach what you need and the plan reshapes around it.
