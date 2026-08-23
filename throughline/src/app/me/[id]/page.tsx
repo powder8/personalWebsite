@@ -31,6 +31,7 @@ import { getTriGoalTracker } from '@/server/triGoalTracker';
 import { BikeGoalTrackerHero } from '@/components/BikeGoalTrackerHero';
 import { getBikeGoalTracker } from '@/server/bikeGoalTracker';
 import { CoordinatedBudget } from '@/components/CoordinatedBudget';
+import { getGoalProgress } from '@/server/goalProgress';
 import { YourSports } from '@/components/YourSports';
 import { getAthleteDisciplines } from '@/server/disciplines';
 import { ConnectStrava } from '@/components/ConnectStrava';
@@ -103,7 +104,7 @@ export default async function PortalPage({
   const portal = await getAthletePortal(id);
   if (!portal) notFound();
 
-  const [hasAnchorRaw, adaptation, consistency, latestRun, calendar, crossTraining, recovery, injury, disciplines] = await Promise.all([
+  const [hasAnchorRaw, adaptation, consistency, latestRun, calendar, crossTraining, recovery, injury, disciplines, goalProgress] = await Promise.all([
     getAthleteVdot(db, id),
     getAdaptationState(id, portal.today),
     getConsistency(id, portal.today),
@@ -113,6 +114,7 @@ export default async function PortalPage({
     getRecoveryInsights(db, id, portal.today),
     getActiveInjury(db, id, portal.today),
     getAthleteDisciplines(db, id),
+    getGoalProgress(id, portal.today),
   ]);
 
   // Live readiness computed from wearable data takes precedence over any stored
@@ -282,7 +284,7 @@ export default async function PortalPage({
           Otherwise run and bike goals coexist: both trackers stack, under one
           coordinating header so the two commitments read as a single view. */}
       {triGoalTracker ? (
-        <TriGoalTrackerHero tracker={triGoalTracker} />
+        <TriGoalTrackerHero tracker={triGoalTracker} progress={goalProgress} />
       ) : (
         <>
           {goalTracker && bikeGoalTracker && (
@@ -290,8 +292,8 @@ export default async function PortalPage({
               Two goals in play · run + bike
             </p>
           )}
-          {goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} />}
-          {bikeGoalTracker && <BikeGoalTrackerHero tracker={bikeGoalTracker} athleteId={athlete.id} />}
+          {goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} progress={goalProgress} />}
+          {bikeGoalTracker && <BikeGoalTrackerHero tracker={bikeGoalTracker} athleteId={athlete.id} progress={goalProgress} />}
           {goalTracker && bikeGoalTracker && (
             <CoordinatedBudget athleteId={athlete.id} currentBudget={athlete.weeklyHoursBudget ?? null} />
           )}
