@@ -455,7 +455,7 @@ export function relayTriPlanToSchedule(
   // Align the three sports' weeks by weekStart (they periodize off the same start).
   const byStart = new Map<string, Partial<Record<Discipline, PlannedWeek>>>();
   for (const d of TRI_DISCIPLINES) {
-    for (const w of perSport[d]) {
+    for (const w of perSport[d] ?? []) {
       let slot = byStart.get(w.weekStart);
       if (!slot) {
         slot = {};

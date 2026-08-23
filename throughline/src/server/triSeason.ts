@@ -75,20 +75,31 @@ function ageAt(dob: string, onDay: string): number {
   return age;
 }
 
-async function resolveTriZones(db: DB, athleteId: string): Promise<Record<Discipline, TrainingZones>> {
+async function resolveTriZones(
+  db: DB,
+  athleteId: string,
+): Promise<{ zones: Partial<Record<Discipline, TrainingZones>>; disciplines: Discipline[] }> {
   const [run, bike, swim] = await Promise.all([
     getAthleteZones(db, athleteId),
     getAthletePowerZones(db, athleteId),
     getAthleteSwimZones(db, athleteId),
   ]);
+  // Run + bike are required — you have to be training something to build a plan.
+  // Swim is OPTIONAL: a phased triathlon starts bike+run and adds the swim in a
+  // later block (the goal tracker shows the swim leg as "not started").
   const missing: string[] = [];
   if (!run) missing.push('run (VDOT/threshold pace)');
   if (!bike) missing.push('bike (FTP)');
-  if (!swim) missing.push('swim (CSS)');
   if (missing.length) {
-    throw new Error(`Triathlon plan needs all three anchors, missing: ${missing.join(', ')}.`);
+    throw new Error(`Triathlon plan needs your run and bike fitness first, missing: ${missing.join(', ')}.`);
   }
-  return { run: run!, bike: bike!, swim: swim! };
+  const zones: Partial<Record<Discipline, TrainingZones>> = { run: run!, bike: bike! };
+  const disciplines: Discipline[] = ['bike', 'run'];
+  if (swim) {
+    zones.swim = swim;
+    disciplines.unshift('swim');
+  }
+  return { zones, disciplines };
 }
 
 export async function setupTriSeason(
@@ -96,10 +107,10 @@ export async function setupTriSeason(
   athleteId: string,
   input: TriSeasonSetupInput,
 ): Promise<TriSeasonSetupResult> {
-  const zones = await resolveTriZones(db, athleteId);
+  const { zones, disciplines } = await resolveTriZones(db, athleteId);
 
   // Raw fitness anchors (numbers, not zones) + body mass — needed by the
-  // goal-time model. resolveTriZones already guaranteed all three exist.
+  // goal-time model. Run + bike are guaranteed; swim (css) may be null (deferred).
   const [vdot, ftp, css, weightKg] = await Promise.all([
     getAthleteVdot(db, athleteId),
     getAthleteFtp(db, athleteId),
@@ -118,6 +129,7 @@ export async function setupTriSeason(
     distance: input.goalRace.distance,
     weeklyHours: input.weeklyHours,
     limiter: input.limiter,
+    disciplines,
     zones,
     anchors: { run: vdot ?? undefined, bike: ftp ?? undefined, swim: css ?? undefined },
     goalFinishSeconds: input.goalFinishSeconds,
@@ -152,19 +164,20 @@ export async function setupTriSeason(
   // per week. `persistPlanDraft` infers the discipline from the zones arm.
   await db.delete(plans).where(eq(plans.athleteId, athleteId)); // cascades planned_sessions
   const status = input.publish ? ('published' as const) : ('draft' as const);
-  for (const d of TRI_DISCIPLINES) {
+  // Persist only the sports being trained (a deferred swim has no plan yet).
+  for (const d of disciplines) {
     await persistPlanDraft(
       db,
       athleteId,
       plan.perSport[d],
-      zones[d],
+      zones[d]!,
       { setupAt: input.startDay, tri: true, discipline: d, weeklyHours: input.weeklyHours, schedule: input.schedule ?? null },
       { status },
     );
   }
 
   const budgets = {} as Record<Discipline, { hours: number; tss: number }>;
-  for (const d of TRI_DISCIPLINES) {
+  for (const d of disciplines) {
     budgets[d] = { hours: plan.allocation.budgets[d].hours, tss: plan.allocation.budgets[d].tss };
   }
 

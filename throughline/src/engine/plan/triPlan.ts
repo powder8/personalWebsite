@@ -111,8 +111,15 @@ export interface TriPlanInput {
   weeklyHours: number;
   /** Self-reported weakest sport. */
   limiter: Discipline;
-  /** Resolved training zones per sport (pace / power / CSS). */
-  zones: Record<Discipline, TrainingZones>;
+  /**
+   * Sports to build for. Default: all three. A phased triathlon still ramping
+   * into the swim passes ['bike','run'] — the swim leg is skipped in the plan
+   * (the goal tracker still shows it, marked "not started").
+   */
+  disciplines?: readonly Discipline[];
+  /** Resolved training zones per sport (pace / power / CSS). Only the built
+   *  disciplines need zones. */
+  zones: Partial<Record<Discipline, TrainingZones>>;
   /** Fitness anchors (VDOT/FTP/CSS), carried into the allocation for the record. */
   anchors?: Partial<Record<Discipline, number>>;
   /**
@@ -189,11 +196,13 @@ export interface TriWeek {
  * sport, and merge into composed weeks with a weekly bike→run brick.
  */
 export function buildTriPlan(input: TriPlanInput): TriPlan {
+  const disciplines = input.disciplines ?? TRI_DISCIPLINES;
   const allocation = allocateTriBudget({
     weeklyHours: input.weeklyHours,
     distance: input.distance,
     limiter: input.limiter,
     anchors: input.anchors,
+    disciplines,
     ...input.allocationOverrides,
   });
 
@@ -202,10 +211,12 @@ export function buildTriPlan(input: TriPlanInput): TriPlan {
   // currency — kept byte-identical), so its hours budget is converted to miles.
   // The allocated budget is the PEAK volume; we ramp up from START_FRACTION of it.
   const perSport = {} as Record<Discipline, PlannedWeek[]>;
-  for (const d of TRI_DISCIPLINES) {
+  for (const d of disciplines) {
+    const zones = input.zones[d];
+    if (!zones) continue; // a built discipline must have zones; skip if missing
     const peakVolume =
       d === 'run'
-        ? runWeeklyMilesFromHours(allocation.budgets.run.hours, input.zones.run)
+        ? runWeeklyMilesFromHours(allocation.budgets.run.hours, zones)
         : allocation.budgets[d].tss; // read as weekly TSS on bike/swim (volumeUnit tss)
     const weeks = generatePlan(
       {
@@ -215,13 +226,13 @@ export function buildTriPlan(input: TriPlanInput): TriPlan {
         peakVolumeMiles: peakVolume,
         discipline: d,
       },
-      input.zones[d],
+      zones,
       input.templates?.[d] ?? TEMPLATE_SETS[d],
     );
     // Annotate the run weeks with a TSS-equivalent so the composed view speaks one
     // currency (the run leg itself still stores meters; this is additive metadata).
     if (d === 'run') {
-      for (const w of weeks) w.targetLoadTss = runWeekTssFromMeters(w.targetVolumeMeters, input.zones.run);
+      for (const w of weeks) w.targetLoadTss = runWeekTssFromMeters(w.targetVolumeMeters, zones);
     }
     perSport[d] = weeks;
   }
@@ -293,7 +304,7 @@ export function composeTriWeeks(perSport: Record<Discipline, PlannedWeek[]>): Tr
   const byStart = new Map<string, Partial<Record<Discipline, PlannedWeek>>>();
   const order: string[] = [];
   for (const d of TRI_DISCIPLINES) {
-    for (const w of perSport[d]) {
+    for (const w of perSport[d] ?? []) {
       let slot = byStart.get(w.weekStart);
       if (!slot) {
         slot = {};

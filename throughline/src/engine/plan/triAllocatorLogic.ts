@@ -147,6 +147,12 @@ export interface TriAllocationInput {
   returnOnTime?: Record<Discipline, ReturnOnTime>;
   /** Override the typical weekly IF per sport (default {@link TYPICAL_WEEKLY_IF}). */
   typicalWeeklyIf?: Record<Discipline, number>;
+  /**
+   * Disciplines to allocate across. Default: all three. A phased triathlon that
+   * hasn't started swimming yet passes ['bike','run'] so the whole budget goes to
+   * the sports actually being trained (excluded sports get a zero budget).
+   */
+  disciplines?: readonly Discipline[];
 }
 
 export interface TriSportBudget {
@@ -212,19 +218,18 @@ export function allocateTriBudget(input: TriAllocationInput): TriAllocation {
   const demand = RACE_DEMAND_WEIGHT[distance];
   const weeklyHours = Math.max(0, input.weeklyHours);
   const phaseFactor = PHASE_LOAD_FACTOR[phase];
+  // The sports we're allocating across (a phased tri may exclude swim).
+  const disciplines = input.disciplines ?? TRI_DISCIPLINES;
 
   const notes: string[] = [];
 
   // 1) FLOORS FIRST. If the budget can't cover the floors, scale them down
   //    proportionally (a very small week still preserves the sport MIX + skill).
-  const totalFloorHours = TRI_DISCIPLINES.reduce((s, d) => s + floors[d].minHoursPerWeek, 0);
+  const totalFloorHours = disciplines.reduce((s, d) => s + floors[d].minHoursPerWeek, 0);
   const floorsScaled = weeklyHours < totalFloorHours;
   const floorScale = floorsScaled && totalFloorHours > 0 ? weeklyHours / totalFloorHours : 1;
-  const floorHours: Record<Discipline, number> = {
-    swim: floors.swim.minHoursPerWeek * floorScale,
-    bike: floors.bike.minHoursPerWeek * floorScale,
-    run: floors.run.minHoursPerWeek * floorScale,
-  };
+  const floorHours: Record<Discipline, number> = { swim: 0, bike: 0, run: 0 };
+  for (const d of disciplines) floorHours[d] = floors[d].minHoursPerWeek * floorScale;
   if (floorsScaled) {
     notes.push(
       `Budget (${round1(weeklyHours)} h) is below the swim+bike+run floors (${round1(
@@ -236,23 +241,24 @@ export function allocateTriBudget(input: TriAllocationInput): TriAllocation {
   // 2) SURPLUS by return-on-time × race-demand × limiter-boost / recovery-cost.
   const surplusHours = Math.max(0, weeklyHours - totalFloorHours);
   const priority: Record<Discipline, number> = { swim: 0, bike: 0, run: 0 };
-  for (const d of TRI_DISCIPLINES) {
+  for (const d of disciplines) {
     const boost = d === input.limiter ? limiterBoost : 1;
     priority[d] = (rot[d].yieldPerHour * demand[d] * boost) / rot[d].recoveryCostPerHour;
   }
-  const prioritySum = TRI_DISCIPLINES.reduce((s, d) => s + priority[d], 0) || 1;
+  const prioritySum = disciplines.reduce((s, d) => s + priority[d], 0) || 1;
 
   const hours: Record<Discipline, number> = { swim: 0, bike: 0, run: 0 };
   const surplus: Record<Discipline, number> = { swim: 0, bike: 0, run: 0 };
-  for (const d of TRI_DISCIPLINES) {
+  for (const d of disciplines) {
     surplus[d] = (surplusHours * priority[d]) / prioritySum;
     hours[d] = floorHours[d] + surplus[d];
   }
 
-  // 3) hours → TSS via each sport's typical weekly IF, phase-scaled.
+  // 3) hours → TSS via each sport's typical weekly IF, phase-scaled. Only the
+  //    allocated disciplines get a budget; an excluded sport has none.
   const budgets = {} as Record<Discipline, TriSportBudget>;
   let totalTss = 0;
-  for (const d of TRI_DISCIPLINES) {
+  for (const d of disciplines) {
     const scaledHours = hours[d] * phaseFactor;
     const tss = Math.round(tssFromHours(scaledHours, typicalIf[d]));
     totalTss += tss;
@@ -326,7 +332,8 @@ function allocationHeadline(
   limiter: Discipline,
   budgets: Record<Discipline, TriSportBudget>,
 ): string {
-  const order = [...TRI_DISCIPLINES].sort((a, b) => budgets[b].hours - budgets[a].hours);
+  // Only the sports that actually got a budget (a phased tri may exclude swim).
+  const order = TRI_DISCIPLINES.filter((d) => budgets[d]).sort((a, b) => budgets[b].hours - budgets[a].hours);
   const split = order.map((d) => `${SPORT_NAME[d].toLowerCase()} ${budgets[d].hours} h`).join(' / ');
   return `${distance} build: ${split}. ${SPORT_NAME[limiter]} is your self-reported limiter and got the boost; the bike carries the block because it’s half the day at the lowest recovery cost.`;
 }

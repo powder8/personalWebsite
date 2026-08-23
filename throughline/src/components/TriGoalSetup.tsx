@@ -64,6 +64,8 @@ export function TriGoalSetup({
   const [pending, setPending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [result, setResult] = useState<{ verdict: string | null; headline: string | null; note: string | null } | null>(null);
+  // Phased triathlon: start bike + run now, add the swim in a later block.
+  const [deferSwim, setDeferSwim] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -77,7 +79,10 @@ export function TriGoalSetup({
     if (!(ftp > 0)) return setErr('Enter your cycling FTP in watts.');
     const t400 = parseClock(String(fd.get('swim400') || ''));
     const t200 = parseClock(String(fd.get('swim200') || ''));
-    if (!t400 || !t200) return setErr('Add your 400 m and 200 m swim times (e.g. 6:40 and 3:10).');
+    const hasSwim = !!(t400 && t200);
+    if (!deferSwim && !hasSwim) {
+      return setErr('Add your 400 m and 200 m swim times, or check “I’ll start swimming later”.');
+    }
 
     const targetRaw = String(fd.get('targetFinish') || '').trim();
     const targetFinishSeconds = targetRaw ? parseClock(targetRaw) ?? undefined : undefined;
@@ -97,7 +102,7 @@ export function TriGoalSetup({
       limiter: String(fd.get('limiter')) as Discipline,
       run: { race: { distanceMeters: runRaceMeters, timeSeconds: runTime } },
       bike: { ftpWatts: ftp, weightKg: Number(fd.get('weightKg') || 0) || undefined },
-      swim: { test: { t400Sec: t400, t200Sec: t200 } },
+      swim: hasSwim ? { test: { t400Sec: t400!, t200Sec: t200! } } : undefined,
       dateOfBirth: String(fd.get('dob') || '') || undefined,
       schedule,
     };
@@ -220,19 +225,32 @@ export function TriGoalSetup({
           </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <div>
-            <label className={label}>🏊 Swim 400 m time</label>
-            <input name="swim400" placeholder="6:40" className={field} />
-          </div>
-          <div>
-            <label className={label}>...and 200 m time</label>
-            <input name="swim200" placeholder="3:10" className={field} />
-          </div>
-        </div>
-        <p className="mt-2 text-[11px] text-slate-500">
-          The 400 &amp; 200 swims set your CSS (critical swim speed). Best effort, fully rested between.
-        </p>
+        <label className="mt-3 flex items-center gap-2 text-xs font-medium text-slate-300">
+          <input type="checkbox" checked={deferSwim} onChange={(e) => setDeferSwim(e.target.checked)} className="h-4 w-4" />
+          I&apos;ll start swimming later
+        </label>
+        {deferSwim ? (
+          <p className="mt-2 text-[11px] text-slate-500">
+            We&apos;ll build your bike and run now and add the swim when you start. Your goal card marks the swim
+            leg &ldquo;not started&rdquo; until then.
+          </p>
+        ) : (
+          <>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <label className={label}>🏊 Swim 400 m time</label>
+                <input name="swim400" placeholder="6:40" className={field} />
+              </div>
+              <div>
+                <label className={label}>...and 200 m time</label>
+                <input name="swim200" placeholder="3:10" className={field} />
+              </div>
+            </div>
+            <p className="mt-2 text-[11px] text-slate-500">
+              The 400 &amp; 200 swims set your CSS (critical swim speed). Best effort, fully rested between.
+            </p>
+          </>
+        )}
       </div>
 
       {/* Real-world schedule */}
