@@ -381,7 +381,7 @@ export default async function PortalPage({
         </Card>
       )}
 
-      {consistency?.show && <ConsistencyStrip stats={consistency} />}
+      {consistency?.show && <ConsistencyStrip stats={consistency} multiSport={disciplines.count > 1} />}
 
       <div id="training" className="scroll-mt-4" />
       <Card title="Planned vs actual" action={strava.connected ? <SyncButton athleteId={athlete.id} /> : undefined}>
