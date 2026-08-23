@@ -7,6 +7,7 @@
 import Link from 'next/link';
 import type { FeasibilityVerdict } from '@/engine/plan';
 import type { BikeGoalTracker } from '@/server/bikeGoalTracker';
+import { TrajectorySparkline } from '@/components/TrajectorySparkline';
 
 const TONE: Record<'positive' | 'caution' | 'risk', { fill: string; text: string; ring: string; bar: string }> = {
   positive: { fill: 'bg-emerald-400', text: 'text-emerald-300', ring: 'ring-emerald-400/25', bar: 'bg-emerald-400/15' },
@@ -29,7 +30,7 @@ function clock(s: number): string {
 const km = (m: number) => `${(m / 1000).toFixed(m < 10000 ? 1 : 0)} km`;
 const elev = (m: number) => `${Math.round(m).toLocaleString()} m climbing`;
 
-export function BikeGoalTrackerHero({ tracker, athleteId }: { tracker: BikeGoalTracker; athleteId: string }) {
+export function BikeGoalTrackerHero({ tracker, athleteId, progress }: { tracker: BikeGoalTracker; athleteId: string; progress?: import('@/server/goalProgress').GoalProgress | null }) {
   const race = tracker.raceGoal;
   const ftp = tracker.ftpGoal;
   const verdict = race?.verdict ?? ftp?.verdict ?? null;
@@ -102,6 +103,13 @@ export function BikeGoalTrackerHero({ tracker, athleteId }: { tracker: BikeGoalT
           </div>
         )}
       </div>
+
+      {progress && (
+        <div className="mt-4 rounded-2xl bg-white/[0.04] p-3.5 ring-1 ring-inset ring-white/10">
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/50">Your trajectory</div>
+          <TrajectorySparkline progress={progress} />
+        </div>
+      )}
 
       <div className={`mt-4 rounded-2xl p-3.5 ring-1 ring-inset ${tone.ring} ${tone.bar}`}>
         {note ? (

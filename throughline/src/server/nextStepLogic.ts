@@ -41,7 +41,7 @@ export interface NextStep {
 
 export type ReadinessBand = 'easy' | 'normal' | 'go';
 
-export type SessionDiscipline = 'run' | 'bike' | 'swim';
+export type SessionDiscipline = 'run' | 'bike' | 'swim' | 'strength';
 
 export interface TodaySessionLite {
   sessionType: string;
@@ -79,11 +79,15 @@ const mi = (m: number) => (m % 1 === 0 ? `${m}` : m.toFixed(1));
 
 /** A session's volume in its OWN native unit (run miles / bike minutes / swim metres). */
 function sessionVolume(t: TodaySessionLite): number {
-  return t.discipline === 'bike' ? t.durationMinutes ?? 0 : t.discipline === 'swim' ? t.meters ?? 0 : t.miles;
+  return t.discipline === 'bike' || t.discipline === 'strength'
+    ? t.durationMinutes ?? 0
+    : t.discipline === 'swim'
+      ? t.meters ?? 0
+      : t.miles;
 }
 /** Discipline-native volume label for a headline: "5 mi" · "45 min" · "2000 m". */
 function volumeLabel(t: TodaySessionLite): string {
-  if (t.discipline === 'bike') return `${Math.round(t.durationMinutes ?? 0)} min`;
+  if (t.discipline === 'bike' || t.discipline === 'strength') return `${Math.round(t.durationMinutes ?? 0)} min`;
   if (t.discipline === 'swim') return `${Math.round(t.meters ?? 0)} m`;
   return `${mi(t.miles)} mi`;
 }
@@ -169,14 +173,18 @@ export function decideNextStep(input: NextStepInput): NextStep {
     };
   }
 
-  // 4) Already ran today → celebrate + point at it; the day is done.
+  // 4) Already did today's session → celebrate + point at it; the day is done.
+  //    Discipline-aware: a ride/swim/strength session is "done", not just a run.
   if (input.ranToday) {
+    const disc = input.today?.discipline ?? 'run';
+    const noun = disc === 'bike' ? 'ride' : disc === 'swim' ? 'swim' : disc === 'strength' ? 'strength session' : 'run';
     return {
       kind: 'done_today',
       emoji: '✅',
-      headline: 'Today’s run is in the bag',
+      headline: `Today’s ${noun} is in the bag`,
       detail: 'Nice work, that’s the whole job today. Recover well; tomorrow takes care of itself.',
-      cta: { type: 'view_run', label: 'See the run' },
+      // "See the run" deep-links the run debrief — only meaningful for a run.
+      cta: disc === 'run' ? { type: 'view_run', label: 'See the run' } : { type: 'none' },
       tone: 'positive',
     };
   }
@@ -210,7 +218,7 @@ export function decideNextStep(input: NextStepInput): NextStep {
   }
   return {
     kind: 'today',
-    emoji: t.discipline === 'bike' ? '🚴' : t.discipline === 'swim' ? '🏊' : '🏃',
+    emoji: t.discipline === 'bike' ? '🚴' : t.discipline === 'swim' ? '🏊' : t.discipline === 'strength' ? '💪' : '🏃',
     headline: `Today: ${cap(t.sessionType)} ${volumeLabel(t)}`,
     detail: `${paceTail ? `Target${paceTail}. ` : ''}${t.eased ? 'Eased for where you are right now. ' : ''}That’s the one thing today, go get it.`,
     cta: { type: 'none' },

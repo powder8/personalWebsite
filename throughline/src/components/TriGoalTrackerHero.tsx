@@ -7,6 +7,8 @@
 import type { Discipline } from '@/engine/plan';
 import type { TriGoalTracker } from '@/server/triGoalTracker';
 import type { FeasibilityVerdict } from '@/engine/plan';
+import type { GoalProgress } from '@/server/goalProgress';
+import { TrajectorySparkline } from '@/components/TrajectorySparkline';
 
 const TONE: Record<'positive' | 'caution' | 'risk', { fill: string; text: string; ring: string; bar: string }> = {
   positive: { fill: 'bg-emerald-400', text: 'text-emerald-300', ring: 'ring-emerald-400/25', bar: 'bg-emerald-400/15' },
@@ -49,7 +51,7 @@ function anchor(d: Discipline, v: number): string {
   return `${v.toFixed(1)} VDOT`;
 }
 
-export function TriGoalTrackerHero({ tracker }: { tracker: TriGoalTracker }) {
+export function TriGoalTrackerHero({ tracker, progress }: { tracker: TriGoalTracker; progress?: GoalProgress | null }) {
   const f = tracker.feasibility;
   const t = TONE[VERDICT_TONE[f.verdict]];
 
@@ -144,6 +146,14 @@ export function TriGoalTrackerHero({ tracker }: { tracker: TriGoalTracker }) {
           );
         })}
       </div>
+
+      {/* Trajectory: the fitness trend that decides whether you're closing on it. */}
+      {progress && (
+        <div className="mt-4 rounded-2xl bg-white/[0.04] p-3.5 ring-1 ring-inset ring-white/10">
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/50">Your trajectory</div>
+          <TrajectorySparkline progress={progress} />
+        </div>
+      )}
 
       {/* The honest "why", what the binding leg needs, and the realistic finish. */}
       <div className={`mt-4 rounded-2xl p-3.5 ring-1 ring-inset ${t.ring} ${t.bar}`}>

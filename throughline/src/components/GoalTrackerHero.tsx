@@ -4,6 +4,8 @@
  * and the single lever that moves it. Pure markup; data from server/goalTracker.
  */
 import type { GoalTracker, GoalTone } from '@/server/goalTracker';
+import type { GoalProgress } from '@/server/goalProgress';
+import { TrajectorySparkline } from '@/components/TrajectorySparkline';
 
 const TONE: Record<GoalTone, { fill: string; text: string; chip: string; ring: string; bar: string }> = {
   positive: {
@@ -37,7 +39,7 @@ const VERDICT_LABEL: Record<GoalTracker['verdict'], string> = {
   at_risk: 'a big reach',
 };
 
-export function GoalTrackerHero({ tracker, athleteId }: { tracker: GoalTracker; athleteId: string }) {
+export function GoalTrackerHero({ tracker, athleteId, progress }: { tracker: GoalTracker; athleteId: string; progress?: GoalProgress | null }) {
   const t = TONE[tracker.tone];
   return (
     <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 shadow-lg">
@@ -85,6 +87,14 @@ export function GoalTrackerHero({ tracker, athleteId }: { tracker: GoalTracker; 
       {/* The honest "why": what the gap actually is and the runway it needs. */}
       {tracker.gapNote && (
         <p className="mt-3 text-sm leading-relaxed text-white/70">{tracker.gapNote}</p>
+      )}
+
+      {/* Trajectory: the fitness trend that decides whether you're closing on it. */}
+      {progress && (
+        <div className="mt-4 rounded-2xl bg-white/[0.04] p-3.5 ring-1 ring-inset ring-white/10">
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/50">Your trajectory</div>
+          <TrajectorySparkline progress={progress} />
+        </div>
       )}
 
       <div className={`mt-4 rounded-2xl p-3.5 ring-1 ring-inset ${t.ring} ${t.bar}`}>
