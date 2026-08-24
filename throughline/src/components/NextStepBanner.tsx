@@ -30,6 +30,15 @@ export interface TodaySessionDetail {
   adjustments: string[];
 }
 
+const SPORT_EMOJI: Record<string, string> = {
+  run: '🏃',
+  bike: '🚴',
+  swim: '🏊',
+  strength: '💪',
+  cross_train: '🔁',
+  other: '🤸',
+};
+
 const TONE: Record<NextStep['tone'], string> = {
   action: 'from-indigo-600/30 via-[#10141f] to-[#0c0f17] ring-indigo-400/30',
   positive: 'from-emerald-600/25 via-[#10141f] to-[#0c0f17] ring-emerald-400/30',
@@ -50,8 +59,8 @@ export function NextStepBanner({
   latestActivityId: string | null;
   /** The workout to show inline on a training day ('today' / 'eased_today'). */
   session?: TodaySessionDetail | null;
-  /** Miles logged today, shown on the 'done_today' step. */
-  loggedToday?: { miles: number; runCount: number } | null;
+  /** Everything logged today, per sport — shown on the 'done_today' step. */
+  loggedToday?: { items: { sport: string; label: string }[] } | null;
 }) {
   return (
     <div className={`rounded-3xl bg-gradient-to-br p-5 shadow-lg ring-1 ring-inset ${TONE[step.tone]}`}>
@@ -62,10 +71,15 @@ export function NextStepBanner({
       </h2>
       <p className="mt-1.5 text-sm leading-relaxed text-white/80">{step.detail}</p>
 
-      {loggedToday && (
+      {loggedToday && loggedToday.items.length > 0 && (
         <p className="mt-1.5 text-sm font-semibold text-lime-200">
-          {loggedToday.miles.toFixed(1)} mi logged today
-          {loggedToday.runCount > 1 ? ` across ${loggedToday.runCount} runs` : ''}.
+          Logged today:{' '}
+          {loggedToday.items.map((it, i) => (
+            <span key={it.sport}>
+              {i > 0 ? ' · ' : ''}
+              {SPORT_EMOJI[it.sport] ?? '🏅'} {it.label}
+            </span>
+          ))}
         </p>
       )}
 

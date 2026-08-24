@@ -56,7 +56,11 @@ export function GoalTrackerHero({ tracker, athleteId, progress }: { tracker: Goa
           </div>
           <p className="mt-2 text-sm text-slate-400">
             {tracker.raceLine}
-            {tracker.distanceLabel ? ` · ${tracker.distanceLabel}` : ''}
+            {/* Only show a real DISTANCE here (5K/Half/Marathon…), never a sport
+                word like "Bike" — that reads as ambiguous, not as context. */}
+            {tracker.distanceLabel && !['run', 'bike', 'swim', 'strength'].includes(tracker.distanceLabel.toLowerCase())
+              ? ` · ${tracker.distanceLabel}`
+              : ''}
           </p>
           <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-white">{tracker.headline}</h1>
           {tracker.projectionLine && <p className="mt-1 text-sm text-slate-400">{tracker.projectionLine}</p>}

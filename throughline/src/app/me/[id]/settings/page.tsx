@@ -13,6 +13,8 @@ import { ConnectAppleHealth } from '@/components/ConnectAppleHealth';
 import { getAppleHealthStatus } from '@/server/appleHealth';
 import { SupportingStrength } from '@/components/SupportingStrength';
 import { getSupportingStrengthDays } from '@/server/strengthSeason';
+import { UnitsToggle } from '@/components/UnitsToggle';
+import { asUnits } from '@/lib/units';
 import { CalendarSubscribe } from '@/components/CalendarSubscribe';
 import { CycleTracking } from '@/components/CycleTracking';
 import { getCycle, computeCycle } from '@/server/cycle';
@@ -130,6 +132,10 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
 
       <Card title="About you">
         <AboutYou athleteId={athlete.id} initialDob={athlete.dateOfBirth} initialSex={athlete.sex} />
+      </Card>
+
+      <Card title="Units">
+        <UnitsToggle athleteId={athlete.id} current={asUnits(athlete.units)} />
       </Card>
 
       {/* ── SYNC ─────────────────────────────────────────────────────────── */}

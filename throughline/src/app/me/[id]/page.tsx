@@ -32,6 +32,7 @@ import { BikeGoalTrackerHero } from '@/components/BikeGoalTrackerHero';
 import { getBikeGoalTracker } from '@/server/bikeGoalTracker';
 import { CoordinatedBudget } from '@/components/CoordinatedBudget';
 import { getGoalProgress } from '@/server/goalProgress';
+import { asUnits, fmtDistance } from '@/lib/units';
 import { YourSports } from '@/components/YourSports';
 import { getAthleteDisciplines } from '@/server/disciplines';
 import { ConnectStrava } from '@/components/ConnectStrava';
@@ -146,6 +147,7 @@ export default async function PortalPage({
 
   const firstName = athlete.fullName.split(' ')[0];
   const todayCheckIn = recentCheckIns.find((c) => c.day === today) ?? null;
+  const units = asUnits(athlete.units);
   const goalDone = !!goalRace.name && goalRace.daysAway != null && goalRace.daysAway < 0;
   const needsGoal = !goalRace.name || goalDone;
   // "Did today's session get done?" — discipline-aware: a completed bike / swim /
@@ -207,8 +209,34 @@ export default async function PortalPage({
           adjustments: todaySession.adjustments,
         }
       : null;
-  const loggedToday =
-    ranToday && latestRun?.day === today ? { miles: latestRun.dayMiles, runCount: latestRun.runCount } : null;
+  // Everything logged today, per sport (run + ride + swim + strength) — not just
+  // the run. A multi-sport day shows them all: "🏃 2.0 mi · 🚴 12.4 mi".
+  const loggedToday = (() => {
+    if (!ranToday) return null;
+    const acts = todayCalDay?.actuals ?? [];
+    if (acts.length === 0) return null;
+    const order = ['run', 'bike', 'swim', 'strength', 'cross_train', 'other'];
+    const bySport = new Map<string, { miles: number; sec: number }>();
+    for (const a of acts) {
+      const cur = bySport.get(a.sport) ?? { miles: 0, sec: 0 };
+      cur.miles += a.miles;
+      cur.sec += a.durationSeconds ?? 0;
+      bySport.set(a.sport, cur);
+    }
+    const rank = (s: string) => (order.indexOf(s) === -1 ? 99 : order.indexOf(s));
+    const items = [...bySport.entries()]
+      .sort((a, b) => rank(a[0]) - rank(b[0]))
+      .map(([sport, v]) => ({
+        sport,
+        label:
+          (sport === 'run' || sport === 'bike') && v.miles > 0
+            ? fmtDistance(v.miles * 1609.344, units)
+            : v.sec > 0
+              ? `${Math.round(v.sec / 60)} min`
+              : 'done',
+      }));
+    return items.length ? { items } : null;
+  })();
 
   // Multi-sport day: more than one real (non-rest) session to do today. A
   // triathlete gets the stacked view; a single-sport athlete keeps the focal
@@ -386,7 +414,7 @@ export default async function PortalPage({
       <div id="training" className="scroll-mt-4" />
       <Card title="Planned vs actual" action={strava.connected ? <SyncButton athleteId={athlete.id} /> : undefined}>
         {calendar.weeks.length > 0 ? (
-          <TrainingCalendar weeks={calendar.weeks} today={today} athleteId={athlete.id} />
+          <TrainingCalendar weeks={calendar.weeks} today={today} athleteId={athlete.id} units={units} />
         ) : (
           <p className="text-sm text-slate-500">
             No published plan yet, set a goal above and your calendar fills in.

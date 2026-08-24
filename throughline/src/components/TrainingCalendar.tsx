@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { secPerKmToMinPerMile } from '@/engine/plan';
+import { fmtPace, distanceValue, distanceUnit, type Units } from '@/lib/units';
 import { SESSION_COLOR, SESSION_LABEL } from '@/components/WeekStrip';
 import { plannedHasWork, type CalWeek, type CalDay, type CalActual, type CalPlanned } from '@/server/trainingCalendarLogic';
 
@@ -25,11 +25,12 @@ const SPORT_ICON: Record<string, string> = {
   other: '🤸',
 };
 
-function pace(sec: number | null): string {
-  return sec == null ? '' : `${secPerKmToMinPerMile(sec)}/mi`;
+function pace(sec: number | null, units: Units): string {
+  return sec == null ? '' : fmtPace(sec, units);
 }
-function mi(n: number): string {
-  return n <= 0 ? '-' : n >= 10 ? n.toFixed(1) : n.toFixed(1);
+/** A miles value rendered as a NUMBER in the athlete's unit (no suffix). */
+function mi(milesVal: number, units: Units): string {
+  return milesVal <= 0 ? '-' : distanceValue(milesVal * 1609.344, units).toFixed(1);
 }
 function dur(sec: number | null): string {
   if (!sec) return '';
@@ -47,27 +48,27 @@ function dayNum(day: string): number {
 }
 
 /** Compact planned volume in the day cell, per discipline: "5.0" · "45′" · "2.0k". */
-function plannedCell(p: CalPlanned): string {
+function plannedCell(p: CalPlanned, units: Units): string {
   if (p.discipline === 'bike' || p.discipline === 'strength') return `${Math.round(p.durationMinutes)}′`;
   if (p.discipline === 'swim') return `${(p.meters / 1000).toFixed(1)}k`;
-  return mi(p.miles);
+  return mi(p.miles, units);
 }
 /** Fuller planned volume in the day detail: "5.0 mi" · "45 min" · "2000 m". */
-function plannedDetail(p: CalPlanned): string {
+function plannedDetail(p: CalPlanned, units: Units): string {
   if (p.discipline === 'bike' || p.discipline === 'strength') return `${Math.round(p.durationMinutes)} min`;
   if (p.discipline === 'swim') return `${Math.round(p.meters)} m`;
-  return `${mi(p.miles)} mi`;
+  return `${mi(p.miles, units)} ${distanceUnit(units)}`;
 }
 /** Weekly total per ACTIVE sport, so a multi-sport week shows where the time
- *  goes ("🏃 12/15 mi · 🚴 90/120 min"). A single-sport week keeps the bare unit
- *  (pure-run weeks unchanged: "X/Y mi"). */
-function weekVolume(w: CalWeek): string {
+ *  goes ("🏃 12/15 mi · 🚴 90/120 min"). A single-sport week keeps the bare unit. */
+function weekVolume(w: CalWeek, units: Units): string {
+  const U = distanceUnit(units);
   const parts: string[] = [];
-  if (w.plannedMiles > 0 || w.actualMiles > 0) parts.push(`🏃 ${mi(w.actualMiles)}/${mi(w.plannedMiles)} mi`);
+  if (w.plannedMiles > 0 || w.actualMiles > 0) parts.push(`🏃 ${mi(w.actualMiles, units)}/${mi(w.plannedMiles, units)} ${U}`);
   if (w.plannedMinutes > 0 || w.actualMinutes > 0) parts.push(`🚴 ${Math.round(w.actualMinutes)}/${Math.round(w.plannedMinutes)} min`);
   if (w.plannedMeters > 0 || w.actualMeters > 0) parts.push(`🏊 ${(w.actualMeters / 1000).toFixed(1)}/${(w.plannedMeters / 1000).toFixed(1)} km`);
   if (w.plannedStrengthSessions > 0) parts.push(`💪 ${w.plannedStrengthSessions}×`);
-  if (parts.length === 0) return `${mi(w.actualMiles)}/${mi(w.plannedMiles)} mi`;
+  if (parts.length === 0) return `${mi(w.actualMiles, units)}/${mi(w.plannedMiles, units)} ${U}`;
   if (parts.length === 1) return parts[0].replace(/^\S+\s/, ''); // drop the lone emoji
   return parts.join(' · ');
 }
@@ -82,17 +83,17 @@ function sessionLabel(p: CalPlanned): string {
 }
 
 /** Status → the small glyph + color shown under each day. */
-function statusGlyph(d: CalDay): { mark: string; cls: string; label: string } | null {
+function statusGlyph(d: CalDay, units: Units): { mark: string; cls: string; label: string } | null {
   if (d.isFuture) return null;
   switch (d.status) {
     case 'done':
-      return { mark: '✓', cls: 'text-emerald-600', label: `${mi(d.primaryRun?.miles ?? 0)} mi` };
+      return { mark: '✓', cls: 'text-emerald-600', label: `${mi(d.primaryRun?.miles ?? 0, units)} ${distanceUnit(units)}` };
     case 'partial':
-      return { mark: '◑', cls: 'text-amber-600', label: `${mi(d.primaryRun?.miles ?? 0)} mi` };
+      return { mark: '◑', cls: 'text-amber-600', label: `${mi(d.primaryRun?.miles ?? 0, units)} ${distanceUnit(units)}` };
     case 'missed':
       return { mark: '✗', cls: 'text-rose-500', label: 'missed' };
     case 'extra':
-      return { mark: '＋', cls: 'text-sky-600', label: `${mi(d.primaryRun?.miles ?? 0)} mi` };
+      return { mark: '＋', cls: 'text-sky-600', label: `${mi(d.primaryRun?.miles ?? 0, units)} ${distanceUnit(units)}` };
     case 'cross':
       return { mark: SPORT_ICON[d.crossTrain[0]?.sport] ?? '🔁', cls: '', label: 'XT' };
     default:
@@ -104,10 +105,12 @@ export function TrainingCalendar({
   weeks,
   today,
   athleteId,
+  units,
 }: {
   weeks: CalWeek[];
   today: string;
   athleteId: string;
+  units: Units;
 }) {
   const [expanded, setExpanded] = useState<string | null>(today);
 
@@ -135,13 +138,13 @@ export function TrainingCalendar({
           </summary>
           <div className="space-y-3 px-1 pb-2 pt-1">
             {past.map((w) => (
-              <Week key={w.weekStart} week={w} today={today} expanded={expanded} toggle={toggle} athleteId={athleteId} multiSport={multiSport} />
+              <Week key={w.weekStart} week={w} today={today} expanded={expanded} toggle={toggle} athleteId={athleteId} multiSport={multiSport} units={units} />
             ))}
           </div>
         </details>
       )}
       {nowAndAhead.map((w) => (
-        <Week key={w.weekStart} week={w} today={today} expanded={expanded} toggle={toggle} athleteId={athleteId} multiSport={multiSport} />
+        <Week key={w.weekStart} week={w} today={today} expanded={expanded} toggle={toggle} athleteId={athleteId} multiSport={multiSport} units={units} />
       ))}
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 px-1 pt-1 text-[11px] text-slate-400">
@@ -162,6 +165,7 @@ function Week({
   toggle,
   athleteId,
   multiSport,
+  units,
 }: {
   week: CalWeek;
   today: string;
@@ -169,6 +173,7 @@ function Week({
   toggle: (day: string) => void;
   athleteId: string;
   multiSport: boolean;
+  units: Units;
 }) {
   const expandedDay = week.days.find((d) => d.day === expanded) ?? null;
   return (
@@ -179,7 +184,7 @@ function Week({
           {week.phase && <span className="ml-1.5 font-normal capitalize text-slate-400">· {week.phase}</span>}
         </div>
         <div className="flex items-center gap-2 text-[11px] tabular-nums text-slate-500">
-          <span>{weekVolume(week)}</span>
+          <span>{weekVolume(week, units)}</span>
           {week.adherencePct != null && (
             <span
               className={`rounded-full px-1.5 py-0.5 font-semibold ${
@@ -198,21 +203,21 @@ function Week({
 
       <div className="grid grid-cols-7 gap-1">
         {week.days.map((d) => (
-          <DayCell key={d.day} d={d} selected={d.day === expanded} onClick={() => toggle(d.day)} multiSport={multiSport} />
+          <DayCell key={d.day} d={d} selected={d.day === expanded} onClick={() => toggle(d.day)} multiSport={multiSport} units={units} />
         ))}
       </div>
 
-      {expandedDay && <DayDetail d={expandedDay} athleteId={athleteId} />}
+      {expandedDay && <DayDetail d={expandedDay} athleteId={athleteId} units={units} />}
     </div>
   );
 }
 
-function DayCell({ d, selected, onClick, multiSport }: { d: CalDay; selected: boolean; onClick: () => void; multiSport: boolean }) {
+function DayCell({ d, selected, onClick, multiSport, units }: { d: CalDay; selected: boolean; onClick: () => void; multiSport: boolean; units: Units }) {
   const plannedType = d.planned?.sessionType ?? null;
   const workSessions = d.plannedAll.filter(plannedHasWork);
   const hasWork = workSessions.length > 0;
   const multi = workSessions.length > 1;
-  const glyph = statusGlyph(d);
+  const glyph = statusGlyph(d, units);
   const empty = !hasWork && d.actuals.length === 0;
 
   return (
@@ -238,7 +243,7 @@ function DayCell({ d, selected, onClick, multiSport }: { d: CalDay; selected: bo
       {hasWork ? (
         multi ? (
           // A brick day: one chip per discipline.
-          <span className="flex items-center gap-0.5 text-[11px] leading-none" title={workSessions.map((p) => `${p.discipline} ${plannedDetail(p)}`).join(' · ')}>
+          <span className="flex items-center gap-0.5 text-[11px] leading-none" title={workSessions.map((p) => `${p.discipline} ${plannedDetail(p, units)}`).join(' · ')}>
             {workSessions.map((p, i) => (
               <span key={i}>{DISC_EMOJI[p.discipline]}</span>
             ))}
@@ -248,13 +253,13 @@ function DayCell({ d, selected, onClick, multiSport }: { d: CalDay; selected: bo
           // reads "🚴 55′" not a bare "55′".
           <>
             <span className="text-[11px] leading-none">{DISC_EMOJI[workSessions[0].discipline]}</span>
-            <span className="text-[10px] font-semibold leading-none tabular-nums">{plannedCell(workSessions[0])}</span>
+            <span className="text-[10px] font-semibold leading-none tabular-nums">{plannedCell(workSessions[0], units)}</span>
           </>
         ) : (
           // Single-sport athlete: compact colour-dot + volume (unchanged).
           <>
             <span className={`h-1.5 w-1.5 rounded-full ${SESSION_COLOR[plannedType!] ?? 'bg-slate-300'}`} />
-            <span className="text-[10px] font-semibold leading-none tabular-nums">{plannedCell(workSessions[0])}</span>
+            <span className="text-[10px] font-semibold leading-none tabular-nums">{plannedCell(workSessions[0], units)}</span>
           </>
         )
       ) : plannedType === 'rest' ? (
@@ -272,7 +277,7 @@ function DayCell({ d, selected, onClick, multiSport }: { d: CalDay; selected: bo
   );
 }
 
-function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
+function DayDetail({ d, athleteId, units }: { d: CalDay; athleteId: string; units: Units }) {
   // A bike/swim planned day's SESSION is the matching-sport activity (a logged
   // ride on a bike day is the day's work, not "cross-training"). Runs keep the
   // full coach's-take path unchanged.
@@ -292,7 +297,7 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
           <div className="flex flex-wrap items-center gap-x-2 font-semibold text-emerald-700">
             <span>{SPORT_ICON[sessionActual.sport] ?? '🔁'} Session done</span>
             {sessionActual.durationSeconds ? <span className="tabular-nums font-normal text-slate-500">{dur(sessionActual.durationSeconds)}</span> : null}
-            {sessionActual.miles > 0 && <span className="tabular-nums font-normal text-slate-500">{mi(sessionActual.miles)} mi</span>}
+            {sessionActual.miles > 0 && <span className="tabular-nums font-normal text-slate-500">{mi(sessionActual.miles, units)} {distanceUnit(units)}</span>}
             {sessionActual.avgHr != null && <span className="font-normal text-slate-400">{sessionActual.avgHr} bpm</span>}
           </div>
           {sessionActual.name && <p className="mt-0.5 leading-snug text-slate-500">{sessionActual.name}</p>}
@@ -308,11 +313,11 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
                 <span className={`h-2 w-2 rounded-full ${SESSION_COLOR[p.sessionType] ?? 'bg-slate-300'}`} />
                 <span className="font-medium text-slate-700">
                   <span className="mr-0.5">{DISC_EMOJI[p.discipline]}</span>
-                  Planned: {sessionLabel(p)} · {plannedDetail(p)}
+                  Planned: {sessionLabel(p)} · {plannedDetail(p, units)}
                 </span>
                 {p.discipline === 'run' && p.paceFastSecPerKm != null && (
                   <span className="text-xs tabular-nums text-slate-400">
-                    {pace(p.paceFastSecPerKm)}-{pace(p.paceSlowSecPerKm)}
+                    {pace(p.paceFastSecPerKm, units)}-{pace(p.paceSlowSecPerKm, units)}
                   </span>
                 )}
               </div>
@@ -332,15 +337,15 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
       {/* Multi-run day: one session logged as several activities */}
       {d.actuals.filter((a) => a.isRun).length > 1 && (
         <p className="text-xs font-medium text-slate-500">
-          {d.actuals.filter((a) => a.isRun).length} runs · {mi(d.actuals.filter((a) => a.isRun).reduce((s, a) => s + a.miles, 0))} mi
+          {d.actuals.filter((a) => a.isRun).length} runs · {mi(d.actuals.filter((a) => a.isRun).reduce((s, a) => s + a.miles, 0), units)} {distanceUnit(units)}
           total, coach’s take is on your main effort.
         </p>
       )}
 
       {/* Actual runs, main effort first */}
-      {d.primaryRun && <ActualLine a={d.primaryRun} athleteId={athleteId} primary={d.actuals.filter((a) => a.isRun).length > 1} />}
+      {d.primaryRun && <ActualLine a={d.primaryRun} athleteId={athleteId} primary={d.actuals.filter((a) => a.isRun).length > 1} units={units} />}
       {d.actuals.filter((a) => a.isRun && a !== d.primaryRun).map((a) => (
-        <ActualLine key={a.activityId} a={a} athleteId={athleteId} />
+        <ActualLine key={a.activityId} a={a} athleteId={athleteId} units={units} />
       ))}
 
       {/* Coach's take for the run */}
@@ -364,7 +369,7 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
           <span className="font-medium capitalize">{a.sport.replace('_', ' ')}</span>
           {a.name && <span className="text-slate-400">· {a.name}</span>}
           {a.durationSeconds ? <span className="tabular-nums text-slate-400">· {dur(a.durationSeconds)}</span> : null}
-          {a.miles > 0 && <span className="tabular-nums text-slate-400">· {mi(a.miles)} mi</span>}
+          {a.miles > 0 && <span className="tabular-nums text-slate-400">· {mi(a.miles, units)} {distanceUnit(units)}</span>}
         </div>
       ))}
       {otherCross.length > 0 && d.status !== 'missed' && !sessionActual && (
@@ -387,24 +392,26 @@ function DayDetail({ d, athleteId }: { d: CalDay; athleteId: string }) {
   );
 }
 
-function ActualLine({ a, athleteId, primary }: { a: CalActual; athleteId: string; primary?: boolean }) {
+function ActualLine({ a, athleteId, primary, units }: { a: CalActual; athleteId: string; primary?: boolean; units: Units }) {
   return (
     <Link
       href={`/me/${athleteId}/runs/${a.activityId}`}
       className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg bg-card px-2 py-1.5 text-xs ring-1 ring-inset ring-slate-200 transition hover:ring-slate-300"
     >
       <span className="font-semibold text-slate-700">
-        {a.workoutType === 1 ? '🏁' : '🏃'} {mi(a.miles)} mi
+        {a.workoutType === 1 ? "🏁" : "🏃"} {mi(a.miles, units)} {distanceUnit(units)}
       </span>
       {primary && (
         <span className="rounded bg-violet-400/15 px-1 text-[10px] font-medium text-violet-500">
           {a.workoutType === 1 ? 'race' : 'main'}
         </span>
       )}
-      {a.paceSecPerKm != null && <span className="tabular-nums text-slate-500">{pace(a.paceSecPerKm)}</span>}
+      {a.paceSecPerKm != null && <span className="tabular-nums text-slate-500">{pace(a.paceSecPerKm, units)}</span>}
       {a.durationSeconds ? <span className="tabular-nums text-slate-400">{dur(a.durationSeconds)}</span> : null}
       {a.elevationGainMeters != null && a.elevationGainMeters > 0 && (
-        <span className="text-slate-400">↑{Math.round(a.elevationGainMeters * 3.281)} ft</span>
+        <span className="text-slate-400">
+          ↑{units === 'km' ? `${Math.round(a.elevationGainMeters)} m` : `${Math.round(a.elevationGainMeters * 3.281)} ft`}
+        </span>
       )}
       {a.surface === 'trail' && <span className="text-emerald-600">trail</span>}
       {a.avgHr != null && <span className="text-slate-400">{a.avgHr} bpm</span>}
