@@ -19,6 +19,7 @@ import { getComplianceWeeks, type DayStatus } from '@/server/compliance';
 import { getTrainingInsights } from '@/server/insights';
 import { getCycle, computeCycle } from '@/server/cycle';
 import { WeeklyVolumeChart } from '@/components/WeeklyVolumeChart';
+import { asUnits } from '@/lib/units';
 import { getTrainingSummary } from '@/server/weeklyVolume';
 import { SegmentList } from '@/components/SegmentList';
 import type { PortalSegment } from '@/server/portal';
@@ -354,7 +355,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
 
       {/* Last 12 weeks: mileage + elevation + key efforts */}
       <Card title="Last 12 weeks">
-        <WeeklyVolumeChart summary={trainingSummary} runLinkBase={`/me/${athlete.id}/runs`} />
+        <WeeklyVolumeChart summary={trainingSummary} runLinkBase={`/me/${athlete.id}/runs`} units={asUnits(athlete.units)} />
       </Card>
 
       {/* Fitness & fatigue (PMC) */}

@@ -1,4 +1,5 @@
 'use client';
+import type { Units } from '@/lib/units';
 
 import { useEffect, useState } from 'react';
 
@@ -42,8 +43,10 @@ export function GoalSetup({
   redirectTo,
   submitLabel,
   recentRaces,
+  units = 'mi',
 }: {
   athleteId: string;
+  units?: Units;
   hasAnchor: boolean;
   hasGoal: boolean;
   /** Force the form open initially (e.g. post-race "what's next?" prompt). */
@@ -83,9 +86,13 @@ export function GoalSetup({
     setErr(null);
     const fd = new FormData(e.currentTarget);
 
+    // Fields are entered in the athlete's unit; the API always takes miles.
+    const toMiles = (v: number) => (units === 'km' ? v / 1.609344 : v);
+    const peakRaw = Number(fd.get('peakWeeklyMiles') || 0);
     const body: Record<string, unknown> = {
       kind,
-      currentWeeklyMiles: Number(fd.get('currentWeeklyMiles') || 0),
+      currentWeeklyMiles: toMiles(Number(fd.get('currentWeeklyMiles') || 0)),
+      ...(peakRaw > 0 ? { peakWeeklyMiles: toMiles(peakRaw) } : {}),
     };
     if (kind !== 'fitness') {
       body.distanceLabel = String(fd.get('distanceLabel') || '');
@@ -286,11 +293,11 @@ export function GoalSetup({
       {/* Volume */}
       <div className="grid grid-cols-2 gap-3">
         <label className="text-xs text-slate-600">
-          Current weekly miles
+          Current weekly {units === "km" ? "km" : "miles"}
           <input name="currentWeeklyMiles" type="number" min={3} max={150} defaultValue={20} className={`block w-full ${field}`} />
         </label>
         <label className="text-xs text-slate-600">
-          Peak weekly miles (optional)
+          Peak weekly {units === "km" ? "km" : "miles"} (optional)
           <input name="peakWeeklyMiles" type="number" min={3} max={160} placeholder="auto" className={`block w-full ${field}`} />
         </label>
       </div>

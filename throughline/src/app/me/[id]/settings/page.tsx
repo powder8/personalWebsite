@@ -207,7 +207,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
 
       {goalRace.name && !needsGoal && (
         <Card title="Change your goal or race">
-          <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal />
+          <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal units={asUnits(athlete.units)} />
         </Card>
       )}
 
@@ -263,7 +263,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
       )}
 
       <Card title="Last 12 weeks">
-        <WeeklyVolumeChart summary={trainingSummary} runLinkBase={`/me/${athlete.id}/runs`} />
+        <WeeklyVolumeChart summary={trainingSummary} runLinkBase={`/me/${athlete.id}/runs`} units={asUnits(athlete.units)} />
       </Card>
 
       {/* ── GEAR ─────────────────────────────────────────────────────────── */}

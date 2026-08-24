@@ -8,6 +8,7 @@
  */
 import type { RunDebriefResult } from '@/server/runDebrief';
 import type { CrossTrainingSummary } from '@/server/weeklyVolume';
+import { fmtDistance, type Units } from '@/lib/units';
 
 const CHIP: Record<string, string> = {
   positive: 'bg-emerald-400/10 text-emerald-300 ring-emerald-400/30',
@@ -44,6 +45,7 @@ export function RunDebriefCard({
   daysAgo,
   dayMiles,
   crossTraining,
+  units,
 }: {
   debrief: RunDebriefResult;
   daysAgo?: number;
@@ -51,9 +53,10 @@ export function RunDebriefCard({
   dayMiles?: number;
   /** Recent cross-training — shown inline at the bottom so it's not a disconnected card. */
   crossTraining?: CrossTrainingSummary | null;
+  units: Units;
 }) {
   const recency = daysAgo != null ? recencyLabel(daysAgo) : null;
-  const milesLabel = dayMiles != null && dayMiles > 0 ? `${dayMiles.toFixed(1)} mi` : null;
+  const milesLabel = dayMiles != null && dayMiles > 0 ? fmtDistance(dayMiles * 1609.344, units) : null;
 
   const xtIcons = crossTraining && crossTraining.sessions > 0
     ? crossTraining.sports.map((s) => XT_ICON[s] ?? '🔁').join(' ')

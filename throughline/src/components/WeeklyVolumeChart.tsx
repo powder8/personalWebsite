@@ -4,7 +4,7 @@
  * axis (only when elevation data exists). Below, a table of labeled efforts.
  */
 import Link from 'next/link';
-import { secPerKmToMinPerMile } from '@/engine/plan';
+import { fmtPace, distanceUnit, distanceValue, type Units } from '@/lib/units';
 import type { TrainingSummary, EffortKind } from '@/server/weeklyVolume';
 
 const W = 640;
@@ -36,7 +36,7 @@ function fmtMonthDay(day: string): string {
   return `${Number(m)}/${Number(d)}`;
 }
 
-export function WeeklyVolumeChart({ summary, runLinkBase }: { summary: TrainingSummary; runLinkBase?: string }) {
+export function WeeklyVolumeChart({ summary, runLinkBase, units }: { summary: TrainingSummary; runLinkBase?: string; units: Units }) {
   const { weeks, efforts, hasElevation } = summary;
   const anyMiles = weeks.some((w) => w.miles > 0);
   if (!anyMiles) {
@@ -77,7 +77,7 @@ export function WeeklyVolumeChart({ summary, runLinkBase }: { summary: TrainingS
               <g key={t}>
                 <line x1={PAD_L} x2={W - padR} y1={y} y2={y} stroke="#26304a" strokeWidth={1} />
                 <text x={PAD_L - 4} y={y + 3} textAnchor="end" className="fill-slate-400" fontSize={9}>
-                  {Math.round(t * milesTop)}
+                  {Math.round(t * distanceValue(milesTop * 1609.344, units))}
                 </text>
                 {showElev && (
                   <text x={W - padR + 4} y={y + 3} textAnchor="start" className="fill-orange-400" fontSize={9}>
@@ -89,7 +89,7 @@ export function WeeklyVolumeChart({ summary, runLinkBase }: { summary: TrainingS
           })}
           {/* axis captions */}
           <text x={PAD_L - 4} y={plotTop - 1} textAnchor="end" className="fill-slate-400" fontSize={8}>
-            mi
+            {distanceUnit(units)}
           </text>
           {showElev && (
             <text x={W - padR + 4} y={plotTop - 1} textAnchor="start" className="fill-orange-400" fontSize={8}>
@@ -128,7 +128,7 @@ export function WeeklyVolumeChart({ summary, runLinkBase }: { summary: TrainingS
         <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-slate-500">
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             <span className="inline-flex items-center gap-1">
-              <span className="inline-block h-2 w-3 rounded-sm bg-sky-500/70" /> Weekly miles
+              <span className="inline-block h-2 w-3 rounded-sm bg-sky-500/70" /> Weekly {distanceUnit(units)}
             </span>
             {hasElevation && (
               <span className="inline-flex items-center gap-1">
@@ -136,7 +136,7 @@ export function WeeklyVolumeChart({ summary, runLinkBase }: { summary: TrainingS
               </span>
             )}
           </div>
-          <span className="text-slate-400">peak {peakMiles} mi/wk</span>
+          <span className="text-slate-400">peak {distanceValue(peakMiles * 1609.344, units).toFixed(0)} {distanceUnit(units)}/wk</span>
         </div>
       </div>
 
@@ -152,7 +152,7 @@ export function WeeklyVolumeChart({ summary, runLinkBase }: { summary: TrainingS
                 <th className="py-1 font-medium">Date</th>
                 <th className="py-1 font-medium">Type</th>
                 <th className="py-1 font-medium">Run</th>
-                <th className="py-1 text-right font-medium">Miles</th>
+                <th className="py-1 text-right font-medium">{distanceUnit(units) === "km" ? "Km" : "Miles"}</th>
                 <th className="py-1 text-right font-medium">Pace</th>
                 {hasElevation && <th className="py-1 text-right font-medium">Elev</th>}
               </tr>
@@ -177,9 +177,9 @@ export function WeeklyVolumeChart({ summary, runLinkBase }: { summary: TrainingS
                       e.name ?? '-'
                     )}
                   </td>
-                  <td className="py-1.5 text-right text-slate-700">{e.miles.toFixed(1)}</td>
+                  <td className="py-1.5 text-right text-slate-700">{distanceValue(e.miles * 1609.344, units).toFixed(1)}</td>
                   <td className="py-1.5 text-right text-slate-600">
-                    {e.paceSecPerKm != null ? `${secPerKmToMinPerMile(e.paceSecPerKm)}/mi` : '-'}
+                    {e.paceSecPerKm != null ? fmtPace(e.paceSecPerKm, units) : '-'}
                   </td>
                   {hasElevation && (
                     <td className="py-1.5 text-right text-slate-500">{Math.round(e.elevationFt)} ft</td>
