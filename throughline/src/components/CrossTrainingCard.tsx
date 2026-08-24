@@ -4,6 +4,7 @@
  * while being explicit that it doesn't move run paces. Pure markup.
  */
 import type { CrossTrainingSummary } from '@/server/weeklyVolume';
+import { fmtDistance, type Units } from '@/lib/units';
 
 const SPORT: Record<string, { icon: string; label: string }> = {
   bike: { icon: '🚴', label: 'cycling' },
@@ -20,7 +21,7 @@ function fmtDuration(min: number): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-export function CrossTrainingCard({ summary }: { summary: CrossTrainingSummary }) {
+export function CrossTrainingCard({ summary, units }: { summary: CrossTrainingSummary; units: Units }) {
   if (summary.sessions === 0) return null;
   const icons = summary.sports.map((s) => SPORT[s]?.icon ?? '🔁').join(' ');
   const label =
@@ -38,7 +39,7 @@ export function CrossTrainingCard({ summary }: { summary: CrossTrainingSummary }
       <div className="mt-1 text-sm font-semibold text-white">
         {summary.sessions} {label} session{summary.sessions === 1 ? '' : 's'}
         {dur && <span className="font-normal text-slate-400"> · {dur}</span>}
-        {summary.miles > 0 && <span className="font-normal text-slate-400"> · {summary.miles} mi</span>}
+        {summary.miles > 0 && <span className="font-normal text-slate-400"> · {fmtDistance(summary.miles * 1609.344, units)}</span>}
       </div>
       <p className="mt-1 text-xs leading-relaxed text-slate-400">
         Nice aerobic work, this builds your engine with none of the pounding. It counts toward your consistency and

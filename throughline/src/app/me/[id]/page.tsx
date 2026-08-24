@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getAthletePortal, type PortalSession } from '@/server/portal';
 import { Card } from '@/components/ui';
-import { secPerKmToMinPerMile } from '@/engine/plan';
 import { CheckInForm } from '@/components/CheckInForm';
 import { TrainingChat } from '@/components/TrainingChat';
 import { chatConfigured } from '@/server/chat';
@@ -32,7 +31,7 @@ import { BikeGoalTrackerHero } from '@/components/BikeGoalTrackerHero';
 import { getBikeGoalTracker } from '@/server/bikeGoalTracker';
 import { CoordinatedBudget } from '@/components/CoordinatedBudget';
 import { getGoalProgress } from '@/server/goalProgress';
-import { asUnits, fmtDistance } from '@/lib/units';
+import { asUnits, fmtDistance, fmtPace, type Units } from '@/lib/units';
 import { YourSports } from '@/components/YourSports';
 import { getAthleteDisciplines } from '@/server/disciplines';
 import { ConnectStrava } from '@/components/ConnectStrava';
@@ -48,8 +47,8 @@ import { SESSION_TERRAIN } from '@/components/WeekStrip';
 
 export const dynamic = 'force-dynamic';
 
-function pace(sec: number | null): string {
-  return sec == null ? '' : `${secPerKmToMinPerMile(sec)}/mi`;
+function pace(sec: number | null, units: Units): string {
+  return sec == null ? "" : fmtPace(sec, units);
 }
 
 /** A session is "rest" if it's typed rest or has zero volume in ITS OWN unit —
@@ -61,25 +60,25 @@ function isRestSession(s: PortalSession | null): boolean {
 }
 
 /** Headline target label per discipline: run pace / bike watt band / (swim detail in segments). */
-function sessionTargetLabel(s: PortalSession): string | null {
+function sessionTargetLabel(s: PortalSession, units: Units): string | null {
   if (s.discipline === 'bike') {
     return s.targetPowerLoWatts != null && s.targetPowerHiWatts != null
       ? `${Math.round(s.targetPowerLoWatts)}-${Math.round(s.targetPowerHiWatts)} W`
       : null;
   }
   if (s.discipline === 'swim') return null; // per-100m pace lives in the segments
-  return s.paceFastSecPerKm != null ? `${pace(s.paceFastSecPerKm)}-${pace(s.paceSlowSecPerKm)}` : null;
+  return s.paceFastSecPerKm != null ? `${pace(s.paceFastSecPerKm, units)}-${pace(s.paceSlowSecPerKm, units)}` : null;
 }
 
 /** Build the discipline-aware "today" lite for the next-step decision. */
-function todayLite(s: PortalSession) {
+function todayLite(s: PortalSession, units: Units) {
   return {
     sessionType: s.sessionType,
     discipline: s.discipline,
     miles: s.distanceMeters != null ? s.distanceMeters / 1609.344 : 0,
     durationMinutes: s.durationSeconds != null ? Math.round(s.durationSeconds / 60) : undefined,
     meters: s.discipline === 'swim' ? s.distanceMeters ?? undefined : undefined,
-    targetLabel: sessionTargetLabel(s),
+    targetLabel: sessionTargetLabel(s, units),
     eased: s.adjustments.length > 0,
   };
 }
@@ -177,7 +176,7 @@ export default async function PortalPage({
     easeBackAvailable: !!adaptation?.easeBack,
     easeBackApplied: !!adaptation?.easeBackApplied,
     ranToday,
-    today: todaySession ? todayLite(todaySession) : null,
+    today: todaySession ? todayLite(todaySession, units) : null,
     readinessBand: recovery.readiness?.band ?? null,
     coachingMode: athlete.coachingMode,
   });
@@ -202,7 +201,7 @@ export default async function PortalPage({
   const sessionDetail =
     todaySession && !ranToday && !isRestToday
       ? {
-          paceLabel: sessionTargetLabel(todaySession),
+          paceLabel: sessionTargetLabel(todaySession, units),
           segments: todaySession.segments ?? [],
           description: todaySession.description ?? null,
           terrain: SESSION_TERRAIN[todaySession.sessionType] ?? null,
@@ -275,7 +274,7 @@ export default async function PortalPage({
 
         <div id="goal-setup" className="scroll-mt-4" />
         <Card title={goalDone ? "What's next?" : 'Set your goal'} className="border-lime-400/30 ring-1 ring-inset ring-lime-400/30">
-          <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal={!!goalRace.name} startOpen />
+          <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal={!!goalRace.name} startOpen units={units} />
         </Card>
 
         <YourSports athleteId={athlete.id} disciplines={disciplines} />
@@ -292,7 +291,7 @@ export default async function PortalPage({
         {/* Proof of value while they decide: the debrief of their latest run. */}
         {latestDebrief && (
           <Link href={`/me/${athlete.id}/runs/${latestRun!.activityId}`} className="block transition hover:opacity-95">
-            <RunDebriefCard debrief={latestDebrief} daysAgo={latestRun!.daysAgo} dayMiles={latestRun!.dayMiles} crossTraining={null} />
+            <RunDebriefCard debrief={latestDebrief} daysAgo={latestRun!.daysAgo} dayMiles={latestRun!.dayMiles} crossTraining={null} units={units} />
           </Link>
         )}
 
@@ -332,7 +331,7 @@ export default async function PortalPage({
           triathlete with several sessions today gets the stacked multi-sport
           view; everyone else gets the single-focal next-step banner. */}
       {showTodayStack ? (
-        <TodayStack sessions={trainingSessionsToday} />
+        <TodayStack sessions={trainingSessionsToday} units={units} />
       ) : (
         <NextStepBanner
           step={nextStep}
@@ -391,6 +390,7 @@ export default async function PortalPage({
             daysAgo={latestRun!.daysAgo}
             dayMiles={latestRun!.dayMiles}
             crossTraining={crossTraining.sessions > 0 ? crossTraining : null}
+            units={units}
           />
         </Link>
       ) : (
@@ -429,7 +429,7 @@ export default async function PortalPage({
           {goalRace.name} · {goalRace.date}
           {goalTracker?.cta ? ', add a target time to unlock the on-pace verdict.' : ''}
         </p>
-        <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal />
+        <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal units={units} />
       </Card>
 
       {/* ── ASK YOUR COACH ───────────────────────────────────────────────── */}

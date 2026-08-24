@@ -2,13 +2,14 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { getDb } from '@/db';
-import { activities, shoes } from '@/db/schema';
+import { activities, shoes, athletes } from '@/db/schema';
+import { fmtPace, fmtDistance, distanceValue, distanceUnit, asUnits, type Units } from '@/lib/units';
 import { Card } from '@/components/ui';
 import { RouteMap } from '@/components/RouteMap';
 import { RunDebriefCard } from '@/components/RunDebriefCard';
 import { RunFeedbackPrompt } from '@/components/RunFeedbackPrompt';
 import { getRunDebrief, getRunFeedbackReport } from '@/server/runDebrief';
-import { secPerKmToMinPerMile, gapFromSplits, type GapSplit } from '@/engine/plan';
+import { gapFromSplits, type GapSplit } from "@/engine/plan";
 import { detectIntervals } from '@/engine/plan/intervalDetection';
 import type { LapSeg, IntervalResult } from '@/engine/plan/intervalDetection';
 
@@ -31,8 +32,8 @@ const fmtDur = (s: number) => {
     ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
     : `${m}:${String(sec).padStart(2, '0')}`;
 };
-const paceMi = (secPerKm: number | null) =>
-  secPerKm == null ? '-' : `${secPerKmToMinPerMile(secPerKm)}/mi`;
+const paceMi = (secPerKm: number | null, units: Units) =>
+  secPerKm == null ? '-' : fmtPace(secPerKm, units);
 const lapPaceSecPerKm = (lap: LapSeg): number | null =>
   lap.distanceMeters > 0 ? lap.durationSeconds / (lap.distanceMeters / 1000) : null;
 
@@ -73,6 +74,8 @@ export default async function RunDetailPage({
     shoeName = s?.name ?? null;
   }
 
+  const [ath] = await db.select({ units: athletes.units }).from(athletes).where(eq(athletes.id, id)).limit(1);
+  const units = asUnits(ath?.units);
   const day = run.startTime.toISOString().slice(0, 10);
   const debrief = await getRunDebrief(id, activityId);
   const feedbackReport = await getRunFeedbackReport(id, activityId);
@@ -110,13 +113,13 @@ export default async function RunDetailPage({
         <p className="text-sm text-slate-400">{day}{shoeName ? ` · ${shoeName}` : ''}</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">{run.name ?? 'Run'}</h1>
         <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
-          <Stat label="Distance" value={miles != null ? `${miles.toFixed(2)} mi` : '-'} />
+          <Stat label="Distance" value={miles != null ? fmtDistance(miles * MI, units, 2) : "-"} />
           <Stat label="Time" value={run.durationSeconds != null ? fmtDur(run.durationSeconds) : '-'} />
-          <Stat label="Avg pace" value={paceMi(run.avgPaceSecPerKm)} />
-          {gap?.significant && <Stat label="GAP" value={paceMi(gap.gapSecPerKm)} accent />}
+          <Stat label="Avg pace" value={paceMi(run.avgPaceSecPerKm, units)} />
+          {gap?.significant && <Stat label="GAP" value={paceMi(gap.gapSecPerKm, units)} accent />}
           <Stat
             label="Elevation"
-            value={run.elevationGainMeters != null ? `${Math.round(run.elevationGainMeters * 3.28084)} ft` : '-'}
+            value={run.elevationGainMeters != null ? units === "km" ? `${Math.round(run.elevationGainMeters)} m` : `${Math.round(run.elevationGainMeters * 3.28084)} ft` : '-'}
           />
           {run.avgHr != null && <Stat label="Avg HR" value={`${run.avgHr} bpm`} />}
           {run.maxHr != null && <Stat label="Max HR" value={`${run.maxHr} bpm`} />}
@@ -124,14 +127,14 @@ export default async function RunDetailPage({
         </div>
         {gap?.significant && (
           <p className="mt-3 text-[11px] text-slate-400">
-            GAP (grade-adjusted pace) is your flat-equivalent effort over {Math.round(gap.climbMeters * 3.28084)} ft
+            GAP (grade-adjusted pace) is your flat-equivalent effort over {units === "km" ? `${Math.round(gap.climbMeters)} m` : `${Math.round(gap.climbMeters * 3.28084)} ft`}
             of climb, the fairer read of how hard this run actually was.
           </p>
         )}
       </div>
 
       {/* Coach's debrief */}
-      {debrief && <RunDebriefCard debrief={debrief} />}
+      {debrief && <RunDebriefCard debrief={debrief} units={units} />}
 
       {/* Athlete's own read */}
       <RunFeedbackPrompt athleteId={id} activityId={activityId} existing={feedbackReport} />
@@ -157,13 +160,13 @@ export default async function RunDetailPage({
           title={`Intervals · ${intervalResult.repCount} × ~${roundToNearest(intervalResult.repAvgDistMeters, 25)}m`}
         >
           <div className="mb-4 flex flex-wrap gap-4">
-            <LapStat label="Avg effort pace" value={paceMi(intervalResult.repAvgPaceSecPerKm)} accent />
+            <LapStat label="Avg effort pace" value={paceMi(intervalResult.repAvgPaceSecPerKm, units)} accent />
             <LapStat
               label="Avg rep dist"
               value={`${roundToNearest(intervalResult.repAvgDistMeters, 25)}m`}
             />
             {intervalResult.recoveryAvgPaceSecPerKm != null && (
-              <LapStat label="Avg recovery" value={paceMi(intervalResult.recoveryAvgPaceSecPerKm)} />
+              <LapStat label="Avg recovery" value={paceMi(intervalResult.recoveryAvgPaceSecPerKm, units)} />
             )}
           </div>
           <table className="w-full text-sm">
@@ -183,7 +186,7 @@ export default async function RunDetailPage({
                 const dist = lap.distanceMeters;
                 const distLabel = dist < MI * 0.9
                   ? `${Math.round(dist)}m`
-                  : `${(dist / MI).toFixed(2)} mi`;
+                  : fmtDistance(dist, units, 2);
                 return (
                   <tr key={i} className={effort ? 'bg-lime-400/5' : ''}>
                     <td className="py-1.5 text-xs tabular-nums text-slate-400">{i + 1}</td>
@@ -198,7 +201,7 @@ export default async function RunDetailPage({
                     </td>
                     <td className="py-1.5 text-xs tabular-nums text-slate-300">{distLabel}</td>
                     <td className="py-1.5 text-xs font-semibold tabular-nums text-slate-200">
-                      {paceMi(lapPaceSecPerKm(lap))}
+                      {paceMi(lapPaceSecPerKm(lap), units)}
                     </td>
                     <td className="py-1.5 text-xs tabular-nums text-slate-400">
                       {fmtDur(lap.durationSeconds)}
@@ -273,13 +276,13 @@ export default async function RunDetailPage({
                 const dist = lap.distanceMeters;
                 const distLabel = dist < MI * 0.9
                   ? `${Math.round(dist)}m`
-                  : `${(dist / MI).toFixed(2)} mi`;
+                  : fmtDistance(dist, units, 2);
                 return (
                   <tr key={i}>
                     <td className="py-1.5 text-xs tabular-nums text-slate-400">{i + 1}</td>
                     <td className="py-1.5 text-xs tabular-nums text-slate-300">{distLabel}</td>
                     <td className="py-1.5 text-xs font-semibold tabular-nums text-slate-200">
-                      {paceMi(lapPaceSecPerKm(lap))}
+                      {paceMi(lapPaceSecPerKm(lap), units)}
                     </td>
                     <td className="py-1.5 text-xs tabular-nums text-slate-400">
                       {fmtDur(lap.durationSeconds)}
@@ -295,7 +298,7 @@ export default async function RunDetailPage({
         </Card>
       )}
 
-      {/* Mile splits (GPS computed) */}
+      {/* Splits (GPS computed) */}
       <Card title={splits.length ? 'Mile splits' : 'Splits'}>
         {splits.length ? (
           <table className="w-full text-sm">
@@ -320,7 +323,7 @@ export default async function RunDetailPage({
                         style={{ width: `${barPct(s.paceSecPerKm)}%` }}
                       />
                       <span className="shrink-0 text-xs font-semibold tabular-nums text-slate-300">
-                        {paceMi(s.paceSecPerKm)}
+                        {paceMi(s.paceSecPerKm, units)}
                       </span>
                     </div>
                   </td>
