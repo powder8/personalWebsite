@@ -182,6 +182,9 @@ export const athletes = pgTable(
     timezone: text('timezone').notNull().default('UTC'), // IANA tz, e.g. 'America/New_York'
     dateOfBirth: date('date_of_birth'), // for age-grading / masters pace defaults
     sex: text('sex'), // 'female' | 'male' | 'other' | null — gates cycle tracking, age-grading
+    // Distance/pace display preference. 'mi' → miles + min/mi; 'km' → km + min/km.
+    // Additive: existing athletes default to 'mi', so all current output is unchanged.
+    units: text('units').notNull().default('mi'), // 'mi' | 'km'
     goalRace: text('goal_race'),
     goalRaceDate: date('goal_race_date'),
     // Realistic TOTAL weekly training HOURS across all disciplines — the shared

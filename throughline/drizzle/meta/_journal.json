@@ -239,6 +239,13 @@
       "when": 1787490332536,
       "tag": "0033_discipline_strength",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1787602092428,
+      "tag": "0034_athlete_units",
+      "breakpoints": true
     }
   ]
 }

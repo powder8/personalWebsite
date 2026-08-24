@@ -32,6 +32,7 @@ import { BikeGoalTrackerHero } from '@/components/BikeGoalTrackerHero';
 import { getBikeGoalTracker } from '@/server/bikeGoalTracker';
 import { CoordinatedBudget } from '@/components/CoordinatedBudget';
 import { getGoalProgress } from '@/server/goalProgress';
+import { asUnits, fmtDistance } from '@/lib/units';
 import { YourSports } from '@/components/YourSports';
 import { getAthleteDisciplines } from '@/server/disciplines';
 import { ConnectStrava } from '@/components/ConnectStrava';
@@ -146,6 +147,7 @@ export default async function PortalPage({
 
   const firstName = athlete.fullName.split(' ')[0];
   const todayCheckIn = recentCheckIns.find((c) => c.day === today) ?? null;
+  const units = asUnits(athlete.units);
   const goalDone = !!goalRace.name && goalRace.daysAway != null && goalRace.daysAway < 0;
   const needsGoal = !goalRace.name || goalDone;
   // "Did today's session get done?" — discipline-aware: a completed bike / swim /
@@ -228,7 +230,7 @@ export default async function PortalPage({
         sport,
         label:
           (sport === 'run' || sport === 'bike') && v.miles > 0
-            ? `${v.miles.toFixed(1)} mi`
+            ? fmtDistance(v.miles * 1609.344, units)
             : v.sec > 0
               ? `${Math.round(v.sec / 60)} min`
               : 'done',
@@ -412,7 +414,7 @@ export default async function PortalPage({
       <div id="training" className="scroll-mt-4" />
       <Card title="Planned vs actual" action={strava.connected ? <SyncButton athleteId={athlete.id} /> : undefined}>
         {calendar.weeks.length > 0 ? (
-          <TrainingCalendar weeks={calendar.weeks} today={today} athleteId={athlete.id} />
+          <TrainingCalendar weeks={calendar.weeks} today={today} athleteId={athlete.id} units={units} />
         ) : (
           <p className="text-sm text-slate-500">
             No published plan yet, set a goal above and your calendar fills in.

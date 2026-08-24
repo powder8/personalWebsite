@@ -1,0 +1,1 @@
+ALTER TABLE "athletes" ADD COLUMN "units" text DEFAULT 'mi' NOT NULL;
