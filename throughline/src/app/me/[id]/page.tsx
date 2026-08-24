@@ -207,8 +207,34 @@ export default async function PortalPage({
           adjustments: todaySession.adjustments,
         }
       : null;
-  const loggedToday =
-    ranToday && latestRun?.day === today ? { miles: latestRun.dayMiles, runCount: latestRun.runCount } : null;
+  // Everything logged today, per sport (run + ride + swim + strength) — not just
+  // the run. A multi-sport day shows them all: "🏃 2.0 mi · 🚴 12.4 mi".
+  const loggedToday = (() => {
+    if (!ranToday) return null;
+    const acts = todayCalDay?.actuals ?? [];
+    if (acts.length === 0) return null;
+    const order = ['run', 'bike', 'swim', 'strength', 'cross_train', 'other'];
+    const bySport = new Map<string, { miles: number; sec: number }>();
+    for (const a of acts) {
+      const cur = bySport.get(a.sport) ?? { miles: 0, sec: 0 };
+      cur.miles += a.miles;
+      cur.sec += a.durationSeconds ?? 0;
+      bySport.set(a.sport, cur);
+    }
+    const rank = (s: string) => (order.indexOf(s) === -1 ? 99 : order.indexOf(s));
+    const items = [...bySport.entries()]
+      .sort((a, b) => rank(a[0]) - rank(b[0]))
+      .map(([sport, v]) => ({
+        sport,
+        label:
+          (sport === 'run' || sport === 'bike') && v.miles > 0
+            ? `${v.miles.toFixed(1)} mi`
+            : v.sec > 0
+              ? `${Math.round(v.sec / 60)} min`
+              : 'done',
+      }));
+    return items.length ? { items } : null;
+  })();
 
   // Multi-sport day: more than one real (non-rest) session to do today. A
   // triathlete gets the stacked view; a single-sport athlete keeps the focal
