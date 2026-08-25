@@ -101,6 +101,17 @@ export function normalizeAppleHealth(payload: unknown): NormalizedBatch {
         };
       });
       if (rows.length) batch.sleepRecords = [...(batch.sleepRecords ?? []), ...rows];
+    } else if (name === 'step_count') {
+      // Steps → the daily summary (a health signal, not a workout). Sum the day's
+      // points (exporters may send several intraday buckets), keep whole steps.
+      const byDay = new Map<string, number>();
+      for (const p of points) {
+        const day = appleDay(p.date);
+        if (!day || typeof p.qty !== 'number' || p.qty <= 0) continue;
+        byDay.set(day, (byDay.get(day) ?? 0) + p.qty);
+      }
+      const rows = [...byDay.entries()].map(([day, steps]) => ({ day, steps: Math.round(steps), metrics: null }));
+      if (rows.length) batch.dailySummaries = [...(batch.dailySummaries ?? []), ...rows];
     }
   }
 

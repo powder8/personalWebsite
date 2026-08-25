@@ -157,7 +157,7 @@ export default async function PortalPage({
 
   // Goal tracker hook — the "where do I stand?" verdict. Only when there's a
   // live goal to track (a finished/absent goal is handled by the goal-setup CTA).
-  const goalTracker = needsGoal ? null : await getGoalTracker(db, id, today, consistency);
+  const goalTracker = needsGoal ? null : await getGoalTracker(db, id, today, consistency, units);
   // Triathletes with a TIMED goal get the multi-sport tracker (per-leg verdict +
   // binding leg) instead of the single-sport one. Null for everyone else.
   const triGoalTracker = needsGoal ? null : await getTriGoalTracker(db, id, today);

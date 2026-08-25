@@ -12,7 +12,7 @@ import 'server-only';
  */
 import { and, eq, gte, sql } from 'drizzle-orm';
 import type { DB } from '@/db';
-import { athletes, sleepRecords, activities } from '@/db/schema';
+import { athletes, sleepRecords, activities, dailySummaries } from '@/db/schema';
 import { getAthleteVdot } from '@/db/paceConfig';
 import { ageFromDob } from '@/engine/plan';
 import { addDays } from '@/engine';
@@ -74,6 +74,8 @@ export interface HealthSnapshot {
   body: BodyHealth;
   /** Activity mix across all sports in the last 90 days (drives the header). */
   sports: { sport: string; count: number }[];
+  /** Daily steps (avg over the window) from any wearable — null if none logged. */
+  steps: { avgPerDay: number; days: number } | null;
   hasWearable: boolean;
 }
 
@@ -96,7 +98,7 @@ export async function getHealthSnapshot(
   const sleepCutoff = addDays(today, -SLEEP_WINDOW_DAYS);
   const activityCutoff = addDays(today, -ACTIVITY_WINDOW_DAYS);
 
-  const [vdot, recovery, sleepRows, sportRows] = await Promise.all([
+  const [vdot, recovery, sleepRows, sportRows, stepRows] = await Promise.all([
     getAthleteVdot(db, athleteId),
     getRecoveryInsights(db, athleteId, today),
     db
@@ -113,7 +115,18 @@ export async function getHealthSnapshot(
         ),
       )
       .groupBy(activities.sport),
+    db
+      .select({ day: dailySummaries.day, steps: dailySummaries.steps })
+      .from(dailySummaries)
+      .where(and(eq(dailySummaries.athleteId, athleteId), gte(dailySummaries.day, sleepCutoff))),
   ]);
+
+  // ── Steps (avg/day over the window, from any wearable) ──
+  const stepVals = stepRows.map((r) => r.steps).filter((s): s is number => s != null && s > 0);
+  const steps =
+    stepVals.length > 0
+      ? { avgPerDay: Math.round(stepVals.reduce((a, b) => a + b, 0) / stepVals.length), days: stepVals.length }
+      : null;
 
   // ── Cardio (VDOT → estimated VO2max → percentile + fitness age) ──
   const vo2max = vo2maxFromVdot(vdot);
@@ -161,6 +174,7 @@ export async function getHealthSnapshot(
       persistenceDeferred: true,
     },
     sports,
+    steps,
     hasWearable: recovery.hasData,
   };
 }
