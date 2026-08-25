@@ -168,19 +168,39 @@ test('the tracker carries the goal distance so the target time has context', () 
   assert.equal(g.distanceLabel, 'Marathon');
 });
 
-test('an out-of-reach goal gets an outlook: what it takes, cadence, and factors', () => {
+test('an out-of-reach goal gets a PACE-grounded outlook + cadence + factors', () => {
   const g = buildGoalTracker({
     ...base,
     distanceLabel: 'Marathon',
-    feasibility: { ...feas('unrealistic'), requiredWeeklyGain: 0.9, typicalWeeklyGain: 0.3, weeksNeededForGoal: 30, weeksToRace: 11 },
+    distanceMeters: 42195,
+    units: 'mi',
+    targetTimeSeconds: 10200, // 2:50 goal
+    target: { solidSeconds: 16080, stretchSeconds: 15600 }, // ~4:28 at current fitness
+    feasibility: { ...feas('unrealistic'), projectedTimeSeconds: 16080, weeksNeededForGoal: 104, weeksToRace: 43 },
     consistency: consistency(90, 4),
   })!;
   assert.equal(g.verdict, 'at_risk');
   assert.ok(g.outlook, 'outlook present for an out-of-reach goal');
-  assert.match(g.outlook!.requirement, /faster than a strong training block|faster than a normal build/i);
-  assert.match(g.outlook!.requirement, /3× faster/); // 0.9 / 0.3
+  // Grounded in pace + the gap from today, not an abstract multiplier.
+  assert.match(g.outlook!.requirement, /Today you're around \d+:\d\d\/mi/);
+  assert.match(g.outlook!.requirement, /faster/);
+  assert.match(g.outlook!.requirement, /104-week build against the 43/);
   assert.match(g.outlook!.cadence, /every 4 weeks/i);
   assert.match(g.outlook!.factors, /injury-free|recovery|consistent/i);
+});
+
+test('the pace clause switches to /km when the athlete uses kilometers', () => {
+  const g = buildGoalTracker({
+    ...base,
+    distanceLabel: 'Marathon',
+    distanceMeters: 42195,
+    units: 'km',
+    targetTimeSeconds: 10200,
+    target: { solidSeconds: 16080, stretchSeconds: 15600 },
+    feasibility: { ...feas('unrealistic'), projectedTimeSeconds: 16080, weeksNeededForGoal: 104, weeksToRace: 43 },
+    consistency: consistency(90, 4),
+  })!;
+  assert.match(g.outlook!.requirement, /\/km faster/);
 });
 
 test('an on-track goal has no outlook (nothing to spell out)', () => {

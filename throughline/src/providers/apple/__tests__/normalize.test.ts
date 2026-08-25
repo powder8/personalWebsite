@@ -81,3 +81,21 @@ test('garbage payloads yield an empty batch, never throw', () => {
   assert.deepEqual(normalizeAppleHealth({ data: { metrics: 'nope' } }), {});
   assert.deepEqual(normalizeAppleHealth({ data: { metrics: [{ name: 'heart_rate_variability' }] } }), {});
 });
+
+test('step_count → a daily summary (summed per day)', () => {
+  const batch = normalizeAppleHealth({
+    data: {
+      metrics: [
+        { name: 'step_count', units: 'count', data: [
+          { date: '2026-08-18 09:00:00 +0000', qty: 5000 },
+          { date: '2026-08-18 18:00:00 +0000', qty: 3200 },
+          { date: '2026-08-19 12:00:00 +0000', qty: 9100 },
+        ] },
+      ],
+    },
+  });
+  assert.equal(batch.dailySummaries?.length, 2);
+  const d18 = batch.dailySummaries!.find((d) => d.day === '2026-08-18')!;
+  assert.equal(d18.steps, 8200, 'intraday buckets summed');
+  assert.equal(batch.dailySummaries!.find((d) => d.day === '2026-08-19')!.steps, 9100);
+});

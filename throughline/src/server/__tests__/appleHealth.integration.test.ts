@@ -64,7 +64,7 @@ test('a generated token resolves to its athlete; garbage does not', async () => 
 
 test('ingest normalizes + persists HRV, resting HR, and sleep, tagged apple', async () => {
   const res = await ingestAppleHealth(db, A, PAYLOAD);
-  assert.deepEqual(res, { hrv: 1, restingHr: 1, sleep: 1, duplicate: false, rateLimited: false });
+  assert.deepEqual(res, { hrv: 1, restingHr: 1, sleep: 1, steps: 0, duplicate: false, rateLimited: false });
 
   const [hrv] = await db.select().from(hrvRecords).where(and(eq(hrvRecords.athleteId, A), eq(hrvRecords.day, '2026-08-18')));
   assert.equal(hrv.overnightAvgMs, 62);

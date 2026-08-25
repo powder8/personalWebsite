@@ -14,6 +14,7 @@
  */
 import type { GoalFeasibility } from '@/engine/plan';
 import type { ConsistencyStats } from '@/server/consistencyLogic';
+import { fmtPace, paceUnit } from '@/lib/units';
 
 export type GoalVerdict = 'ahead' | 'on_track' | 'stretch' | 'drifting' | 'at_risk';
 export type GoalTone = 'positive' | 'caution' | 'risk';
@@ -95,6 +96,8 @@ function execNoteFor(exec: Execution, c: ConsistencyStats | null): string | null
 export interface BuildGoalTrackerInput {
   goalName: string;
   distanceLabel?: string | null;
+  distanceMeters?: number | null;
+  units?: import('@/lib/units').Units;
   daysAway: number | null;
   targetTimeSeconds: number | null;
   target: { solidSeconds: number; stretchSeconds: number } | null;
@@ -119,7 +122,7 @@ export function driftingAdvice(days: number | null): string {
 
 /** Pure verdict builder. Returns null when there is no goal to track. */
 export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | null {
-  const { goalName, distanceLabel = null, daysAway, targetTimeSeconds, target, feasibility, consistency } = input;
+  const { goalName, distanceLabel = null, distanceMeters = null, units = 'mi', daysAway, targetTimeSeconds, target, feasibility, consistency } = input;
   if (!goalName) return null;
 
   const exec = executionLevel(consistency);
@@ -273,19 +276,35 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
   // what it would actually take, when we reassess, and the levers that move it.
   let outlook: GoalTracker['outlook'] = null;
   if (verdict === 'at_risk') {
-    const rate =
-      feasibility.typicalWeeklyGain > 0
-        ? Math.max(1, Math.round((feasibility.requiredWeeklyGain / feasibility.typicalWeeklyGain) * 10) / 10)
-        : null;
     const runwayClause =
       weeksNeeded && weeksNeeded > weeksLeft
         ? `a ~${weeksNeeded}-week build against the ${weeksLeft} weeks this race gives`
         : `sustained, structured weeks from now to race day`;
+
+    // Ground it in PACE — the language an athlete reads performance in — and the
+    // delta from today. `target.solidSeconds` is the finish at CURRENT fitness;
+    // the goal time is the target. Convert both to per-unit pace.
+    let paceClause = '';
+    if (distanceMeters && distanceMeters > 0 && targetTimeSeconds && target?.solidSeconds) {
+      const km = distanceMeters / 1000;
+      const nowPaceSecPerKm = target.solidSeconds / km;
+      const goalPaceSecPerKm = targetTimeSeconds / km;
+      const gapSecPerUnit = Math.round(
+        (units === 'km' ? nowPaceSecPerKm - goalPaceSecPerKm : (nowPaceSecPerKm - goalPaceSecPerKm) * 1.609344),
+      );
+      if (gapSecPerUnit > 0) {
+        paceClause =
+          `Today you're around ${fmtPace(nowPaceSecPerKm, units)} for the ${distanceLabel?.toLowerCase() ?? 'distance'}; ` +
+          `${goalLabel ?? 'the goal'} is ${fmtPace(goalPaceSecPerKm, units)} — about ${gapSecPerUnit}s${paceUnit(units)} faster. `;
+      }
+    }
+
     outlook = {
       requirement:
-        `${goalLabel ?? 'This goal'} needs your fitness to climb ` +
-        (rate ? `about ${rate}× faster than a strong training block delivers` : `faster than a normal build delivers`) +
-        `, ${runwayClause}. A strong result you can chase at THIS race is ~${projected}.`,
+        paceClause +
+        `Closing that is ${runwayClause}. A strong result you can chase at THIS race is ~${projected} (${
+          distanceMeters ? fmtPace(feasibility.projectedTimeSeconds / (distanceMeters / 1000), units) : 'race pace'
+        }).`,
       cadence:
         `Your projected finish is recomputed from your fitness every time you open this. Expect a clear move about every 4 weeks, as each training block lands.`,
       factors:

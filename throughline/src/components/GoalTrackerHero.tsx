@@ -110,20 +110,29 @@ export function GoalTrackerHero({ tracker, athleteId, progress }: { tracker: Goa
         )}
         <p className="mt-1 text-sm leading-relaxed text-white/90">{tracker.advocateLine}</p>
         {tracker.outlook && (
-          <dl className="mt-3 space-y-2 border-t border-white/10 pt-3">
-            {(
-              [
-                ['What it’d take', tracker.outlook.requirement],
-                ['Check-ins', tracker.outlook.cadence],
-                ['What moves it', tracker.outlook.factors],
-              ] as const
-            ).map(([term, desc]) => (
-              <div key={term}>
-                <dt className="text-[11px] font-semibold uppercase tracking-wide text-white/50">{term}</dt>
-                <dd className="text-sm leading-relaxed text-white/80">{desc}</dd>
-              </div>
-            ))}
-          </dl>
+          // Collapsed by default so the detail doesn't shout every day; the athlete
+          // opens it when they want the full "what it'd take" read. Native <details>
+          // → no JS, works in this server component.
+          <details className="group mt-3 border-t border-white/10 pt-2">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/50 hover:text-white/70">
+              <span className="transition group-open:rotate-90">›</span>
+              What it’d take, and how we’ll track it
+            </summary>
+            <dl className="mt-2 space-y-2">
+              {(
+                [
+                  ['What it’d take', tracker.outlook.requirement],
+                  ['Check-ins', tracker.outlook.cadence],
+                  ['What moves it', tracker.outlook.factors],
+                ] as const
+              ).map(([term, desc]) => (
+                <div key={term}>
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-white/50">{term}</dt>
+                  <dd className="text-sm leading-relaxed text-white/80">{desc}</dd>
+                </div>
+              ))}
+            </dl>
+          </details>
         )}
         {tracker.cta && (
           // Native anchor: a Next <Link> to a bare "#hash" does NOT reliably scroll

@@ -289,7 +289,35 @@ export function HealthView({ snapshot }: { snapshot: HealthSnapshot }) {
       )}
 
       <SleepCard snapshot={snapshot} />
+      <StepsCard snapshot={snapshot} />
       <BodyCard />
     </div>
+  );
+}
+
+/** Daily steps — a general activity signal, from any wearable (Garmin / Apple / …). */
+function StepsCard({ snapshot }: { snapshot: HealthSnapshot }) {
+  const { steps } = snapshot;
+  if (!steps) {
+    return (
+      <GradientCard title="Daily steps">
+        <p className="text-sm text-white/70">
+          Connect a wearable (Garmin or Apple Health) and we&apos;ll show your daily step average here.
+        </p>
+      </GradientCard>
+    );
+  }
+  // 8k is a common everyday-activity floor; 10k the familiar target.
+  const cls = steps.avgPerDay >= 8000 ? 'text-emerald-300' : steps.avgPerDay >= 5000 ? 'text-amber-300' : 'text-rose-300';
+  return (
+    <GradientCard title="Daily steps" aside={`${steps.days}-day avg`}>
+      <div className="grid grid-cols-2 gap-3">
+        <StatTile label="Avg / day" value={steps.avgPerDay.toLocaleString()} unit="steps" valueClass={cls} />
+        <StatTile label="Days tracked" value={`${steps.days}`} sub="last 2 weeks" />
+      </div>
+      <p className="mt-3 text-xs leading-relaxed text-white/60">
+        Everyday movement outside training — a read on how active you are the rest of the day, which shapes recovery.
+      </p>
+    </GradientCard>
   );
 }

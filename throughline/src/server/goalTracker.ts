@@ -16,6 +16,7 @@ export async function getGoalTracker(
   athleteId: string,
   today: string,
   consistency: ConsistencyStats | null,
+  units: import('@/lib/units').Units = 'mi',
 ): Promise<GoalTracker | null> {
   const racePlan = await getRacePlan(db, athleteId, today);
   if (!racePlan) return null;
@@ -23,6 +24,8 @@ export async function getGoalTracker(
   return buildGoalTracker({
     goalName: racePlan.goal.name,
     distanceLabel: racePlan.goal.distanceLabel,
+    distanceMeters: racePlan.goal.distanceMeters,
+    units,
     daysAway,
     targetTimeSeconds: racePlan.goal.targetTimeSeconds,
     target: racePlan.target,

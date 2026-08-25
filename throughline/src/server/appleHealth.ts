@@ -78,6 +78,7 @@ export interface AppleIngestResult {
   hrv: number;
   restingHr: number;
   sleep: number;
+  steps: number;
   duplicate: boolean;
   rateLimited: boolean;
 }
@@ -105,7 +106,7 @@ export async function ingestAppleHealth(
   payload: unknown,
   rate: { maxPerWindow: number; windowMs: number } = APPLE_INGEST_RATE,
 ): Promise<AppleIngestResult> {
-  const empty = { hrv: 0, restingHr: 0, sleep: 0, duplicate: false, rateLimited: false };
+  const empty = { hrv: 0, restingHr: 0, sleep: 0, steps: 0, duplicate: false, rateLimited: false };
 
   // Rate limit per athlete over the window (counts distinct ingests; identical
   // re-posts dedup below and don't add rows). Reject before doing any work.
@@ -139,6 +140,7 @@ export async function ingestAppleHealth(
     hrv: batch.hrvRecords?.length ?? 0,
     restingHr: batch.restingHrRecords?.length ?? 0,
     sleep: batch.sleepRecords?.length ?? 0,
+    steps: batch.dailySummaries?.length ?? 0,
     duplicate: false,
     rateLimited: false,
   };

@@ -71,7 +71,16 @@ export async function persistNormalizedBatch(
       .values(batch.dailySummaries.map((d) => ({ ...d, ...common })))
       .onConflictDoUpdate({
         target: [dailySummaries.athleteId, dailySummaries.day],
-        set: { metrics: batch.dailySummaries[0].metrics },
+        // Update per-row from EXCLUDED, and coalesce so one provider's null (e.g.
+        // Apple sends steps but no stress) never wipes another's value for the day.
+        set: {
+          steps: sql`coalesce(excluded.steps, ${dailySummaries.steps})`,
+          restingHr: sql`coalesce(excluded.resting_hr, ${dailySummaries.restingHr})`,
+          avgStressLevel: sql`coalesce(excluded.avg_stress_level, ${dailySummaries.avgStressLevel})`,
+          bodyBatteryLow: sql`coalesce(excluded.body_battery_low, ${dailySummaries.bodyBatteryLow})`,
+          bodyBatteryHigh: sql`coalesce(excluded.body_battery_high, ${dailySummaries.bodyBatteryHigh})`,
+          metrics: sql`coalesce(excluded.metrics, ${dailySummaries.metrics})`,
+        },
       });
   }
   if (batch.sleepRecords?.length) {
