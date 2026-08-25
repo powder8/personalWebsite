@@ -80,7 +80,7 @@ export function TodayStack({ sessions, units }: { sessions: PortalSession[]; uni
                 )}
               </div>
               {s.segments && s.segments.length > 0 ? (
-                <SegmentList segments={s.segments} onDark />
+                <SegmentList segments={s.segments} onDark units={units} />
               ) : (
                 s.description && <p className="mt-1 text-sm leading-relaxed text-white/85">{s.description}</p>
               )}

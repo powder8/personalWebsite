@@ -43,6 +43,15 @@ export interface DisplaySegment {
 const mi = (m?: number) =>
   m == null ? null : (m / 1609.344).toFixed(m >= 1609 ? 1 : 2).replace(/\.00$/, '');
 
+/** Distance label in the athlete's unit, compact (drops trailing ".00"). */
+function segDistance(m: number, units: 'mi' | 'km'): string {
+  if (units === 'km') {
+    const km = m / 1000;
+    return `${km.toFixed(km >= 1 ? 1 : 2).replace(/\.00$/, '')} km`;
+  }
+  return `${mi(m)} mi`;
+}
+
 /** A swim segment always carries a CSS-relative pace target (metres-based). */
 export function isSwimSegment(s: DisplaySegment): boolean {
   return s.targetFastSecPer100 != null || s.targetSlowSecPer100 != null;
@@ -83,7 +92,7 @@ export function bikePowerSuffix(s: DisplaySegment): string {
  * Headline for one structured segment, discipline inferred from its own fields.
  * Running is byte-identical to the original SegmentList `headline()`.
  */
-export function segmentHeadline(s: DisplaySegment): string {
+export function segmentHeadline(s: DisplaySegment, units: 'mi' | 'km' = 'mi'): string {
   // SWIM — metres at CSS pace (reuses reps/repMeters/distanceMeters for metres).
   if (isSwimSegment(s)) {
     const pace = swimPaceSuffix(s);
@@ -98,12 +107,12 @@ export function segmentHeadline(s: DisplaySegment): string {
     if (s.reps && s.repSeconds) return `${s.reps} × ${formatDuration(s.repSeconds)}${at}`;
     return s.durationSeconds ? `${formatDuration(s.durationSeconds)}${at}` : '';
   }
-  // RUN — distance at pace (unchanged).
+  // RUN — distance at pace. A 400 m rep stays metric on both (a track interval).
   if (s.reps && s.repMeters) {
-    const rep = s.repMeters === 400 ? '400m' : `${mi(s.repMeters)} mi`;
+    const rep = s.repMeters === 400 ? '400m' : segDistance(s.repMeters, units);
     return `${s.reps} × ${rep}`;
   }
-  return s.distanceMeters ? `${mi(s.distanceMeters)} mi` : '';
+  return s.distanceMeters ? segDistance(s.distanceMeters, units) : '';
 }
 
 /** Discipline of a planned session, as stored on the row / read model. */

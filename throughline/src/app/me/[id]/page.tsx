@@ -340,6 +340,7 @@ export default async function PortalPage({
           latestActivityId={latestRun?.activityId ?? null}
           session={sessionDetail}
           loggedToday={loggedToday}
+          units={units}
         />
       )}
 

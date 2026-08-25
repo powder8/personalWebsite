@@ -11,6 +11,7 @@ import type { NextStep } from '@/server/nextStepLogic';
 import type { PortalSegment } from '@/server/portal';
 import { EaseBackButton } from '@/components/EaseBackButton';
 import { SegmentList } from '@/components/SegmentList';
+import type { Units } from '@/lib/units';
 
 interface EaseDirective {
   type: 'reduce_volume' | 'pace_adjust';
@@ -52,6 +53,7 @@ export function NextStepBanner({
   latestActivityId,
   session,
   loggedToday,
+  units = 'mi',
 }: {
   step: NextStep;
   athleteId: string;
@@ -61,6 +63,7 @@ export function NextStepBanner({
   session?: TodaySessionDetail | null;
   /** Everything logged today, per sport — shown on the 'done_today' step. */
   loggedToday?: { items: { sport: string; label: string }[] } | null;
+  units?: Units;
 }) {
   return (
     <div className={`rounded-3xl bg-gradient-to-br p-5 shadow-lg ring-1 ring-inset ${TONE[step.tone]}`}>
@@ -95,7 +98,7 @@ export function NextStepBanner({
             </div>
           )}
           {session.segments.length > 0 ? (
-            <SegmentList segments={session.segments} onDark />
+            <SegmentList segments={session.segments} onDark units={units} />
           ) : (
             session.description && <p className="mt-1 text-sm leading-relaxed text-white/85">{session.description}</p>
           )}
