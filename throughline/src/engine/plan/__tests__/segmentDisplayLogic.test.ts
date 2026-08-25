@@ -106,3 +106,12 @@ test('sessionMetricLabel: run miles unchanged, bike minutes, swim km', () => {
     '2.4 km',
   );
 });
+
+test('segmentHeadline renders run distances in km when units=km', () => {
+  // 1 mi rep → "1.0 mi" (mi, unchanged) / "1.6 km" (km); a 400m rep stays metric.
+  assert.equal(segmentHeadline({ reps: 5, repMeters: 1609.344 } as never, 'mi'), '5 × 1.0 mi');
+  assert.equal(segmentHeadline({ reps: 5, repMeters: 1609.344 } as never, 'km'), '5 × 1.6 km');
+  assert.equal(segmentHeadline({ reps: 8, repMeters: 400 } as never, 'km'), '8 × 400m');
+  assert.equal(segmentHeadline({ distanceMeters: 5000 } as never, 'km'), '5.0 km');
+  assert.equal(segmentHeadline({ distanceMeters: 5000 } as never, 'mi'), '3.1 mi');
+});

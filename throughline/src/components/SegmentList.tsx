@@ -5,6 +5,7 @@
  */
 import type { PortalSegment } from '@/server/portal';
 import { segmentHeadline } from '@/engine/plan/segmentDisplayLogic';
+import type { Units } from '@/lib/units';
 
 const ROLE_LABEL: Record<string, string> = {
   warmup: 'Warm-up',
@@ -27,9 +28,7 @@ const ROLE_DOT: Record<string, string> = {
  * fields: run "5 × 1 mi", bike "5 × 8 min @ 228–263 W", swim
  * "11 × 100 m @ 1:16–1:20/100m". Running output is unchanged.
  */
-const headline = (s: PortalSegment): string => segmentHeadline(s);
-
-export function SegmentList({ segments, onDark = false }: { segments: PortalSegment[]; onDark?: boolean }) {
+export function SegmentList({ segments, onDark = false, units = 'mi' }: { segments: PortalSegment[]; onDark?: boolean; units?: Units }) {
   const label = onDark ? 'text-white/85' : 'text-slate-700';
   const sub = onDark ? 'text-slate-400' : 'text-slate-500';
   const rail = onDark ? 'border-white/10' : 'border-slate-100';
@@ -44,7 +43,7 @@ export function SegmentList({ segments, onDark = false }: { segments: PortalSegm
           />
           <div className={`text-sm font-semibold ${label}`}>
             {ROLE_LABEL[s.role] ?? s.role}
-            <span className="ml-2 font-bold tabular-nums">{headline(s)}</span>
+            <span className="ml-2 font-bold tabular-nums">{segmentHeadline(s, units)}</span>
           </div>
           {s.note && <p className={`text-xs ${sub}`}>{s.note}</p>}
         </li>
