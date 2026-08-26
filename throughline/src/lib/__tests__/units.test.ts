@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fmtDistance, fmtPace, fmtPaceClock, distanceValue, asUnits, distanceUnit, paceUnit } from '../units';
+import { fmtDistance, fmtPace, fmtPaceClock, fmtSpeed, speedUnit, distanceValue, asUnits, distanceUnit, paceUnit } from '../units';
 
 test('distance formats in the chosen unit', () => {
   // 8046.72 m = 5.0 mi = 8.05 km
@@ -16,6 +16,15 @@ test('pace converts sec/km into the chosen unit with the right suffix', () => {
   assert.equal(fmtPaceClock(300, 'mi'), '8:03');
   assert.equal(fmtPace(300, 'km'), '5:00/km');
   assert.equal(fmtPace(300, 'mi'), '8:03/mi');
+});
+
+test('cycling reads as speed (mph/kph), not a running pace', () => {
+  // 90 sec/km = 40 km/h = ~24.9 mph.
+  assert.equal(fmtSpeed(90, 'km'), '40.0 kph');
+  assert.equal(fmtSpeed(90, 'mi'), '24.9 mph');
+  assert.equal(fmtSpeed(0, 'km'), '-', 'guards a zero/garbage pace');
+  assert.equal(speedUnit('mi'), 'mph');
+  assert.equal(speedUnit('km'), 'kph');
 });
 
 test('labels + asUnits guard', () => {

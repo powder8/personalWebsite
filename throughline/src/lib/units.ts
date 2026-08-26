@@ -39,7 +39,20 @@ export function fmtPaceClock(secPerKm: number, units: Units): string {
   return s === 60 ? `${m + 1}:00` : `${m}:${String(s).padStart(2, '0')}`;
 }
 
-/** Pace with the unit suffix: "8:30/mi" or "5:17/km". */
+/** Pace with the unit suffix: "8:30/mi" or "5:17/km". RUN + swim use pace. */
 export function fmtPace(secPerKm: number, units: Units): string {
   return `${fmtPaceClock(secPerKm, units)}${paceUnit(units)}`;
+}
+
+/** CYCLING speed from a per-km pace: "24.5 mph" / "39.4 kph". Cyclists read
+ *  effort as speed, not minutes-per-mile. */
+export function fmtSpeed(secPerKm: number, units: Units): string {
+  if (!(secPerKm > 0)) return '-';
+  const kph = 3600 / secPerKm;
+  return units === 'km' ? `${kph.toFixed(1)} kph` : `${(kph / 1.609344).toFixed(1)} mph`;
+}
+
+/** The speed-unit label for the sport's "how fast" number: cycling → mph/kph. */
+export function speedUnit(units: Units): string {
+  return units === 'km' ? 'kph' : 'mph';
 }
