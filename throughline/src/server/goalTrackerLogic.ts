@@ -48,6 +48,18 @@ export interface GoalTracker {
   /** For an out-of-reach goal: what it would take, when we reassess, and the
    *  levers that actually move it. Null when the goal is on track. */
   outlook: { requirement: string; cadence: string; factors: string } | null;
+  /** The goal looks like a triathlon tracked as a run-only goal (its name says
+   *  "triathlon", or a sport word leaked into the run distance). The hero offers
+   *  the tri-setup path so the athlete can wire up all three sports. */
+  triathlonHint: boolean;
+}
+
+/** A run goal that's really a triathlon: the name says so, or a discipline word
+ *  ended up as the "distance" (only a mis-set run goal carries bike/swim). */
+function looksLikeTriathlon(goalName: string, distanceLabel: string | null): boolean {
+  if (/triathlon|ironman|\b70\.3\b/i.test(goalName)) return true;
+  const d = distanceLabel?.toLowerCase();
+  return d === 'bike' || d === 'swim' || d === 'sprint' || d === 'olympic';
 }
 
 type Execution = 'strong' | 'okay' | 'slipping' | 'unknown';
@@ -137,6 +149,7 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
 
   const exec = executionLevel(consistency);
   const raceLine = goalName;
+  const triathlonHint = looksLikeTriathlon(goalName, distanceLabel);
   const days = daysAway != null && daysAway >= 0 ? daysAway : null;
   const execNote = execNoteFor(exec, consistency);
   const goalLabel = targetTimeSeconds != null ? clockShort(targetTimeSeconds) : null;
@@ -169,6 +182,7 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
           : 'Keep stacking consistent weeks, that is what shows up on race day.',
       cta: needsTime ? { label: 'Set a target time', href: '#goal-setup' } : null,
       outlook: null,
+      triathlonHint,
     };
   }
 
@@ -341,5 +355,6 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
     advocateLine,
     cta: verdict === 'at_risk' ? { label: 'Adjust goal or race', href: '#goal-setup' } : null,
     outlook,
+    triathlonHint,
   };
 }

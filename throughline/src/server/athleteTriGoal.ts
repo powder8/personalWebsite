@@ -25,6 +25,9 @@ const DISTANCE_NAME: Record<TriDistance, string> = {
 
 export interface TriGoalInput {
   distance: TriDistance;
+  /** The athlete's own race name (e.g. "Maryland Triathlon"). Falls back to the
+   *  distance name ("Olympic Triathlon") when blank. */
+  name?: string;
   date: string; // race day, YYYY-MM-DD
   targetFinishSeconds?: number; // optional target finish
   weeklyHours: number;
@@ -92,7 +95,7 @@ export async function setupAthleteTriGoal(
   const result = await setupTriSeason(db, athleteId, {
     startDay: today,
     goalRace: {
-      name: DISTANCE_NAME[input.distance],
+      name: input.name?.trim() || DISTANCE_NAME[input.distance],
       date: input.date,
       distance: input.distance,
       distanceMeters: legs.swimMeters + legs.bikeMeters + legs.runMeters,
