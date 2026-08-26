@@ -320,7 +320,7 @@ export default async function PortalPage({
             </p>
           )}
           {goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} progress={goalProgress} />}
-          {bikeGoalTracker && <BikeGoalTrackerHero tracker={bikeGoalTracker} athleteId={athlete.id} progress={goalProgress} />}
+          {bikeGoalTracker && <BikeGoalTrackerHero tracker={bikeGoalTracker} athleteId={athlete.id} progress={goalProgress} units={units} />}
           {goalTracker && bikeGoalTracker && (
             <CoordinatedBudget athleteId={athlete.id} currentBudget={athlete.weeklyHoursBudget ?? null} />
           )}

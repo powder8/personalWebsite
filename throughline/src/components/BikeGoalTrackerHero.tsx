@@ -8,6 +8,7 @@ import Link from 'next/link';
 import type { FeasibilityVerdict } from '@/engine/plan';
 import type { BikeGoalTracker } from '@/server/bikeGoalTracker';
 import { TrajectorySparkline } from '@/components/TrajectorySparkline';
+import { fmtSpeed, type Units } from '@/lib/units';
 
 const TONE: Record<'positive' | 'caution' | 'risk', { fill: string; text: string; ring: string; bar: string }> = {
   positive: { fill: 'bg-emerald-400', text: 'text-emerald-300', ring: 'ring-emerald-400/25', bar: 'bg-emerald-400/15' },
@@ -29,8 +30,12 @@ function clock(s: number): string {
 }
 const km = (m: number) => `${(m / 1000).toFixed(m < 10000 ? 1 : 0)} km`;
 const elev = (m: number) => `${Math.round(m).toLocaleString()} m climbing`;
+/** Avg speed for a finish time over a distance, in the athlete's unit —
+ *  cyclists read effort as speed (mph/kph), not minutes per mile. */
+const speedFor = (distanceMeters: number, timeSeconds: number, units: Units) =>
+  fmtSpeed(timeSeconds / (distanceMeters / 1000), units);
 
-export function BikeGoalTrackerHero({ tracker, athleteId, progress }: { tracker: BikeGoalTracker; athleteId: string; progress?: import('@/server/goalProgress').GoalProgress | null }) {
+export function BikeGoalTrackerHero({ tracker, athleteId, progress, units = 'mi' }: { tracker: BikeGoalTracker; athleteId: string; progress?: import('@/server/goalProgress').GoalProgress | null; units?: Units }) {
   const race = tracker.raceGoal;
   const ftp = tracker.ftpGoal;
   const verdict = race?.verdict ?? ftp?.verdict ?? null;
@@ -43,6 +48,15 @@ export function BikeGoalTrackerHero({ tracker, athleteId, progress }: { tracker:
 
   if (race) {
     const target = clock(race.targetTimeSeconds);
+    // Cycling-native "how fast": the avg speed those finish times imply, in the
+    // athlete's unit. Power (W) is the training lever; speed is how a rider reads
+    // the goal on the road.
+    const d = tracker.distanceMeters;
+    const targetSpeed = d != null && d > 0 ? speedFor(d, race.targetTimeSeconds, units) : null;
+    const projFinish =
+      d != null && d > 0
+        ? `~${clock(race.projectedTimeSeconds)} (~${speedFor(d, race.projectedTimeSeconds, units)})`
+        : `~${clock(race.projectedTimeSeconds)}`;
     headline =
       race.verdict === 'ahead' ? `${target} is within reach`
       : race.verdict === 'beyond_reach' ? `${target} is faster than this course allows for you`
@@ -53,15 +67,16 @@ export function BikeGoalTrackerHero({ tracker, athleteId, progress }: { tracker:
       <>
         {tracker.distanceMeters != null && <>{km(tracker.distanceMeters)} · </>}
         {tracker.elevationGainMeters != null && tracker.elevationGainMeters > 0 && <>{elev(tracker.elevationGainMeters)} · </>}
+        {targetSpeed && <>~{targetSpeed} target · </>}
         Current FTP <span className="font-semibold tabular-nums text-white/80">{race.currentFtp} W</span>
       </>
     );
     note =
       race.verdict === 'ahead'
-        ? `Your FTP already supports ${target} on this course (needs ~${race.requiredFtp} W). Realistic finish on a normal build: ~${clock(race.projectedTimeSeconds)}.`
+        ? `Your FTP already supports ${target} on this course (needs ~${race.requiredFtp} W). Realistic finish on a normal build: ${projFinish}.`
         : race.aboveCeiling && race.ceiling != null
-          ? `On this course ${target} needs about ${race.requiredFtp} W, past what's realistically attainable for your profile (a best-case ceiling ~${race.ceiling} W), even with unlimited time. That's no knock on you. A strong, honest target here is ~${clock(race.projectedTimeSeconds)}. Let's chase that.`
-          : `On this course ${target} needs about ${race.requiredFtp} W, from ${race.currentFtp} W that's ~${race.requiredWeeklyGain} W/wk of focused work. Realistic finish on a normal build: ~${clock(race.projectedTimeSeconds)}.`;
+          ? `On this course ${target} needs about ${race.requiredFtp} W, past what's realistically attainable for your profile (a best-case ceiling ~${race.ceiling} W), even with unlimited time. That's no knock on you. A strong, honest target here is ${projFinish}. Let's chase that.`
+          : `On this course ${target} needs about ${race.requiredFtp} W, from ${race.currentFtp} W that's ~${race.requiredWeeklyGain} W/wk of focused work. Realistic finish on a normal build: ${projFinish}.`;
   } else if (ftp) {
     headline =
       ftp.verdict === 'ahead' ? `You're already at ${ftp.targetFtp} W`

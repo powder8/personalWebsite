@@ -16,6 +16,16 @@ import type { GoalFeasibility } from '@/engine/plan';
 import type { ConsistencyStats } from '@/server/consistencyLogic';
 import { fmtPace, paceUnit } from '@/lib/units';
 
+// Sport words are disciplines, not distances. This tracker measures the RUN
+// only (min/mi·km); it must never paste "bike"/"swim" next to a running pace —
+// that reads as a cycling/swimming pace in the wrong unit. Cycling speed lives
+// in the bike tracker (watts), swimming in the tri tracker (m/s).
+const SPORT_WORDS = new Set(['run', 'running', 'bike', 'ride', 'cycling', 'swim', 'swimming', 'strength', 'lift']);
+function runDistancePhrase(distanceLabel: string | null): string {
+  if (!distanceLabel) return 'run';
+  return SPORT_WORDS.has(distanceLabel.toLowerCase()) ? 'run' : distanceLabel.toLowerCase();
+}
+
 export type GoalVerdict = 'ahead' | 'on_track' | 'stretch' | 'drifting' | 'at_risk';
 export type GoalTone = 'positive' | 'caution' | 'risk';
 
@@ -294,7 +304,7 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
       );
       if (gapSecPerUnit > 0) {
         paceClause =
-          `Today you're around ${fmtPace(nowPaceSecPerKm, units)} for the ${distanceLabel?.toLowerCase() ?? 'distance'}; ` +
+          `Today you're around ${fmtPace(nowPaceSecPerKm, units)} for the ${runDistancePhrase(distanceLabel)}; ` +
           `${goalLabel ?? 'the goal'} is ${fmtPace(goalPaceSecPerKm, units)} — about ${gapSecPerUnit}s${paceUnit(units)} faster. `;
       }
     }

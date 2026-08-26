@@ -203,6 +203,23 @@ test('the pace clause switches to /km when the athlete uses kilometers', () => {
   assert.match(g.outlook!.requirement, /\/km faster/);
 });
 
+test('a sport-word distance label never reads as that sport in a running pace', () => {
+  // A run-leg race mislabeled "Bike" must NOT say "X/mi for the bike" — min/mi is
+  // a running pace; the run tracker only ever measures the run.
+  const g = buildGoalTracker({
+    ...base,
+    distanceLabel: 'Bike',
+    distanceMeters: 42195,
+    units: 'mi',
+    targetTimeSeconds: 10200,
+    target: { solidSeconds: 16080, stretchSeconds: 15600 },
+    feasibility: { ...feas('unrealistic'), projectedTimeSeconds: 16080, weeksNeededForGoal: 104, weeksToRace: 43 },
+    consistency: consistency(90, 4),
+  })!;
+  assert.doesNotMatch(g.outlook!.requirement, /for the bike|for the swim/i);
+  assert.match(g.outlook!.requirement, /for the run/);
+});
+
 test('an on-track goal has no outlook (nothing to spell out)', () => {
   const g = buildGoalTracker({ ...base, feasibility: feas('on_track'), consistency: consistency(90, 4) })!;
   assert.equal(g.outlook, null);
