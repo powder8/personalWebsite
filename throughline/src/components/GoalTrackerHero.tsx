@@ -146,6 +146,20 @@ export function GoalTrackerHero({ tracker, athleteId, progress }: { tracker: Goa
           </a>
         )}
       </div>
+
+      {/* This looks like a triathlon tracked as a run-only goal — offer the path
+          to wire up all three sports, so it shows as one combined tri tracker. */}
+      {tracker.triathlonHint && (
+        <a
+          href={`/me/${athleteId}/tri-setup`}
+          className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-3.5 py-2.5 text-sm ring-1 ring-inset ring-white/10 transition hover:bg-white/[0.07]"
+        >
+          <span className="text-white/80">
+            Racing a triathlon? Set up swim, bike, and run for one combined view.
+          </span>
+          <span aria-hidden className="shrink-0 font-semibold text-lime-300">Set it up →</span>
+        </a>
+      )}
     </div>
   );
 }

@@ -96,6 +96,7 @@ export function TriGoalSetup({
 
     const body = {
       distance: String(fd.get('distance')) as TriDistance,
+      name: String(fd.get('name') || '').trim() || undefined,
       date: String(fd.get('date') || ''),
       targetFinishSeconds,
       weeklyHours: Number(fd.get('weeklyHours') || 0),
@@ -153,9 +154,13 @@ export function TriGoalSetup({
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       {/* Race */}
+      <div>
+        <label className={label}>Race name</label>
+        <input name="name" placeholder="Maryland Triathlon" className={field} />
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={label}>Race</label>
+          <label className={label}>Distance</label>
           <select name="distance" defaultValue="70.3" className={field}>
             <option value="sprint">Sprint</option>
             <option value="olympic">Olympic</option>

@@ -18,6 +18,7 @@ import { athletes, races, plans } from '@/db/schema';
 import { setAthletePaceConfig } from '@/db/paceConfig';
 import { setAthletePowerConfig } from '@/db/powerConfig';
 import { setupTriSeason } from '../triSeason';
+import { setupAthleteTriGoal } from '../athleteTriGoal';
 import { getTriGoalTracker } from '../triGoalTracker';
 
 let client: PGlite;
@@ -78,4 +79,36 @@ test('a tri can be set up with swim deferred: tri race + bike/run plans, no swim
   assert.equal(tracker!.swimDeferred, true);
   assert.equal(tracker!.feasibility.legs.swim.deferred, true);
   assert.notEqual(tracker!.feasibility.bindingLeg, 'swim', 'swim never binds while deferred');
+});
+
+test('the athlete-facing setup keeps the race NAME (not the distance label)', async () => {
+  await setupAthleteTriGoal(db, A, TODAY, {
+    distance: 'olympic',
+    name: 'Maryland Triathlon',
+    date: '2027-06-26',
+    targetFinishSeconds: 2 * 3600 + 45 * 60,
+    weeklyHours: 8,
+    limiter: 'run',
+    run: { race: { distanceMeters: 10000, timeSeconds: 42 * 60 } },
+    bike: { ftpWatts: 240, weightKg: 75 },
+    // no swim → phased
+  });
+  const [race] = await db.select().from(races).where(and(eq(races.athleteId, A), eq(races.priority, 'goal')));
+  assert.equal(race.name, 'Maryland Triathlon', 'the athlete-named race survives setup');
+  assert.equal(race.distanceLabel, 'olympic', 'the tri distance still drives the tracker');
+  const tracker = await getTriGoalTracker(db, A, TODAY);
+  assert.equal(tracker!.goalName, 'Maryland Triathlon');
+});
+
+test('a blank name falls back to the distance name', async () => {
+  await setupAthleteTriGoal(db, A, TODAY, {
+    distance: 'sprint',
+    date: '2027-07-10',
+    weeklyHours: 6,
+    limiter: 'run',
+    run: { race: { distanceMeters: 5000, timeSeconds: 20 * 60 } },
+    bike: { ftpWatts: 230 },
+  });
+  const [race] = await db.select().from(races).where(and(eq(races.athleteId, A), eq(races.priority, 'goal')));
+  assert.equal(race.name, 'Sprint Triathlon');
 });

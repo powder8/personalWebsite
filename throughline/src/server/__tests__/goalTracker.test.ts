@@ -220,6 +220,16 @@ test('a sport-word distance label never reads as that sport in a running pace', 
   assert.match(g.outlook!.requirement, /for the run/);
 });
 
+test('a triathlon tracked as a run goal is flagged for tri setup', () => {
+  // Name says triathlon → offer the path to wire up all three sports.
+  assert.equal(buildGoalTracker({ ...base, goalName: 'Maryland Triathlon' })!.triathlonHint, true);
+  assert.equal(buildGoalTracker({ ...base, goalName: 'Local 70.3' })!.triathlonHint, true);
+  // A discipline word leaked into the run distance → also a mis-set tri.
+  assert.equal(buildGoalTracker({ ...base, distanceLabel: 'Bike' })!.triathlonHint, true);
+  // A plain run race is not flagged.
+  assert.equal(buildGoalTracker({ ...base, goalName: 'Chicago Marathon', distanceLabel: 'Marathon' })!.triathlonHint, false);
+});
+
 test('an on-track goal has no outlook (nothing to spell out)', () => {
   const g = buildGoalTracker({ ...base, feasibility: feas('on_track'), consistency: consistency(90, 4) })!;
   assert.equal(g.outlook, null);
