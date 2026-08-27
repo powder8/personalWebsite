@@ -7,6 +7,7 @@ import 'server-only';
 import { and, eq, gte, lte } from 'drizzle-orm';
 import type { DB } from '@/db';
 import { activities } from '@/db/schema';
+import { buildTimeByWeek, type WeekTime } from '@/server/weeklyVolumeLogic';
 
 const MI = 1609.344;
 const FT_PER_M = 3.280839895;
@@ -86,6 +87,10 @@ export interface TrainingSummary {
   weeks: WeeklyVolume[];
   efforts: LabeledEffort[]; // most-recent first, within the window
   hasElevation: boolean;
+  /** Weekly training TIME by sport (minutes) — the cross-sport volume view. */
+  timeByWeek: WeekTime[];
+  /** Sports with time in the window, canonical order. >1 → show the by-sport view. */
+  sports: string[];
 }
 
 /** Monday (UTC) of the ISO week containing `day`, as YYYY-MM-DD. */
@@ -130,6 +135,7 @@ export async function getTrainingSummary(
       name: activities.name,
       workoutType: activities.workoutType,
       distanceMeters: activities.distanceMeters,
+      durationSeconds: activities.durationSeconds,
       avgPaceSecPerKm: activities.avgPaceSecPerKm,
       elevationGainMeters: activities.elevationGainMeters,
     })
@@ -138,8 +144,15 @@ export async function getTrainingSummary(
 
   const efforts: LabeledEffort[] = [];
   let hasElevation = false;
+  // Cross-sport training TIME (all disciplines), for the multisport volume view.
+  const timeRows: { weekStart: string; sport: string; minutes: number }[] = [];
 
   for (const r of rows) {
+    timeRows.push({
+      weekStart: mondayOf(r.startTime.toISOString().slice(0, 10)),
+      sport: r.sport,
+      minutes: Math.round((r.durationSeconds ?? 0) / 60),
+    });
     if (r.sport !== 'run') continue;
     const day = r.startTime.toISOString().slice(0, 10);
     const weekStart = mondayOf(day);
@@ -172,5 +185,10 @@ export async function getTrainingSummary(
   }
   efforts.sort((a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : 0));
 
-  return { weeks: buckets, efforts, hasElevation };
+  const { byWeek: timeByWeek, sports } = buildTimeByWeek(
+    timeRows,
+    buckets.map((b) => b.weekStart),
+  );
+
+  return { weeks: buckets, efforts, hasElevation, timeByWeek, sports };
 }
