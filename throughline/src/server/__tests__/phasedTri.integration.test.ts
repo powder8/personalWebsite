@@ -14,7 +14,8 @@ import { drizzle } from 'drizzle-orm/pglite';
 import { and, eq } from 'drizzle-orm';
 
 import * as schema from '@/db/schema';
-import { athletes, races, plans } from '@/db/schema';
+import { athletes, races, plans, plannedSessions } from '@/db/schema';
+import { setAthleteFtp } from '../bikeAdjust';
 import { setAthletePaceConfig, getAthleteVdot } from '@/db/paceConfig';
 import { setAthletePowerConfig, getAthleteFtp } from '@/db/powerConfig';
 import type { AthletePaceConfig, AthletePowerConfig } from '@/engine/plan';
@@ -147,6 +148,33 @@ test('a real run race + FTP are tagged MANUAL (not overwritten by estimates)', a
   assert.equal((athlete.paceConfig as AthletePaceConfig).anchorSource, 'manual');
   assert.equal((athlete.powerConfig as AthletePowerConfig).anchorSource, 'manual');
   assert.equal(await getAthleteFtp(db, A), 250);
+});
+
+test('raising FTP re-tunes future rides — the plan tracks your numbers', async () => {
+  const F = '33333333-3333-4333-3333-333333333f00';
+  await db.insert(athletes).values({ id: F, fullName: 'Getting Fitter', email: 'fitter@example.com', timezone: 'UTC' });
+  await setupAthleteTriGoal(db, F, TODAY, {
+    distance: 'olympic',
+    date: '2027-06-26',
+    weeklyHours: 8,
+    limiter: 'swim',
+    run: { race: { distanceMeters: 10000, timeSeconds: 44 * 60 } },
+    bike: { ftpWatts: 200, weightKg: 75 },
+  });
+
+  const bikeBandBefore = async () => {
+    const rows = await db.select().from(plannedSessions).where(and(eq(plannedSessions.athleteId, F), eq(plannedSessions.discipline, 'bike')));
+    return rows.find((r) => r.zone && r.targetPowerHighWatts != null)?.targetPowerHighWatts ?? null;
+  };
+  const before = await bikeBandBefore();
+  assert.ok(before && before > 0, 'a future ride has a baked watt band');
+
+  const res = await setAthleteFtp(db, F, 260, { today: TODAY });
+  assert.equal(res.ftpWatts, 260);
+  assert.ok(res.updatedSessions > 0, 'future rides were re-tuned');
+
+  const after = await bikeBandBefore();
+  assert.ok(after! > before!, `watt bands scaled up with FTP (${before} → ${after})`);
 });
 
 test('a blank name falls back to the distance name', async () => {
