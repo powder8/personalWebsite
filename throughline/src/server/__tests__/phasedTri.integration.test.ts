@@ -15,8 +15,9 @@ import { and, eq } from 'drizzle-orm';
 
 import * as schema from '@/db/schema';
 import { athletes, races, plans } from '@/db/schema';
-import { setAthletePaceConfig } from '@/db/paceConfig';
-import { setAthletePowerConfig } from '@/db/powerConfig';
+import { setAthletePaceConfig, getAthleteVdot } from '@/db/paceConfig';
+import { setAthletePowerConfig, getAthleteFtp } from '@/db/powerConfig';
+import type { AthletePaceConfig, AthletePowerConfig } from '@/engine/plan';
 import { setupTriSeason } from '../triSeason';
 import { setupAthleteTriGoal } from '../athleteTriGoal';
 import { getTriGoalTracker } from '../triGoalTracker';
@@ -98,6 +99,54 @@ test('the athlete-facing setup keeps the race NAME (not the distance label)', as
   assert.equal(race.distanceLabel, 'olympic', 'the tri distance still drives the tracker');
   const tracker = await getTriGoalTracker(db, A, TODAY);
   assert.equal(tracker!.goalName, 'Maryland Triathlon');
+});
+
+test('no 10K time and no FTP → conservative AUTO anchors, plan still builds', async () => {
+  const N = '33333333-3333-4333-3333-333333333999';
+  await db.insert(athletes).values({ id: N, fullName: 'No Numbers', email: 'nonums@example.com', timezone: 'UTC' });
+
+  const res = await setupAthleteTriGoal(db, N, TODAY, {
+    distance: 'olympic',
+    name: 'First Tri',
+    date: '2027-06-26',
+    targetFinishSeconds: 3 * 3600,
+    weeklyHours: 6,
+    limiter: 'swim',
+    run: {}, // no race, no vdot
+    bike: { weightKg: 80 }, // weight but no FTP
+    // no swim
+  });
+  assert.ok(res.budgets.bike && res.budgets.run, 'a plan built from estimates');
+
+  // Both anchors are seeded and tagged 'auto' so real performance refines them.
+  const vdot = await getAthleteVdot(db, N);
+  assert.equal(vdot, 40, 'conservative starter VDOT');
+  const ftp = await getAthleteFtp(db, N);
+  assert.equal(ftp, Math.round(2.2 * 80), 'FTP estimated from body mass (2.2 W/kg)');
+
+  const [athlete] = await db.select().from(athletes).where(eq(athletes.id, N));
+  assert.equal((athlete.paceConfig as AthletePaceConfig).anchorSource, 'auto');
+  assert.equal((athlete.powerConfig as AthletePowerConfig).anchorSource, 'auto');
+
+  // The tri tracker resolves off the estimates (swim deferred).
+  const tracker = await getTriGoalTracker(db, N, TODAY);
+  assert.ok(tracker, 'tracker resolves from estimated fitness');
+  assert.equal(tracker!.swimDeferred, true);
+});
+
+test('a real run race + FTP are tagged MANUAL (not overwritten by estimates)', async () => {
+  await setupAthleteTriGoal(db, A, TODAY, {
+    distance: 'sprint',
+    date: '2027-08-01',
+    weeklyHours: 7,
+    limiter: 'run',
+    run: { race: { distanceMeters: 10000, timeSeconds: 42 * 60 } },
+    bike: { ftpWatts: 250, weightKg: 75 },
+  });
+  const [athlete] = await db.select().from(athletes).where(eq(athletes.id, A));
+  assert.equal((athlete.paceConfig as AthletePaceConfig).anchorSource, 'manual');
+  assert.equal((athlete.powerConfig as AthletePowerConfig).anchorSource, 'manual');
+  assert.equal(await getAthleteFtp(db, A), 250);
 });
 
 test('a blank name falls back to the distance name', async () => {
