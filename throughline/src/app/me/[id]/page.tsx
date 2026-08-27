@@ -7,6 +7,7 @@ import { TrainingChat } from '@/components/TrainingChat';
 import { chatConfigured } from '@/server/chat';
 import { SyncButton } from '@/components/SyncButton';
 import { GoalSetup } from '@/components/GoalSetup';
+import { GoalEditor } from '@/components/GoalEditor';
 import { getAthleteVdot } from '@/db/paceConfig';
 import { TrainingCalendar } from '@/components/TrainingCalendar';
 import { getTrainingCalendar } from '@/server/trainingCalendar';
@@ -423,15 +424,23 @@ export default async function PortalPage({
         )}
       </Card>
 
-      {/* Change goal / target time, collapsed; the tracker's CTA lands here. */}
+      {/* Change goal / target time, collapsed; the tracker's CTA lands here.
+          Discipline-aware: a cyclist edits on bike-setup, a triathlete edits the
+          whole plan — never forced through the run-only editor. */}
       <div id="goal-setup" className="scroll-mt-4" />
-      <Card title="Your goal">
-        <p className="mb-2 text-xs text-slate-500">
-          {goalRace.name} · {goalRace.date}
-          {goalTracker?.cta ? ', add a target time to unlock the on-pace verdict.' : ''}
-        </p>
-        <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal units={units} />
-      </Card>
+      <GoalEditor
+        athleteId={athlete.id}
+        goalName={goalRace.name ?? ''}
+        goalDate={goalRace.date ?? ''}
+        hasAnchor={hasAnchor}
+        units={units}
+        // A tri (real or a run-only goal that's really a tri) supersedes the
+        // single-sport editors; otherwise each live tracker gates its own editor.
+        isTriathlon={!!triGoalTracker || !!goalTracker?.triathlonHint}
+        hasRunGoal={!triGoalTracker && !goalTracker?.triathlonHint && !!goalTracker}
+        hasBikeGoal={!!bikeGoalTracker}
+        addTargetTimeHint={!!goalTracker?.cta}
+      />
 
       {/* ── ASK YOUR COACH ───────────────────────────────────────────────── */}
       <SectionHeader>Ask your coach</SectionHeader>
