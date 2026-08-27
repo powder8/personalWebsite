@@ -24,6 +24,8 @@ import { ShoesPanel } from '@/components/ShoesPanel';
 import { listShoesWithMileage, listRecentRunsForShoes } from '@/server/shoes';
 import { GoalSetup } from '@/components/GoalSetup';
 import { getAthleteVdot } from '@/db/paceConfig';
+import { getAthleteFtp } from '@/db/powerConfig';
+import { FtpUpdate } from '@/components/FtpUpdate';
 import { getSeasonTimeline } from '@/server/blocks';
 import { getRacePlan } from '@/server/racePlan';
 import { RacePlanCard } from '@/components/RacePlanCard';
@@ -61,6 +63,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
     whoopStatus,
     appleHealthStatus,
     strengthDays,
+    ftp,
   ] = await Promise.all([
     getTrainingInsights(id),
     getCycle(db, id),
@@ -73,6 +76,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
     getWhoopStatus(db, id),
     getAppleHealthStatus(db, id),
     getSupportingStrengthDays(db, id),
+    getAthleteFtp(db, id),
   ]);
 
   const hasAnchor = hasAnchorRaw != null;
@@ -265,6 +269,14 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
       <Card title="Last 12 weeks">
         <WeeklyVolumeChart summary={trainingSummary} runLinkBase={`/me/${athlete.id}/runs`} units={asUnits(athlete.units)} />
       </Card>
+
+      {/* Cycling fitness: a quick FTP update that re-tunes upcoming rides, so the
+          plan tracks the athlete's numbers between full setups. Only for cyclists. */}
+      {ftp != null && (
+        <Card title="Cycling fitness (FTP)">
+          <FtpUpdate athleteId={athlete.id} currentFtp={ftp} />
+        </Card>
+      )}
 
       {/* ── GEAR ─────────────────────────────────────────────────────────── */}
       <SectionHeader>Gear &amp; integrations</SectionHeader>
