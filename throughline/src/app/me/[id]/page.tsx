@@ -20,6 +20,8 @@ import { getConsistency } from '@/server/consistency';
 import { RunFeedbackCard } from '@/components/RunFeedbackCard';
 import { getLatestRunFeedback } from '@/server/runFeedback';
 import { RunDebriefCard } from '@/components/RunDebriefCard';
+import { SessionSummaryCard } from '@/components/SessionSummaryCard';
+import { getLatestNonRunSession } from '@/server/latestSession';
 import { getRunDebrief } from '@/server/runDebrief';
 import { RecoveryCard } from '@/components/RecoveryCard';
 import { getRecoveryInsights, persistReadiness } from '@/server/recovery';
@@ -105,13 +107,14 @@ export default async function PortalPage({
   const portal = await getAthletePortal(id);
   if (!portal) notFound();
 
-  const [hasAnchorRaw, adaptation, consistency, latestRun, calendar, crossTraining, recovery, injury, disciplines, goalProgress] = await Promise.all([
+  const [hasAnchorRaw, adaptation, consistency, latestRun, calendar, crossTraining, latestOther, recovery, injury, disciplines, goalProgress] = await Promise.all([
     getAthleteVdot(db, id),
     getAdaptationState(id, portal.today),
     getConsistency(id, portal.today),
     getLatestRunFeedback(id, portal.today),
     getTrainingCalendar(id, portal.today),
     getRecentCrossTraining(db, id, portal.today),
+    getLatestNonRunSession(db, id, portal.today),
     getRecoveryInsights(db, id, portal.today),
     getActiveInjury(db, id, portal.today),
     getAthleteDisciplines(db, id),
@@ -133,6 +136,9 @@ export default async function PortalPage({
   // fitness." hasAnchorRaw (VDOT) still drives run-specific copy in GoalSetup.
   const hasAnchor = hasAnchorRaw != null || disciplines.count > 0;
   const latestDebrief = latestRun ? await getRunDebrief(id, latestRun.activityId, { narrate: false }) : null;
+  // Multisport "how training is going": lead with whichever session is most
+  // recent. A ride/swim is a PRIMARY session, not just a cross-training footnote.
+  const otherIsNewer = !!latestOther && (!latestRun || latestOther.day > latestRun.day);
 
   const {
     athlete,
@@ -385,24 +391,30 @@ export default async function PortalPage({
       {/* ── YOUR TRAINING ────────────────────────────────────────────────── */}
       <SectionHeader>How training is going</SectionHeader>
 
-      {latestDebrief ? (
-        <Link href={`/me/${athlete.id}/runs/${latestRun!.activityId}`} className="block transition hover:opacity-95">
-          <RunDebriefCard
-            debrief={latestDebrief}
-            daysAgo={latestRun!.daysAgo}
-            dayMiles={latestRun!.dayMiles}
-            crossTraining={crossTraining.sessions > 0 ? crossTraining : null}
-            units={units}
-          />
-        </Link>
-      ) : (
-        latestRun && (
-          <RunFeedbackCard feedback={latestRun.feedback} href={`/me/${athlete.id}/runs/${latestRun.activityId}`} />
-        )
-      )}
+      {/* Both a run and a ride/swim this fortnight → show both, newest first.
+          The non-run session now stands on its own, so drop the redundant
+          cross-training addendum on the run debrief. */}
+      {(() => {
+        const runCard = latestDebrief ? (
+          <Link key="run" href={`/me/${athlete.id}/runs/${latestRun!.activityId}`} className="block transition hover:opacity-95">
+            <RunDebriefCard
+              debrief={latestDebrief}
+              daysAgo={latestRun!.daysAgo}
+              dayMiles={latestRun!.dayMiles}
+              crossTraining={!latestOther && crossTraining.sessions > 0 ? crossTraining : null}
+              units={units}
+            />
+          </Link>
+        ) : latestRun ? (
+          <RunFeedbackCard key="run" feedback={latestRun.feedback} href={`/me/${athlete.id}/runs/${latestRun.activityId}`} />
+        ) : null;
+        const otherCard = latestOther ? <SessionSummaryCard key="other" session={latestOther} units={units} /> : null;
+        const cards = otherIsNewer ? [otherCard, runCard] : [runCard, otherCard];
+        return cards.some(Boolean) ? <div className="space-y-3">{cards}</div> : null;
+      })()}
 
       {/* Nothing logged at all → get the data flowing */}
-      {!latestRun && crossTraining.sessions === 0 && !calendar.hasActuals && (
+      {!latestRun && !latestOther && crossTraining.sessions === 0 && !calendar.hasActuals && (
         <Card title="Connect your watch">
           <p className="mb-3 text-xs text-slate-500">
             Your runs and rides show up here automatically, with a coach&apos;s debrief on every run.
