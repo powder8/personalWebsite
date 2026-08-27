@@ -6,6 +6,7 @@
 import Link from 'next/link';
 import { fmtPace, distanceUnit, distanceValue, type Units } from '@/lib/units';
 import type { TrainingSummary, EffortKind } from '@/server/weeklyVolume';
+import type { WeekTime } from '@/server/weeklyVolumeLogic';
 
 const W = 640;
 const H = 160;
@@ -36,10 +37,110 @@ function fmtMonthDay(day: string): string {
   return `${Number(m)}/${Number(d)}`;
 }
 
+const SPORT_COLOR: Record<string, string> = { swim: '#22d3ee', bike: '#f97316', run: '#a78bfa', strength: '#34d399' };
+const SPORT_LABEL: Record<string, string> = { swim: 'Swim', bike: 'Bike', run: 'Run', strength: 'Strength' };
+const SPORT_FALLBACK = '#94a3b8';
+const sportColor = (s: string) => SPORT_COLOR[s] ?? SPORT_FALLBACK;
+const sportLabel = (s: string) => SPORT_LABEL[s] ?? s.charAt(0).toUpperCase() + s.slice(1);
+
+/**
+ * Stacked weekly TRAINING TIME by sport — the multisport volume view. Time is
+ * the only currency that adds up across swim/bike/run/strength, so this is hours,
+ * not distance. Rendered only when the athlete trains more than one sport.
+ */
+function MultiSportTimeChart({ timeByWeek, sports }: { timeByWeek: WeekTime[]; sports: string[] }) {
+  const totalsMin = timeByWeek.map((w) => sports.reduce((sum, s) => sum + (w.bySport[s] ?? 0), 0));
+  const peakMin = Math.max(...totalsMin, 0);
+  if (peakMin <= 0) return null;
+
+  const n = timeByWeek.length;
+  const padR = PAD_R_BASE;
+  const plotW = W - PAD_L - padR;
+  const plotBottom = H - PAD_B;
+  const plotTop = PAD_T;
+  const plotHeight = plotBottom - plotTop;
+
+  const topHours = niceTop(peakMin / 60);
+  const topMin = topHours * 60;
+  const slot = plotW / n;
+  const barW = slot * 0.62;
+  const yFor = (min: number) => (min / topMin) * plotHeight;
+  const ticks = [0, 0.5, 1];
+
+  return (
+    <div>
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Weekly training time by sport</h3>
+      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Weekly training time by sport, last 12 weeks">
+        {ticks.map((t) => {
+          const y = plotBottom - t * plotHeight;
+          return (
+            <g key={t}>
+              <line x1={PAD_L} x2={W - padR} y1={y} y2={y} stroke="#26304a" strokeWidth={1} />
+              <text x={PAD_L - 4} y={y + 3} textAnchor="end" className="fill-slate-400" fontSize={9}>
+                {Math.round(t * topHours)}
+              </text>
+            </g>
+          );
+        })}
+        <text x={PAD_L - 4} y={plotTop - 1} textAnchor="end" className="fill-slate-400" fontSize={8}>
+          h
+        </text>
+
+        {/* stacked bars: sports bottom-up */}
+        {timeByWeek.map((w, i) => {
+          const x = PAD_L + i * slot + (slot - barW) / 2;
+          let yCursor = plotBottom;
+          return (
+            <g key={w.weekStart}>
+              {sports.map((s) => {
+                const min = w.bySport[s] ?? 0;
+                if (min <= 0) return null;
+                const h = yFor(min);
+                yCursor -= h;
+                return (
+                  <rect key={s} x={x.toFixed(1)} y={yCursor.toFixed(1)} width={barW.toFixed(1)} height={h.toFixed(1)} fill={sportColor(s)} fillOpacity={0.85} />
+                );
+              })}
+            </g>
+          );
+        })}
+
+        {timeByWeek.map((w, i) =>
+          i % 2 === 0 ? (
+            <text key={w.weekStart} x={(PAD_L + i * slot + slot / 2).toFixed(1)} y={H - 5} textAnchor="middle" className="fill-slate-400" fontSize={9}>
+              {fmtMonthDay(w.weekStart)}
+            </text>
+          ) : null,
+        )}
+      </svg>
+      <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-slate-500">
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          {sports.map((s) => (
+            <span key={s} className="inline-flex items-center gap-1">
+              <span className="inline-block h-2 w-3 rounded-sm" style={{ backgroundColor: sportColor(s) }} /> {sportLabel(s)}
+            </span>
+          ))}
+        </div>
+        <span className="text-slate-400">peak {(peakMin / 60).toFixed(1)} h/wk</span>
+      </div>
+    </div>
+  );
+}
+
 export function WeeklyVolumeChart({ summary, runLinkBase, units }: { summary: TrainingSummary; runLinkBase?: string; units: Units }) {
-  const { weeks, efforts, hasElevation } = summary;
+  const { weeks, efforts, hasElevation, timeByWeek, sports } = summary;
   const anyMiles = weeks.some((w) => w.miles > 0);
+  const multiSport = sports.length > 1;
   if (!anyMiles) {
+    // A cyclist / swimmer with no runs still has training volume — show the
+    // by-sport time chart rather than an empty "connect Strava" message.
+    if (multiSport) {
+      return (
+        <div className="space-y-4">
+          <MultiSportTimeChart timeByWeek={timeByWeek} sports={sports} />
+        </div>
+      );
+    }
     return <p className="text-sm text-slate-400">No runs in the last 12 weeks yet, connect Strava to populate this.</p>;
   }
 
@@ -68,6 +169,9 @@ export function WeeklyVolumeChart({ summary, runLinkBase, units }: { summary: Tr
 
   return (
     <div className="space-y-4">
+      {/* Multisport athletes lead with cross-sport TIME; the run-mileage chart
+          below stays the run-specific detail. Runners see only the miles chart. */}
+      {multiSport && <MultiSportTimeChart timeByWeek={timeByWeek} sports={sports} />}
       <div>
         <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Weekly mileage and elevation, last 12 weeks">
           {/* horizontal gridlines + left (miles) and right (elevation) axis labels */}
@@ -128,7 +232,7 @@ export function WeeklyVolumeChart({ summary, runLinkBase, units }: { summary: Tr
         <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-slate-500">
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             <span className="inline-flex items-center gap-1">
-              <span className="inline-block h-2 w-3 rounded-sm bg-sky-500/70" /> Weekly {distanceUnit(units)}
+              <span className="inline-block h-2 w-3 rounded-sm bg-sky-500/70" /> Weekly run {distanceUnit(units)}
             </span>
             {hasElevation && (
               <span className="inline-flex items-center gap-1">
