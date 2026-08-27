@@ -72,11 +72,11 @@ export function TriGoalSetup({
     setErr(null);
     const fd = new FormData(e.currentTarget);
 
+    // Run race + FTP are OPTIONAL: leave them blank and the server seeds a
+    // conservative starter estimate that refines as real runs/rides land.
     const runRaceMeters = RUN_DISTANCES.find((d) => d.label === String(fd.get('runDist')))?.meters ?? 0;
     const runTime = parseClock(String(fd.get('runTime') || ''));
-    if (!runTime) return setErr('Add a recent run race time (e.g. 47:30 for a 10K).');
     const ftp = Number(fd.get('ftp') || 0);
-    if (!(ftp > 0)) return setErr('Enter your cycling FTP in watts.');
     const t400 = parseClock(String(fd.get('swim400') || ''));
     const t200 = parseClock(String(fd.get('swim200') || ''));
     const hasSwim = !!(t400 && t200);
@@ -101,8 +101,8 @@ export function TriGoalSetup({
       targetFinishSeconds,
       weeklyHours: Number(fd.get('weeklyHours') || 0),
       limiter: String(fd.get('limiter')) as Discipline,
-      run: { race: { distanceMeters: runRaceMeters, timeSeconds: runTime } },
-      bike: { ftpWatts: ftp, weightKg: Number(fd.get('weightKg') || 0) || undefined },
+      run: runTime && runRaceMeters ? { race: { distanceMeters: runRaceMeters, timeSeconds: runTime } } : {},
+      bike: { ftpWatts: ftp > 0 ? ftp : undefined, weightKg: Number(fd.get('weightKg') || 0) || undefined },
       swim: hasSwim ? { test: { t400Sec: t400!, t200Sec: t200! } } : undefined,
       dateOfBirth: String(fd.get('dob') || '') || undefined,
       schedule,
@@ -203,10 +203,14 @@ export function TriGoalSetup({
       {/* Anchors */}
       <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-inset ring-white/10">
         <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Where your fitness is now</div>
+        <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+          Don&apos;t know your 10K time or FTP? Leave them blank. I&apos;ll start from a sensible estimate and sharpen
+          your plan automatically as you log real runs and rides.
+        </p>
 
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
-            <label className={label}>🏃 Recent run race</label>
+            <label className={label}>🏃 Recent run race (optional)</label>
             <select name="runDist" defaultValue="10K" className={field}>
               {RUN_DISTANCES.map((d) => (
                 <option key={d.label} value={d.label}>{d.label === 'Half' ? 'Half Marathon' : d.label}</option>
@@ -221,8 +225,8 @@ export function TriGoalSetup({
 
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
-            <label className={label}>🚴 Bike FTP (watts)</label>
-            <input type="number" name="ftp" min="60" max="500" placeholder="240" className={field} />
+            <label className={label}>🚴 Bike FTP, watts (optional)</label>
+            <input type="number" name="ftp" min="60" max="500" placeholder="est. from weight" className={field} />
           </div>
           <div>
             <label className={label}>Body weight (kg)</label>
