@@ -63,6 +63,12 @@ export interface NextStepInput {
   easeBackApplied: boolean; // ease-back directive is active
   ranToday: boolean;
   today: TodaySessionLite | null; // today's planned session (null/rest = nothing to run)
+  /**
+   * The sports actually LOGGED today (distinct: 'run' | 'bike' | 'swim' | …).
+   * The "done" headline names what you did, not what was planned — an athlete
+   * who ran when a ride was scheduled still ran. Empty → fall back to the plan.
+   */
+  loggedSports?: string[];
   /** Today's wearable readiness band, if known (drives an advisory on the session). */
   readinessBand?: ReadinessBand | null;
   /**
@@ -176,15 +182,21 @@ export function decideNextStep(input: NextStepInput): NextStep {
   // 4) Already did today's session → celebrate + point at it; the day is done.
   //    Discipline-aware: a ride/swim/strength session is "done", not just a run.
   if (input.ranToday) {
-    const disc = input.today?.discipline ?? 'run';
-    const noun = disc === 'bike' ? 'ride' : disc === 'swim' ? 'swim' : disc === 'strength' ? 'strength session' : 'run';
+    const nounFor = (s: string) =>
+      s === 'bike' ? 'ride' : s === 'swim' ? 'swim' : s === 'strength' ? 'strength session' : s === 'run' ? 'run' : 'session';
+    // Name what was actually DONE. Prefer the logged sport(s); only fall back to
+    // the planned discipline when nothing specific was logged.
+    const logged = input.loggedSports ?? [];
+    const primary = logged.length === 1 ? logged[0] : logged.length === 0 ? input.today?.discipline ?? 'run' : null;
+    const headline = primary ? `Today’s ${nounFor(primary)} is in the bag` : 'Today’s training is in the bag';
+    // "See the run" deep-links the run debrief — only when a run was actually run.
+    const showRun = primary === 'run' || (primary == null && logged.includes('run'));
     return {
       kind: 'done_today',
       emoji: '✅',
-      headline: `Today’s ${noun} is in the bag`,
+      headline,
       detail: 'Nice work, that’s the whole job today. Recover well; tomorrow takes care of itself.',
-      // "See the run" deep-links the run debrief — only meaningful for a run.
-      cta: disc === 'run' ? { type: 'view_run', label: 'See the run' } : { type: 'none' },
+      cta: showRun ? { type: 'view_run', label: 'See the run' } : { type: 'none' },
       tone: 'positive',
     };
   }
