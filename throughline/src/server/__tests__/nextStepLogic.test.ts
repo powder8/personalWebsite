@@ -36,9 +36,44 @@ test('returning, not yet eased → ease_back CTA', () => {
 });
 
 test('ran today → done_today with view-run CTA', () => {
-  const s = decideNextStep({ ...base, ranToday: true });
+  const s = decideNextStep({ ...base, ranToday: true, loggedSports: ['run'] });
   assert.equal(s.kind, 'done_today');
   assert.equal(s.cta.type, 'view_run');
+  assert.match(s.headline, /run is in the bag/);
+});
+
+test('done headline names what was LOGGED, not what was planned', () => {
+  // Planned a ride, but actually ran → "run", not "ride".
+  const s = decideNextStep({
+    ...base,
+    ranToday: true,
+    today: { discipline: 'bike', sessionType: 'endurance', miles: 0, eased: false },
+    loggedSports: ['run'],
+  });
+  assert.match(s.headline, /run is in the bag/);
+  assert.equal(s.cta.type, 'view_run');
+});
+
+test('a logged ride reads as a ride, with no view-run CTA', () => {
+  const s = decideNextStep({ ...base, ranToday: true, loggedSports: ['bike'] });
+  assert.match(s.headline, /ride is in the bag/);
+  assert.equal(s.cta.type, 'none');
+});
+
+test('a brick (run + ride) → generic "training", still links the run', () => {
+  const s = decideNextStep({ ...base, ranToday: true, loggedSports: ['run', 'bike'] });
+  assert.match(s.headline, /training is in the bag/);
+  assert.equal(s.cta.type, 'view_run');
+});
+
+test('no logged sports → falls back to the planned discipline', () => {
+  const s = decideNextStep({
+    ...base,
+    ranToday: true,
+    today: { discipline: 'swim', sessionType: 'endurance', miles: 0, eased: false },
+    loggedSports: [],
+  });
+  assert.match(s.headline, /swim is in the bag/);
 });
 
 test('rest day → rest_today, no CTA', () => {

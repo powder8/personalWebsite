@@ -161,6 +161,17 @@ export default async function PortalPage({
   // the logged activity to the planned discipline, so a done day means done.
   const todayCalDay = calendar.weeks.find((w) => w.isCurrent)?.days.find((d) => d.day === today) ?? null;
   const ranToday = todayCalDay?.status === 'done' || latestRun?.day === today || adaptation?.layoffDays === 0;
+  // The sports actually logged today (for the "done" headline — name what was
+  // DONE, not what was planned). Union of the calendar's actuals with the latest
+  // run/ride when they landed today, so a run still reads as a run even if it
+  // didn't match a planned ride.
+  const loggedSports = (() => {
+    const s = new Set<string>();
+    for (const a of todayCalDay?.actuals ?? []) s.add(a.sport);
+    if (latestRun?.day === today) s.add('run');
+    if (latestOther?.day === today) s.add(latestOther.sport);
+    return [...s];
+  })();
 
   // Goal tracker hook — the "where do I stand?" verdict. Only when there's a
   // live goal to track (a finished/absent goal is handled by the goal-setup CTA).
@@ -183,6 +194,7 @@ export default async function PortalPage({
     easeBackAvailable: !!adaptation?.easeBack,
     easeBackApplied: !!adaptation?.easeBackApplied,
     ranToday,
+    loggedSports,
     today: todaySession ? todayLite(todaySession, units) : null,
     readinessBand: recovery.readiness?.band ?? null,
     coachingMode: athlete.coachingMode,
