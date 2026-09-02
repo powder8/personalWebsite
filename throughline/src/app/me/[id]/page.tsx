@@ -420,7 +420,7 @@ export default async function PortalPage({
         ) : latestRun ? (
           <RunFeedbackCard key="run" feedback={latestRun.feedback} href={`/me/${athlete.id}/runs/${latestRun.activityId}`} />
         ) : null;
-        const otherCard = latestOther ? <SessionSummaryCard key="other" session={latestOther} units={units} /> : null;
+        const otherCard = latestOther ? <SessionSummaryCard key="other" session={latestOther} units={units} athleteId={athlete.id} /> : null;
         const cards = otherIsNewer ? [otherCard, runCard] : [runCard, otherCard];
         return cards.some(Boolean) ? <div className="space-y-3">{cards}</div> : null;
       })()}
