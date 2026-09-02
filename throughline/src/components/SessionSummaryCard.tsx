@@ -3,13 +3,14 @@
  * going" — the multisport twin of the run debrief. Sport-native stats (cycling
  * speed, swim pace/100m) from latestSessionLogic. Pure markup.
  */
+import Link from 'next/link';
 import type { LatestSession } from '@/server/latestSessionLogic';
 import { buildSessionSummaryView } from '@/server/latestSessionLogic';
 import type { Units } from '@/lib/units';
 
-export function SessionSummaryCard({ session, units }: { session: LatestSession; units: Units }) {
+export function SessionSummaryCard({ session, units, athleteId }: { session: LatestSession; units: Units; athleteId?: string }) {
   const view = buildSessionSummaryView(session, units);
-  return (
+  const inner = (
     <div className="rounded-2xl bg-white/[0.04] p-4 ring-1 ring-inset ring-white/10">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -31,6 +32,15 @@ export function SessionSummaryCard({ session, units }: { session: LatestSession;
       )}
 
       <p className="mt-3 text-sm leading-relaxed text-white/70">{view.summary}</p>
+      {athleteId && <span className="mt-2 inline-block text-xs font-semibold text-sky-300">See the session →</span>}
     </div>
+  );
+
+  return athleteId ? (
+    <Link href={`/me/${athleteId}/rides/${session.activityId}`} className="block transition hover:opacity-95">
+      {inner}
+    </Link>
+  ) : (
+    inner
   );
 }
