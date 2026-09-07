@@ -4,6 +4,8 @@ import { getDb } from '@/db';
 import { todayISO } from '@/server/console';
 import { getHealthSnapshot } from '@/server/health';
 import { HealthView } from '@/components/HealthView';
+import { getFitnessProgress } from '@/server/fitnessProgress';
+import { FitnessBySportCard } from '@/components/FitnessBySportCard';
 import { BottomNav } from '@/components/BottomNav';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +19,11 @@ export const dynamic = 'force-dynamic';
 export default async function HealthPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const db = await getDb();
-  const snapshot = await getHealthSnapshot(db, id, todayISO());
+  const today = todayISO();
+  const [snapshot, fitnessProgress] = await Promise.all([
+    getHealthSnapshot(db, id, today),
+    getFitnessProgress(db, id, today),
+  ]);
   if (!snapshot) notFound();
 
   return (
@@ -43,6 +49,9 @@ export default async function HealthPage({ params }: { params: Promise<{ id: str
       </div>
 
       <HealthView snapshot={snapshot} />
+
+      {/* Per-sport performance trend — the counterpart to the load-based PMC. */}
+      <FitnessBySportCard progress={fitnessProgress} />
 
       <BottomNav athleteId={id} />
     </div>
