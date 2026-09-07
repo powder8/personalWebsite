@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   assembleCalendar,
   plannedHasWork,
+  planHasNoWorkAhead,
   mondayOf,
   dowIndex,
   addDays,
@@ -268,4 +269,51 @@ test('a zero-volume session is not work, whatever it is typed as', () => {
   assert.equal(plannedHasWork({ ...bike, durationMinutes: 45 }), true);
   assert.equal(plannedHasWork({ ...run, miles: 5 }), true);
   assert.equal(plannedHasWork({ ...swim, meters: 1500 }), true);
+});
+
+// --- an all-rest plan must be detectable, and only when it's actually ahead ---
+const sess = (discipline: 'run' | 'bike', durationMinutes: number, miles: number): CalPlanned => ({
+  sessionType: durationMinutes || miles ? 'long' : 'long',
+  discipline,
+  zone: null,
+  miles,
+  durationMinutes,
+  meters: 0,
+  loadTss: 0,
+  paceFastSecPerKm: null,
+  paceSlowSecPerKm: null,
+  description: null,
+  adjustments: [],
+});
+
+test('an empty plan ahead is flagged', () => {
+  const m = new Map<string, CalPlanned[]>([
+    ['2026-09-09', [sess('bike', 0, 0)]],
+    ['2026-09-16', [sess('bike', 0, 0)]],
+  ]);
+  assert.equal(planHasNoWorkAhead(m, '2026-09-07'), true);
+});
+
+test('REAL TRAINING IN THE PAST must not mask an empty plan ahead', () => {
+  // The bug: the calendar window spans 8 past weeks, so one real session back
+  // there hid the warning entirely.
+  const m = new Map<string, CalPlanned[]>([
+    ['2026-08-25', [sess('bike', 60, 0)]], // real work, before today
+    ['2026-09-09', [sess('bike', 0, 0)]],  // empty, ahead
+  ]);
+  assert.equal(planHasNoWorkAhead(m, '2026-09-07'), true);
+});
+
+test('a plan with real work ahead is not flagged', () => {
+  const m = new Map<string, CalPlanned[]>([
+    ['2026-09-09', [sess('bike', 0, 0)]],
+    ['2026-09-10', [sess('run', 0, 5)]], // one real session ahead is enough
+  ]);
+  assert.equal(planHasNoWorkAhead(m, '2026-09-07'), false);
+});
+
+test('nothing planned ahead is NOT flagged (that is "no plan yet", not a broken one)', () => {
+  assert.equal(planHasNoWorkAhead(new Map(), '2026-09-07'), false);
+  const pastOnly = new Map<string, CalPlanned[]>([['2026-08-25', [sess('bike', 0, 0)]]]);
+  assert.equal(planHasNoWorkAhead(pastOnly, '2026-09-07'), false);
 });
