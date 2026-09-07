@@ -12,6 +12,7 @@ import { plans, plannedSessions, activities } from '@/db/schema';
 import { applyDirectives } from '@/engine/plan';
 import { listActiveDirectives } from '@/server/directives';
 import {
+  plannedHasWork,
   assembleCalendar,
   addDays,
   mondayOf,
@@ -26,6 +27,13 @@ const RUN_SPORTS = new Set(['run']);
 export interface TrainingCalendar {
   weeks: CalWeek[];
   hasActuals: boolean;
+  /**
+   * A published plan exists, but NOT ONE session in the horizon carries real
+   * work — every day is a rest day. That happens when a plan is built with a
+   * zero training budget, and it renders as a wall of "rest" that looks like a
+   * bug. Surfaced so the calendar can say what's wrong instead of staying mute.
+   */
+  planHasNoWork: boolean;
 }
 
 export async function getTrainingCalendar(
@@ -155,5 +163,10 @@ export async function getTrainingCalendar(
   for (let w = mondayOf(rangeStart); w <= rangeEnd; w = addDays(w, 7)) weekStarts.push(w);
 
   const weeks = assembleCalendar({ today, weekStarts, plannedByDay, actualsByDay, phaseByWeekStart });
-  return { weeks, hasActuals };
+
+  // Planned sessions exist, but every single one is empty → the plan is unusable.
+  const allPlanned = [...plannedByDay.values()].flat();
+  const planHasNoWork = allPlanned.length > 0 && !allPlanned.some(plannedHasWork);
+
+  return { weeks, hasActuals, planHasNoWork };
 }

@@ -34,6 +34,12 @@ export async function setupAthleteBikeGoal(
 ): Promise<BikeSeasonSetupResult> {
   if (!input.date || !DATE_RE.test(input.date)) throw new Error('Pick your event date (YYYY-MM-DD).');
   if (input.date <= today) throw new Error('Your event date needs to be in the future.');
+  // A plan needs a real training budget. Zero (or a missing value) silently
+  // builds a plan where every session is rest — a calendar that looks broken
+  // rather than one that says what's wrong. Fail loudly instead.
+  if (!Number.isFinite(input.weeklyHours) || input.weeklyHours < 1) {
+    throw new Error('Tell me roughly how many hours a week you can train (at least 1).');
+  }
   if (!(input.ftpWatts > 0)) throw new Error('Enter your cycling FTP in watts.');
 
   await setAthletePowerConfig(db, athleteId, {

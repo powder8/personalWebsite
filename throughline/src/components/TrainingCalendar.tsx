@@ -106,11 +106,14 @@ export function TrainingCalendar({
   today,
   athleteId,
   units,
+  planHasNoWork = false,
 }: {
   weeks: CalWeek[];
   today: string;
   athleteId: string;
   units: Units;
+  /** Every planned day is empty — say so rather than showing a wall of "rest". */
+  planHasNoWork?: boolean;
 }) {
   const [expanded, setExpanded] = useState<string | null>(today);
 
@@ -131,6 +134,21 @@ export function TrainingCalendar({
 
   return (
     <div className="space-y-3">
+      {planHasNoWork && (
+        <div className="mb-3 rounded-2xl bg-amber-400/10 p-3.5 ring-1 ring-inset ring-amber-400/30">
+          <p className="text-sm font-semibold text-amber-200">Your plan has no training in it</p>
+          <p className="mt-1 text-xs leading-relaxed text-amber-100/80">
+            Every day is a rest day, which happens when a plan is built with no weekly training hours. Set your
+            weekly hours and I&apos;ll rebuild the plan around them.
+          </p>
+          <a
+            href="#goal-setup"
+            className="mt-2 inline-block rounded-full bg-amber-400/20 px-3 py-1.5 text-xs font-semibold text-amber-100 ring-1 ring-inset ring-amber-400/30 transition hover:bg-amber-400/30"
+          >
+            Fix my plan
+          </a>
+        </div>
+      )}
       {past.length > 0 && (
         <details className="rounded-xl bg-slate-50">
           <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-500">

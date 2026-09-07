@@ -189,3 +189,22 @@ test('a blank name falls back to the distance name', async () => {
   const [race] = await db.select().from(races).where(and(eq(races.athleteId, A), eq(races.priority, 'goal')));
   assert.equal(race.name, 'Sprint Triathlon');
 });
+
+test('a zero training budget is refused, not silently built into an all-rest plan', async () => {
+  const Z = '33333333-3333-4333-8333-333333333eee';
+  await db.insert(athletes).values({ id: Z, fullName: 'No Hours', email: 'nohours@example.com', timezone: 'UTC' });
+  const attempt = (weeklyHours: number) =>
+    setupAthleteTriGoal(db, Z, TODAY, {
+      distance: 'olympic',
+      date: '2027-06-26',
+      weeklyHours,
+      limiter: 'run',
+      run: { race: { distanceMeters: 10000, timeSeconds: 44 * 60 } },
+      bike: { ftpWatts: 200 },
+    });
+  await assert.rejects(attempt(0), /hours a week/i, 'zero hours is rejected');
+  await assert.rejects(attempt(Number.NaN), /hours a week/i, 'a missing number is rejected');
+  // Nothing was written for the refused athlete.
+  const races0 = await db.select().from(races).where(eq(races.athleteId, Z));
+  assert.equal(races0.length, 0, 'a refused setup leaves no half-built plan');
+});
