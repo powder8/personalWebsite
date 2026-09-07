@@ -505,6 +505,11 @@ export const dailySummaries = pgTable(
     avgStressLevel: integer('avg_stress_level'),
     bodyBatteryLow: integer('body_battery_low'),
     bodyBatteryHigh: integer('body_battery_high'),
+    // Device-MEASURED VO2max, per sport (Garmin reports running and cycling
+    // separately, and they legitimately differ). Distinct from the VDOT-derived
+    // estimate in server/healthLogic — a real number beats a proxy when present.
+    vo2maxRunning: doublePrecision('vo2max_running'),
+    vo2maxCycling: doublePrecision('vo2max_cycling'),
     metrics: jsonb('metrics'), // any extra provider fields
   },
   (t) => [uniqueIndex('daily_summaries_athlete_day_uq').on(t.athleteId, t.day)],

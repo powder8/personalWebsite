@@ -84,3 +84,25 @@ test('parseWebhook splits a batched body into per-record events', () => {
   );
   assert.equal(items[0].providerUserId, 'u1');
 });
+
+test('userMetrics carries per-sport VO2max (running and cycling differ)', () => {
+  const batch = garmin.normalize('userMetrics', {
+    calendarDate: '2026-09-05',
+    vo2Max: 52.4,
+    vo2MaxCycling: 48.1,
+  });
+  const d = batch.dailySummaries![0];
+  assert.equal(d.day, '2026-09-05');
+  assert.equal(d.vo2maxRunning, 52.4);
+  assert.equal(d.vo2maxCycling, 48.1, 'cycling VO2max is tracked separately, not assumed equal');
+});
+
+test('userMetrics with no VO2max stores nothing', () => {
+  assert.deepEqual(garmin.normalize('userMetrics', { calendarDate: '2026-09-05' }), {});
+});
+
+test('a running-only VO2max leaves cycling null rather than copying it across', () => {
+  const d = garmin.normalize('userMetrics', { calendarDate: '2026-09-06', vo2Max: 51 }).dailySummaries![0];
+  assert.equal(d.vo2maxRunning, 51);
+  assert.equal(d.vo2maxCycling, null);
+});

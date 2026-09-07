@@ -138,6 +138,20 @@ export const garmin: Provider = {
             },
           ],
         };
+      case 'userMetrics': {
+        // Garmin's User Metrics summary: a device-MEASURED VO2max, reported
+        // separately for running and cycling (they legitimately differ, and
+        // cycling is typically the lower of the two).
+        const day = isoDay(p.calendarDate as string | undefined, p.startTimeInSeconds as number);
+        const running = (p.vo2Max as number) ?? null;
+        const cycling = (p.vo2MaxCycling as number) ?? null;
+        if (running == null && cycling == null) return {};
+        return {
+          dailySummaries: [
+            { day, vo2maxRunning: running, vo2maxCycling: cycling, metrics: p },
+          ],
+        };
+      }
       case 'hrv':
         // Garmin HRV summary: overnight average in ms (`lastNightAvg`), plus a
         // 5-min values map we keep in metrics for later.

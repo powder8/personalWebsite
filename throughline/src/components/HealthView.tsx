@@ -111,10 +111,10 @@ function CardioCard({ snapshot }: { snapshot: HealthSnapshot }) {
       <div className="mt-3 grid grid-cols-3 gap-2">
         <StatTile label="VDOT" value={`${cardio.vdot}`} sub="fitness score" valueClass="text-sky-300" />
         <StatTile
-          label="Est. VO2max"
+          label={cardio.vo2maxSource === 'provider' ? 'VO2max' : 'Est. VO2max'}
           value={cardio.vo2max != null ? `${cardio.vo2max}` : '-'}
           unit="ml/kg/min"
-          sub="from VDOT"
+          sub={cardio.vo2maxSource === 'provider' ? 'from your watch' : 'from VDOT'}
         />
         <StatTile
           label="Fitness age"
@@ -158,8 +158,10 @@ function CardioCard({ snapshot }: { snapshot: HealthSnapshot }) {
 
       <p className="mt-4 text-[10px] leading-relaxed text-slate-500">
         VDOT is a performance-derived VO2max proxy (Daniels&apos; Running Formula); the percentile compares it to the
-        FRIEND registry treadmill standards (Kaminsky et al., Mayo Clin Proc 2015). Estimated from your running, not
-        a lab or device measurement.
+        FRIEND registry treadmill standards (Kaminsky et al., Mayo Clin Proc 2015).{' '}
+        {cardio.vo2maxSource === 'provider'
+          ? 'This VO2max is measured by your watch, not a lab test.'
+          : 'Estimated from your running, not a lab or device measurement.'}
       </p>
     </GradientCard>
   );
@@ -302,7 +304,7 @@ function StepsCard({ snapshot }: { snapshot: HealthSnapshot }) {
     return (
       <GradientCard title="Daily steps">
         <p className="text-sm text-white/70">
-          Connect a wearable (Garmin or Apple Health) and we&apos;ll show your daily step average here.
+          Connect a wearable (Garmin) and we&apos;ll show your daily step average here.
         </p>
       </GradientCard>
     );

@@ -16,7 +16,7 @@
  */
 import { and, eq, gte } from 'drizzle-orm';
 import type { DB } from '@/db';
-import { activities } from '@/db/schema';
+import { activities, dailySummaries } from '@/db/schema';
 import { scoredRunEfforts } from '@/server/runEfforts';
 import { vo2maxFromVdot } from '@/server/healthLogic';
 import {
@@ -30,8 +30,14 @@ export type ProgressSport = 'run' | 'bike' | 'swim';
 
 export interface SportFitness extends SportProgress {
   sport: ProgressSport;
-  /** Estimated VO2max (run only — VDOT is the proxy). Null for bike/swim. */
+  /**
+   * VO2max for this sport: the device-MEASURED number when a wearable reports
+   * one (Garmin gives running and cycling separately), otherwise the VDOT-derived
+   * estimate for running. Null for swimming, and for cycling with no device
+   * number — speed alone can't yield an honest VO2max.
+   */
   vo2max: number | null;
+  vo2maxSource: 'measured' | 'estimated_vdot' | null;
 }
 
 export interface FitnessProgress {
@@ -76,6 +82,18 @@ export async function getFitnessProgress(
     .from(activities)
     .where(and(eq(activities.athleteId, athleteId), gte(activities.startTime, since)));
 
+  // Device-measured VO2max, most recent in the window, per sport.
+  const vo2Rows = await db
+    .select({ day: dailySummaries.day, run: dailySummaries.vo2maxRunning, bike: dailySummaries.vo2maxCycling })
+    .from(dailySummaries)
+    .where(and(eq(dailySummaries.athleteId, athleteId), gte(dailySummaries.day, addDays(today, -windowDays))));
+  const latest = (pick: (r: (typeof vo2Rows)[number]) => number | null): number | null => {
+    const v = [...vo2Rows].filter((r) => pick(r) != null).sort((a, b) => a.day.localeCompare(b.day)).at(-1);
+    return v ? Math.round(pick(v)! * 10) / 10 : null;
+  };
+  const measuredRun = latest((r) => r.run);
+  const measuredBike = latest((r) => r.bike);
+
   const bikeSamples: ProgressSample[] = [];
   const swimSamples: ProgressSample[] = [];
   for (const r of rows) {
@@ -94,10 +112,13 @@ export async function getFitnessProgress(
 
   const build = (sport: ProgressSport, samples: ProgressSample[], metric: SportProgress['metric']): SportFitness => {
     const p = buildSportProgress(samples, { today, metric, periodDays, periods });
+    const measured = sport === 'run' ? measuredRun : sport === 'bike' ? measuredBike : null;
+    const estimated = sport === 'run' && p.current != null ? vo2maxFromVdot(p.current) : null;
     return {
       ...p,
       sport,
-      vo2max: sport === 'run' && p.current != null ? vo2maxFromVdot(p.current) : null,
+      vo2max: measured ?? estimated,
+      vo2maxSource: measured != null ? 'measured' : estimated != null ? 'estimated_vdot' : null,
     };
   };
 

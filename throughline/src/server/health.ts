@@ -116,7 +116,12 @@ export async function getHealthSnapshot(
       )
       .groupBy(activities.sport),
     db
-      .select({ day: dailySummaries.day, steps: dailySummaries.steps })
+      .select({
+        day: dailySummaries.day,
+        steps: dailySummaries.steps,
+        vo2maxRunning: dailySummaries.vo2maxRunning,
+        vo2maxCycling: dailySummaries.vo2maxCycling,
+      })
       .from(dailySummaries)
       .where(and(eq(dailySummaries.athleteId, athleteId), gte(dailySummaries.day, sleepCutoff))),
   ]);
@@ -128,13 +133,21 @@ export async function getHealthSnapshot(
       ? { avgPerDay: Math.round(stepVals.reduce((a, b) => a + b, 0) / stepVals.length), days: stepVals.length }
       : null;
 
-  // ── Cardio (VDOT → estimated VO2max → percentile + fitness age) ──
-  const vo2max = vo2maxFromVdot(vdot);
+  // ── Cardio ──
+  // A device-MEASURED VO2max beats the VDOT proxy when we have one. Garmin
+  // reports running and cycling separately; the headline health number is the
+  // running one (that's what the FRIEND percentile tables are built on).
+  const measuredRunning = [...stepRows]
+    .filter((r) => r.vo2maxRunning != null)
+    .sort((a, b) => a.day.localeCompare(b.day))
+    .at(-1)?.vo2maxRunning ?? null;
+  const estimated = vo2maxFromVdot(vdot);
+  const vo2max = measuredRunning != null ? Math.round(measuredRunning * 10) / 10 : estimated;
   const percentile = percentileForVo2max(vo2max, sex, age);
   const cardio: CardioHealth = {
     vdot: vdot != null ? Math.round(vdot * 10) / 10 : null,
     vo2max,
-    vo2maxSource: vo2max != null ? 'estimated_vdot' : null,
+    vo2maxSource: vo2max == null ? null : measuredRunning != null ? 'provider' : 'estimated_vdot',
     percentile,
     fitnessAge: fitnessAgeForVo2max(vo2max, sex),
     category: categoryForPercentile(percentile),

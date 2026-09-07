@@ -84,7 +84,10 @@ function SportRow({ sport }: { sport: SportFitness }) {
       </div>
       <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
         {METRIC_WHY[sport.metric]}
-        {sport.vo2max != null && ` That works out to an estimated VO2max of ${sport.vo2max}.`}
+        {sport.vo2max != null &&
+          (sport.vo2maxSource === 'measured'
+            ? ` Your watch measures VO2max at ${sport.vo2max} for this sport.`
+            : ` That works out to an estimated VO2max of ${sport.vo2max}.`)}
       </p>
     </div>
   );
@@ -92,7 +95,8 @@ function SportRow({ sport }: { sport: SportFitness }) {
 
 export function FitnessBySportCard({ progress }: { progress: FitnessProgress }) {
   if (progress.sports.length === 0) return null;
-  const hasBike = progress.sports.some((s) => s.sport === 'bike');
+  const bike = progress.sports.find((s) => s.sport === 'bike');
+  const hasBike = !!bike;
 
   return (
     <section className="rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-5 shadow-lg">
