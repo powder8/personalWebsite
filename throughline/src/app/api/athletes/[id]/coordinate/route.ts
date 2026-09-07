@@ -22,8 +22,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
-  if (!(Number(body.weeklyHours) > 0)) {
-    return NextResponse.json({ error: 'Enter your weekly training hours.' }, { status: 400 });
+  // Same floor as the tri/bike setups: a sub-1-hour budget splits to nothing and
+  // rebuilds both plans as all-rest.
+  if (!(Number(body.weeklyHours) >= 1)) {
+    return NextResponse.json({ error: 'Enter your weekly training hours (at least 1).' }, { status: 400 });
   }
   const priority = body.priority === 'run' || body.priority === 'bike' ? body.priority : undefined;
 

@@ -84,6 +84,13 @@ export function TriGoalSetup({
       return setErr('Add your 400 m and 200 m swim times, or check “I’ll start swimming later”.');
     }
 
+    // Never coerce a missing hours field to 0 — a zero budget builds a plan
+    // where every day is a rest day.
+    const hours = Number(fd.get('weeklyHours'));
+    if (!Number.isFinite(hours) || hours < 1) {
+      return setErr('Tell me roughly how many hours a week you can train.');
+    }
+
     const targetRaw = String(fd.get('targetFinish') || '').trim();
     const targetFinishSeconds = targetRaw ? parseClock(targetRaw) ?? undefined : undefined;
 
@@ -99,7 +106,7 @@ export function TriGoalSetup({
       name: String(fd.get('name') || '').trim() || undefined,
       date: String(fd.get('date') || ''),
       targetFinishSeconds,
-      weeklyHours: Number(fd.get('weeklyHours') || 0),
+      weeklyHours: hours,
       limiter: String(fd.get('limiter')) as Discipline,
       run: runTime && runRaceMeters ? { race: { distanceMeters: runRaceMeters, timeSeconds: runTime } } : {},
       bike: { ftpWatts: ftp > 0 ? ftp : undefined, weightKg: Number(fd.get('weightKg') || 0) || undefined },
