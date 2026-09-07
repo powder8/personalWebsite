@@ -68,6 +68,12 @@ export async function setupAthleteTriGoal(
 ): Promise<TriSeasonSetupResult> {
   if (!input.date || !DATE_RE.test(input.date)) throw new Error('Pick your race date (YYYY-MM-DD).');
   if (input.date <= today) throw new Error('Your race date needs to be in the future.');
+  // A plan needs a real training budget. Zero (or a missing value) silently
+  // builds a plan where every session is rest — a calendar that looks broken
+  // rather than one that says what's wrong. Fail loudly instead.
+  if (!Number.isFinite(input.weeklyHours) || input.weeklyHours < 1) {
+    throw new Error('Tell me roughly how many hours a week you can train (at least 1).');
+  }
 
   // --- Run anchor (VDOT) — a real race/VDOT is 'manual'; with nothing to go on
   //     we seed a conservative STARTER estimate tagged 'auto', so ensureAutoAnchor

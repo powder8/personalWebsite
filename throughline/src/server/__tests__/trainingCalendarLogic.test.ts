@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   assembleCalendar,
+  plannedHasWork,
   mondayOf,
   dowIndex,
   addDays,
@@ -250,4 +251,21 @@ test('a brick day keeps BOTH sports: plannedAll lists them and weekly totals sum
   // Weekly totals count BOTH sports, not just the primary.
   assert.ok(Math.abs(weeks[0].plannedMiles - 4) < 1e-9, 'run miles counted');
   assert.ok(Math.abs(weeks[0].plannedMinutes - 60) < 1e-9, 'bike minutes counted');
+});
+
+// A plan built with a zero training budget emits sessions that are TYPED as
+// work ("long") but carry no volume. They must not count as work — that's what
+// makes an all-rest calendar detectable instead of silently wrong.
+test('a zero-volume session is not work, whatever it is typed as', () => {
+  const base = { zone: null, loadTss: 0, paceFastSecPerKm: null, paceSlowSecPerKm: null, description: null, adjustments: [] };
+  const bike = { ...base, sessionType: 'long' as const, discipline: 'bike' as const, miles: 0, durationMinutes: 0, meters: 0 };
+  const run = { ...base, sessionType: 'long' as const, discipline: 'run' as const, miles: 0, durationMinutes: 0, meters: 0 };
+  const swim = { ...base, sessionType: 'long' as const, discipline: 'swim' as const, miles: 0, durationMinutes: 0, meters: 0 };
+  assert.equal(plannedHasWork(bike), false, 'a 0-minute ride is not a ride');
+  assert.equal(plannedHasWork(run), false, 'a 0-mile run is not a run');
+  assert.equal(plannedHasWork(swim), false, 'a 0-metre swim is not a swim');
+  // And the same sessions WITH volume are work.
+  assert.equal(plannedHasWork({ ...bike, durationMinutes: 45 }), true);
+  assert.equal(plannedHasWork({ ...run, miles: 5 }), true);
+  assert.equal(plannedHasWork({ ...swim, meters: 1500 }), true);
 });
