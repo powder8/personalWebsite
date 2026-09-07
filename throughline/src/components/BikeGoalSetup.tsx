@@ -120,13 +120,20 @@ export function BikeGoalSetup({
       return setErr('Add the race distance so a target time means something.');
     }
 
+    // Never coerce a missing hours field to 0 — a zero budget builds a plan
+    // where every day is a rest day.
+    const bikeHours = Number(fd.get('weeklyHours'));
+    if (!Number.isFinite(bikeHours) || bikeHours < 1) {
+      return setErr('Tell me roughly how many hours a week you can train.');
+    }
+
     const body = {
       eventName: String(fd.get('eventName') || '') || undefined,
       date: String(fd.get('date') || ''),
       distanceMeters: distKm > 0 ? distKm * 1000 : undefined,
       elevationGainMeters: Number(fd.get('elevationM') || 0) || undefined,
       targetTimeSeconds,
-      weeklyHours: Number(fd.get('weeklyHours') || 0),
+      weeklyHours: bikeHours,
       ftpWatts: ftp,
       weightKg: Number(fd.get('weightKg') || 0) || undefined,
       targetFtpWatts: Number(fd.get('targetFtp') || 0) || undefined,
