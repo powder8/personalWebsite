@@ -12,7 +12,7 @@ import { plans, plannedSessions, activities } from '@/db/schema';
 import { applyDirectives } from '@/engine/plan';
 import { listActiveDirectives } from '@/server/directives';
 import {
-  plannedHasWork,
+  planHasNoWorkAhead,
   assembleCalendar,
   addDays,
   mondayOf,
@@ -164,9 +164,7 @@ export async function getTrainingCalendar(
 
   const weeks = assembleCalendar({ today, weekStarts, plannedByDay, actualsByDay, phaseByWeekStart });
 
-  // Planned sessions exist, but every single one is empty → the plan is unusable.
-  const allPlanned = [...plannedByDay.values()].flat();
-  const planHasNoWork = allPlanned.length > 0 && !allPlanned.some(plannedHasWork);
+  const planHasNoWork = planHasNoWorkAhead(plannedByDay, today);
 
   return { weeks, hasActuals, planHasNoWork };
 }

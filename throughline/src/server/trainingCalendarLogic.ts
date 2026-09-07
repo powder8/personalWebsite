@@ -40,6 +40,23 @@ export function plannedHasWork(p: CalPlanned | null): boolean {
   return p.miles > 0;
 }
 
+/**
+ * Does the plan from TODAY ONWARD contain no real work at all? A plan built with
+ * a zero training budget emits sessions typed as work but carrying no volume, so
+ * the calendar renders a wall of "rest" that reads as a bug.
+ *
+ * Scoped to today and later on purpose: the calendar window also spans past
+ * weeks, and one real session in training history must not mask an empty plan
+ * ahead. False when there's nothing planned ahead at all — that's "no plan yet",
+ * a different (and already-handled) state.
+ */
+export function planHasNoWorkAhead(plannedByDay: Map<string, CalPlanned[]>, today: string): boolean {
+  const ahead = [...plannedByDay.entries()]
+    .filter(([day]) => day >= today)
+    .flatMap(([, sessions]) => sessions);
+  return ahead.length > 0 && !ahead.some(plannedHasWork);
+}
+
 /** The primary session of a (possibly multi-sport) day: a real run session wins
  *  (it carries the detailed grading), else the first session with real work,
  *  else null. Keeps single-sport days byte-identical to the old one-per-day map. */
