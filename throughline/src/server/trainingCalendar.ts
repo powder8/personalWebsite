@@ -9,7 +9,7 @@ import 'server-only';
 import { and, asc, eq, gte, lte } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { plans, plannedSessions, activities } from '@/db/schema';
-import { applyDirectives } from '@/engine/plan';
+import { applyDirectives, directivesActiveOn } from '@/engine/plan';
 import { listActiveDirectives } from '@/server/directives';
 import {
   planHasNoWorkAhead,
@@ -28,12 +28,16 @@ export interface TrainingCalendar {
   weeks: CalWeek[];
   hasActuals: boolean;
   /**
-   * A published plan exists, but NOT ONE session in the horizon carries real
-   * work — every day is a rest day. That happens when a plan is built with a
-   * zero training budget, and it renders as a wall of "rest" that looks like a
-   * bug. Surfaced so the calendar can say what's wrong instead of staying mute.
+   * A published plan exists, but NOT ONE session ahead carries real work — every
+   * day is a rest day, which renders as a wall of "rest" that looks like a bug.
+   * Two very different causes, so the reason is carried with it:
+   *  - 'paused'      an `unavailable` adjustment (injury, travel, "can't train")
+   *                  is turning every day into rest at RENDER time. Rebuilding
+   *                  the plan cannot fix this — the pause lives outside it.
+   *  - 'empty_plan'  the plan itself was built with no training in it.
    */
   planHasNoWork: boolean;
+  restReason: { kind: 'paused'; label: string | null; directiveId: string } | { kind: 'empty_plan' } | null;
 }
 
 export async function getTrainingCalendar(
@@ -165,6 +169,17 @@ export async function getTrainingCalendar(
   const weeks = assembleCalendar({ today, weekStarts, plannedByDay, actualsByDay, phaseByWeekStart });
 
   const planHasNoWork = planHasNoWorkAhead(plannedByDay, today);
+  // An `unavailable` directive covering today is the far more likely cause, and
+  // the only one the athlete can't fix by rebuilding.
+  const activeToday = new Set(directivesActiveOn(today, directiveRows));
+  const pause = planHasNoWork
+    ? directiveRows.find((d) => d.type === 'unavailable' && activeToday.has(d))
+    : undefined;
+  const restReason: TrainingCalendar['restReason'] = !planHasNoWork
+    ? null
+    : pause
+      ? { kind: 'paused', label: pause.label ?? null, directiveId: pause.id }
+      : { kind: 'empty_plan' };
 
-  return { weeks, hasActuals, planHasNoWork };
+  return { weeks, hasActuals, planHasNoWork, restReason };
 }
