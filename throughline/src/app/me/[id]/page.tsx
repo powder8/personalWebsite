@@ -440,7 +440,7 @@ export default async function PortalPage({
       <div id="training" className="scroll-mt-4" />
       <Card title="Planned vs actual" action={strava.connected ? <SyncButton athleteId={athlete.id} /> : undefined}>
         {calendar.weeks.length > 0 ? (
-          <TrainingCalendar weeks={calendar.weeks} today={today} athleteId={athlete.id} units={units} planHasNoWork={calendar.planHasNoWork} />
+          <TrainingCalendar weeks={calendar.weeks} today={today} athleteId={athlete.id} units={units} planHasNoWork={calendar.planHasNoWork} restReason={calendar.restReason} />
         ) : (
           <p className="text-sm text-slate-500">
             No published plan yet, set a goal above and your calendar fills in.

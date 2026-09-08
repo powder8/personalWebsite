@@ -107,6 +107,7 @@ export function TrainingCalendar({
   athleteId,
   units,
   planHasNoWork = false,
+  restReason = null,
 }: {
   weeks: CalWeek[];
   today: string;
@@ -114,7 +115,21 @@ export function TrainingCalendar({
   units: Units;
   /** Every planned day is empty — say so rather than showing a wall of "rest". */
   planHasNoWork?: boolean;
+  /** WHY it's empty: training is paused, or the plan itself has nothing in it. */
+  restReason?: { kind: 'paused'; label: string | null; directiveId: string } | { kind: 'empty_plan' } | null;
 }) {
+  const [lifting, setLifting] = useState(false);
+
+  async function liftPause(directiveId: string) {
+    setLifting(true);
+    try {
+      const res = await fetch(`/api/athletes/${athleteId}/directives?directiveId=${directiveId}`, { method: 'DELETE' });
+      if (res.ok) window.location.reload();
+      else setLifting(false);
+    } catch {
+      setLifting(false);
+    }
+  }
   const [expanded, setExpanded] = useState<string | null>(today);
 
   const currentIdx = weeks.findIndex((w) => w.isCurrent);
@@ -136,17 +151,39 @@ export function TrainingCalendar({
     <div className="space-y-3">
       {planHasNoWork && (
         <div className="mb-3 rounded-2xl bg-amber-400/10 p-3.5 ring-1 ring-inset ring-amber-400/30">
-          <p className="text-sm font-semibold text-amber-200">Your plan has no training in it</p>
-          <p className="mt-1 text-xs leading-relaxed text-amber-100/80">
-            Every day is a rest day, which happens when a plan is built with no weekly training hours. Set your
-            weekly hours and I&apos;ll rebuild the plan around them.
-          </p>
-          <a
-            href="#goal-setup"
-            className="mt-2 inline-block rounded-full bg-amber-400/20 px-3 py-1.5 text-xs font-semibold text-amber-100 ring-1 ring-inset ring-amber-400/30 transition hover:bg-amber-400/30"
-          >
-            Fix my plan
-          </a>
+          {restReason?.kind === 'paused' ? (
+            <>
+              <p className="text-sm font-semibold text-amber-200">Your training is paused</p>
+              <p className="mt-1 text-xs leading-relaxed text-amber-100/80">
+                {restReason.label
+                  ? `Every day is a rest day because of an adjustment on your plan: "${restReason.label}".`
+                  : 'Every day is a rest day because an adjustment is pausing your training.'}{' '}
+                Rebuilding the plan won&apos;t clear this, the pause sits on top of it. Lift it when you&apos;re ready
+                to train again.
+              </p>
+              <button
+                onClick={() => liftPause(restReason.directiveId)}
+                disabled={lifting}
+                className="mt-2 inline-block rounded-full bg-amber-400/20 px-3 py-1.5 text-xs font-semibold text-amber-100 ring-1 ring-inset ring-amber-400/30 transition hover:bg-amber-400/30 disabled:opacity-50"
+              >
+                {lifting ? 'Resuming…' : 'Resume training'}
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold text-amber-200">Your plan has no training in it</p>
+              <p className="mt-1 text-xs leading-relaxed text-amber-100/80">
+                Every day is a rest day, which happens when a plan is built with no weekly training hours. Set your
+                weekly hours and I&apos;ll rebuild the plan around them.
+              </p>
+              <a
+                href="#goal-setup"
+                className="mt-2 inline-block rounded-full bg-amber-400/20 px-3 py-1.5 text-xs font-semibold text-amber-100 ring-1 ring-inset ring-amber-400/30 transition hover:bg-amber-400/30"
+              >
+                Fix my plan
+              </a>
+            </>
+          )}
         </div>
       )}
       {past.length > 0 && (
