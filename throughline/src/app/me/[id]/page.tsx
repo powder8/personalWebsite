@@ -288,7 +288,7 @@ export default async function PortalPage({
             <>
               <h1 className="text-2xl font-bold tracking-tight">What are you chasing?</h1>
               <p className="mt-1 text-sm text-white/80">
-                Pick a race or a goal and I&apos;ll build your week-by-week plan, every run specific, adjusted to how
+                Pick a race or a goal and I&apos;ll build your week-by-week plan, every session specific, adjusted to how
                 your body is responding.
               </p>
             </>
@@ -440,7 +440,7 @@ export default async function PortalPage({
       {!latestRun && !latestOther && crossTraining.sessions === 0 && !calendar.hasActuals && (
         <Card title="Connect your watch">
           <p className="mb-3 text-xs text-slate-500">
-            Your runs and rides show up here automatically, with a coach&apos;s debrief on every run.
+            Your runs, rides and swims show up here automatically, with a coach&apos;s debrief on every session.
           </p>
           <ConnectStrava athleteId={athlete.id} connected={strava.connected} configured={strava.configured} />
         </Card>

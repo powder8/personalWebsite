@@ -5,7 +5,7 @@ import { decideNudge, type NudgeInput } from '../nudgeLogic';
 const base: NudgeInput = {
   firstName: 'Sam',
   localHour: 8,
-  todaySession: { sessionType: 'easy', miles: 5, isQuality: false, label: 'easy run' },
+  todaySession: { sessionType: 'easy', discipline: 'run', volumeLabel: '5.0 mi', hasWork: true, isQuality: false, label: 'easy run' },
   loggedToday: false,
   streakDays: 0,
   layoffDays: 1,
@@ -21,7 +21,7 @@ test('morning + planned session → workout_today reminder', () => {
 });
 
 test('quality day reads as a quality nudge', () => {
-  const n = decideNudge({ ...base, todaySession: { sessionType: 'threshold', miles: 6, isQuality: true, label: 'threshold session' } })!;
+  const n = decideNudge({ ...base, todaySession: { sessionType: 'threshold', discipline: 'run', volumeLabel: '6.0 mi', hasWork: true, isQuality: true, label: 'threshold session' } })!;
   assert.equal(n.kind, 'workout_today');
   assert.match(n.subject, /Quality day/);
   assert.match(n.body, /moves your race time/);
@@ -32,7 +32,7 @@ test('already logged today → no nudge (stay quiet)', () => {
 });
 
 test('rest day in the morning → no nudge', () => {
-  assert.equal(decideNudge({ ...base, todaySession: { sessionType: 'rest', miles: 0, isQuality: false, label: 'rest' } }), null);
+  assert.equal(decideNudge({ ...base, todaySession: { sessionType: 'rest', discipline: 'run', volumeLabel: '0.0 mi', hasWork: false, isQuality: false, label: 'rest' } }), null);
   assert.equal(decideNudge({ ...base, todaySession: null }), null);
 });
 
@@ -40,7 +40,7 @@ test('evening + streak ≥3 + unrun session → streak protection', () => {
   const n = decideNudge({ ...base, localHour: 18, streakDays: 5 })!;
   assert.equal(n.kind, 'streak_protect');
   assert.match(n.subject, /5-day streak/);
-  assert.match(n.body, /no make-up miles/i);
+  assert.match(n.body, /nothing to make up/i);
 });
 
 test('evening but no streak → nothing (do not nag)', () => {
@@ -75,4 +75,24 @@ test('never instructs making up miles, any branch', () => {
       }
     }
   }
+});
+
+// --- multisport: a ride is a session, in minutes, and never "0 mi" ---
+test('a planned RIDE gets a ride nudge in MINUTES (it is not a rest day because miles are 0)', () => {
+  const n = decideNudge({
+    ...base,
+    todaySession: { sessionType: 'easy', discipline: 'bike', volumeLabel: '45 min', hasWork: true, isQuality: false, label: 'easy ride' },
+  })!;
+  assert.ok(n, 'a 45-min ride is a real session');
+  assert.equal(n.kind, 'workout_today');
+  assert.match(n.subject, /Today's ride/);
+  assert.match(n.body, /easy ride, 45 min/);
+  assert.doesNotMatch(n.body, /\bmi\b|Today's run/, 'never rendered as a run or in miles');
+});
+
+test('comeback copy talks about training, not just running', () => {
+  const n = decideNudge({ ...base, layoffDays: 6, todaySession: null })!;
+  assert.equal(n.kind, 'comeback');
+  assert.match(n.body, /since you last trained/);
+  assert.doesNotMatch(n.body, /last run|first run back/);
 });

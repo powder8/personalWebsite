@@ -65,7 +65,7 @@ test('capable but execution slipping → drifting (the key fusion case)', () => 
   assert.equal(g.verdict, 'drifting');
   assert.equal(g.tone, 'caution');
   assert.match(g.headline, /slipping/);
-  assert.match(g.leftLabel, /55% of planned miles/);
+  assert.match(g.leftLabel, /55% of planned sessions/);
 });
 
 test('stretch destination + good execution → stretch (honest, hopeful)', () => {

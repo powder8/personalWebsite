@@ -8,7 +8,7 @@ import 'server-only';
 import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { athletes, activities, notifications } from '@/db/schema';
-import { getAthletePortal } from '@/server/portal';
+import { getAthletePortal, type PortalSession } from '@/server/portal';
 import { getAdaptationState } from '@/server/adaptation';
 import { decideNudge, type Nudge } from '@/server/nudgeLogic';
 import { getRacePlan } from '@/server/racePlan';
@@ -61,6 +61,29 @@ async function maybeProgressCheckin(athleteId: string, firstName: string, today:
 }
 
 const QUALITY = new Set(['threshold', 'tempo', 'intervals', 'interval', 'marathon', 'race']);
+type NudgeDiscipline = 'run' | 'bike' | 'swim' | 'strength';
+const NOUN: Record<NudgeDiscipline, string> = { run: 'run', bike: 'ride', swim: 'swim', strength: 'strength session' };
+
+/** The planned session in ITS OWN unit — a ride is minutes, a swim is metres. */
+function nudgeSession(s: PortalSession, sessionType: string) {
+  const discipline = (['run', 'bike', 'swim', 'strength'].includes(s.discipline) ? s.discipline : 'run') as NudgeDiscipline;
+  const timeBased = discipline === 'bike' || discipline === 'strength';
+  const minutes = s.durationSeconds != null ? Math.round(s.durationSeconds / 60) : 0;
+  const meters = s.distanceMeters ?? 0;
+  const hasWork = sessionType !== 'rest' && (timeBased ? minutes > 0 : meters > 0);
+  const volumeLabel = timeBased
+    ? `${minutes} min`
+    : discipline === 'swim'
+      ? `${Math.round(meters).toLocaleString()} m`
+      : `${(meters / 1609.344).toFixed(1)} mi`;
+  // Run labels carry the run noun ("easy run"); other sports take a generic form.
+  const label =
+    discipline === 'run'
+      ? (SESSION_LABEL[sessionType] ?? `${sessionType} run`)
+      : `${sessionType} ${NOUN[discipline]}`;
+  return { sessionType, discipline, volumeLabel, hasWork, isQuality: QUALITY.has(sessionType), label };
+}
+
 const SESSION_LABEL: Record<string, string> = {
   recovery: 'recovery jog',
   easy: 'easy run',
@@ -166,14 +189,14 @@ async function buildAndDecide(
   const checkin = await maybeProgressCheckin(athleteId, fullName.split(' ')[0], portal.today);
   if (checkin) return checkin;
 
-  // Did they already log a run on their local day?
+  // Did they already train on their local day, in ANY sport? A cyclist who
+  // rode this morning must not be nudged to get their session in.
   const [ranToday] = await db
     .select({ id: activities.id })
     .from(activities)
     .where(
       and(
         eq(activities.athleteId, athleteId),
-        eq(activities.sport, 'run'),
         gte(activities.startTime, new Date(`${localDay}T00:00:00Z`)),
         lte(activities.startTime, new Date(`${localDay}T23:59:59Z`)),
       ),
@@ -187,15 +210,7 @@ async function buildAndDecide(
   return decideNudge({
     firstName: fullName.split(' ')[0],
     localHour,
-    todaySession:
-      s && sessionType
-        ? {
-            sessionType,
-            miles: s.distanceMeters != null ? s.distanceMeters / 1609.344 : 0,
-            isQuality: QUALITY.has(sessionType),
-            label: SESSION_LABEL[sessionType] ?? `${sessionType} run`,
-          }
-        : null,
+    todaySession: s && sessionType ? nudgeSession(s, sessionType) : null,
     loggedToday: !!ranToday,
     streakDays: adaptation?.streakDays ?? 0,
     layoffDays: adaptation?.layoffDays ?? 0,

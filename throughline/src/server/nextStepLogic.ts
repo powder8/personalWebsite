@@ -173,7 +173,7 @@ export function decideNextStep(input: NextStepInput): NextStep {
       kind: 'ease_back',
       emoji: '👋',
       headline: `Welcome back, ${name}`,
-      detail: `You’ve had ${d} days off, no problem and no cramming. Tap below and I’ll trim the next few days so the first runs back feel good, not brutal.`,
+      detail: `You’ve had ${d} days off, no problem and no cramming. Tap below and I’ll trim the next few days so the first sessions back feel good, not brutal.`,
       cta: { type: 'ease_back' },
       tone: 'action',
     };
@@ -207,7 +207,7 @@ export function decideNextStep(input: NextStepInput): NextStep {
       kind: 'rest_today',
       emoji: '😌',
       headline: 'Rest day, take it',
-      detail: 'Recovery is where the training sticks. Nothing to run today; you’re back at it tomorrow.',
+      detail: 'Recovery is where the training sticks. Nothing on the plan today; you’re back at it tomorrow.',
       cta: { type: 'none' },
       tone: 'neutral',
     };
