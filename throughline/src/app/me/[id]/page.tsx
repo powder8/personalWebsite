@@ -22,6 +22,7 @@ import { getLatestRunFeedback } from '@/server/runFeedback';
 import { RunDebriefCard } from '@/components/RunDebriefCard';
 import { SessionSummaryCard } from '@/components/SessionSummaryCard';
 import { getLatestNonRunSession } from '@/server/latestSession';
+import { getSessionDebrief } from '@/server/sessionDebrief';
 import { getRunDebrief } from '@/server/runDebrief';
 import { RecoveryCard } from '@/components/RecoveryCard';
 import { getRecoveryInsights, persistReadiness } from '@/server/recovery';
@@ -154,6 +155,9 @@ export default async function PortalPage({
   const firstName = athlete.fullName.split(' ')[0];
   const todayCheckIn = recentCheckIns.find((c) => c.day === today) ?? null;
   const units = asUnits(athlete.units);
+  // The coach debriefs your LAST session, whatever the sport — a ride yesterday
+  // gets the coach's take, not a stats card under a week-old run debrief.
+  const sessionDebrief = otherIsNewer && latestOther ? await getSessionDebrief(db, id, latestOther, units) : null;
   const goalDone = !!goalRace.name && goalRace.daysAway != null && goalRace.daysAway < 0;
   const needsGoal = !goalRace.name || goalDone;
   // "Did today's session get done?" — discipline-aware: a completed bike / swim /
@@ -403,27 +407,34 @@ export default async function PortalPage({
       {/* ── YOUR TRAINING ────────────────────────────────────────────────── */}
       <SectionHeader>How training is going</SectionHeader>
 
-      {/* Both a run and a ride/swim this fortnight → show both, newest first.
-          The non-run session now stands on its own, so drop the redundant
-          cross-training addendum on the run debrief. */}
-      {(() => {
-        const runCard = latestDebrief ? (
-          <Link key="run" href={`/me/${athlete.id}/runs/${latestRun!.activityId}`} className="block transition hover:opacity-95">
-            <RunDebriefCard
-              debrief={latestDebrief}
-              daysAgo={latestRun!.daysAgo}
-              dayMiles={latestRun!.dayMiles}
-              crossTraining={!latestOther && crossTraining.sessions > 0 ? crossTraining : null}
-              units={units}
-            />
-          </Link>
-        ) : latestRun ? (
-          <RunFeedbackCard key="run" feedback={latestRun.feedback} href={`/me/${athlete.id}/runs/${latestRun.activityId}`} />
-        ) : null;
-        const otherCard = latestOther ? <SessionSummaryCard key="other" session={latestOther} units={units} athleteId={athlete.id} /> : null;
-        const cards = otherIsNewer ? [otherCard, runCard] : [runCard, otherCard];
-        return cards.some(Boolean) ? <div className="space-y-3">{cards}</div> : null;
-      })()}
+      {/* ONE coach's debrief, of the LATEST session across sports. A ride
+          yesterday is evaluated as a ride; the run from last week doesn't get
+          to lead just because it's a run. */}
+      {otherIsNewer && latestOther && sessionDebrief ? (
+        <Link href={`/me/${athlete.id}/rides/${latestOther.activityId}`} className="block transition hover:opacity-95">
+          <RunDebriefCard
+            debrief={sessionDebrief}
+            daysAgo={latestOther.daysAgo}
+            dayMiles={latestOther.sport === 'bike' && latestOther.distanceMeters ? latestOther.distanceMeters / 1609.344 : undefined}
+            units={units}
+            sport={latestOther.sport}
+          />
+        </Link>
+      ) : latestDebrief ? (
+        <Link href={`/me/${athlete.id}/runs/${latestRun!.activityId}`} className="block transition hover:opacity-95">
+          <RunDebriefCard
+            debrief={latestDebrief}
+            daysAgo={latestRun!.daysAgo}
+            dayMiles={latestRun!.dayMiles}
+            crossTraining={crossTraining.sessions > 0 ? crossTraining : null}
+            units={units}
+          />
+        </Link>
+      ) : latestRun ? (
+        <RunFeedbackCard feedback={latestRun.feedback} href={`/me/${athlete.id}/runs/${latestRun.activityId}`} />
+      ) : latestOther ? (
+        <SessionSummaryCard session={latestOther} units={units} athleteId={athlete.id} />
+      ) : null}
 
       {/* Nothing logged at all → get the data flowing */}
       {!latestRun && !latestOther && crossTraining.sessions === 0 && !calendar.hasActuals && (

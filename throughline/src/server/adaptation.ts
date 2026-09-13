@@ -4,7 +4,7 @@ import 'server-only';
  * and produces an encouragement + (for a real layoff) an in-place ease-back.
  * Thin wrapper over the pure analyzer in adaptationLogic.ts.
  */
-import { and, desc, eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { activities } from '@/db/schema';
 import { getComplianceWeeks } from '@/server/compliance';
@@ -20,12 +20,14 @@ function addDays(day: string, n: number): string {
 
 export async function getAdaptationState(athleteId: string, today: string): Promise<AdaptationState | null> {
   const db = await getDb();
-  // Last actual run from ALL activities (not just plan-week days) — the honest
-  // layoff signal. If they've never run, we can't assess; don't nag.
+  // Last actual session in ANY sport (not just plan-week days) — the honest
+  // layoff signal. "Days off" means no training at all: a triathlete who rode
+  // yesterday has not had eight days off because their last RUN was eight days
+  // ago. If they've never trained, we can't assess; don't nag.
   const [latest] = await db
     .select({ startTime: activities.startTime })
     .from(activities)
-    .where(and(eq(activities.athleteId, athleteId), eq(activities.sport, 'run')))
+    .where(eq(activities.athleteId, athleteId))
     .orderBy(desc(activities.startTime))
     .limit(1);
   const lastRunDay = latest?.startTime ? latest.startTime.toISOString().slice(0, 10) : null;
