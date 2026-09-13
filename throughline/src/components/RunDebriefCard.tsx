@@ -25,6 +25,9 @@ const SIGNAL_LABEL: Record<string, string> = {
   distance: 'Distance',
   session: 'Session',
   intervals: 'Intervals',
+  duration: 'Time',
+  effort: 'Effort',
+  climbing: 'Climbing',
 };
 const XT_ICON: Record<string, string> = {
   bike: '🚴',
@@ -34,9 +37,11 @@ const XT_ICON: Record<string, string> = {
   other: '🤸',
 };
 
-function recencyLabel(daysAgo: number): string {
-  if (daysAgo <= 0) return "Today's run";
-  if (daysAgo === 1) return "Yesterday's run";
+const NOUN: Record<string, string> = { run: 'run', bike: 'ride', swim: 'swim', strength: 'strength session' };
+function recencyLabel(daysAgo: number, sport: string): string {
+  const noun = NOUN[sport] ?? 'session';
+  if (daysAgo <= 0) return `Today's ${noun}`;
+  if (daysAgo === 1) return `Yesterday's ${noun}`;
   return `${daysAgo} days ago`;
 }
 
@@ -46,8 +51,11 @@ export function RunDebriefCard({
   dayMiles,
   crossTraining,
   units,
+  sport = 'run',
 }: {
   debrief: RunDebriefResult;
+  /** Which session this debriefs — the header names it, so a ride reads as a ride. */
+  sport?: 'run' | 'bike' | 'swim' | 'strength';
   daysAgo?: number;
   /** Total miles logged the same day (shown in the attribution header). */
   dayMiles?: number;
@@ -55,7 +63,7 @@ export function RunDebriefCard({
   crossTraining?: CrossTrainingSummary | null;
   units: Units;
 }) {
-  const recency = daysAgo != null ? recencyLabel(daysAgo) : null;
+  const recency = daysAgo != null ? recencyLabel(daysAgo, sport) : null;
   const milesLabel = dayMiles != null && dayMiles > 0 ? fmtDistance(dayMiles * 1609.344, units) : null;
 
   const xtIcons = crossTraining && crossTraining.sessions > 0
@@ -75,7 +83,7 @@ export function RunDebriefCard({
 
       <div className="flex items-center gap-2">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-          Coach&rsquo;s debrief
+          Coach&rsquo;s debrief{sport !== 'run' ? ` · ${XT_ICON[sport] ?? ''} ${sport === 'bike' ? 'ride' : sport}` : ''}
         </span>
         {!recency && debrief.narrated && (
           <span className="text-[10px] text-slate-500">· in your coach&rsquo;s words</span>

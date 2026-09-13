@@ -42,7 +42,10 @@ export interface DebriefInput {
 
 export type SignalPolarity = 'positive' | 'caution' | 'context';
 export interface RunSignal {
-  key: 'showed_up' | 'sleep' | 'feel' | 'stops' | 'terrain' | 'pace' | 'distance' | 'session' | 'intervals';
+  key:
+    | 'showed_up' | 'sleep' | 'feel' | 'stops' | 'terrain' | 'pace' | 'distance' | 'session' | 'intervals'
+    // non-run sessions (sessionDebriefLogic): how long, how hard, how hilly
+    | 'duration' | 'effort' | 'climbing';
   polarity: SignalPolarity;
   fact: string; // a grounded statement (no invention)
 }

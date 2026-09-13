@@ -21,6 +21,7 @@ export interface LatestSession {
   durationSeconds: number | null;
   elevationGainMeters: number | null;
   avgHr: number | null;
+  maxHr?: number | null;
 }
 
 export interface SessionStat {

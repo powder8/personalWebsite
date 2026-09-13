@@ -30,6 +30,7 @@ export async function getLatestNonRunSession(
       durationSeconds: activities.durationSeconds,
       elevationGainMeters: activities.elevationGainMeters,
       avgHr: activities.avgHr,
+      maxHr: activities.maxHr,
     })
     .from(activities)
     .where(
@@ -62,5 +63,6 @@ export async function getLatestNonRunSession(
     durationSeconds: row.durationSeconds,
     elevationGainMeters: row.elevationGainMeters,
     avgHr: row.avgHr,
+    maxHr: row.maxHr,
   };
 }
