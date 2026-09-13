@@ -288,7 +288,7 @@ export default async function PortalPage({
             <>
               <h1 className="text-2xl font-bold tracking-tight">What are you chasing?</h1>
               <p className="mt-1 text-sm text-white/80">
-                Pick a race or a goal and I&apos;ll build your week-by-week plan, every run specific, adjusted to how
+                Pick a race or a goal and I&apos;ll build your week-by-week plan, every session specific, adjusted to how
                 your body is responding.
               </p>
             </>
@@ -330,26 +330,9 @@ export default async function PortalPage({
     <div className="mx-auto max-w-2xl space-y-4 pb-20 sm:pb-4">
       <p className="px-1 pt-1 text-sm text-slate-400">Hi {firstName} 👋 · {today}</p>
 
-      {/* Where you stand. A triathlete's combined tracker supersedes the rest.
-          Otherwise run and bike goals coexist: both trackers stack, under one
-          coordinating header so the two commitments read as a single view. */}
-      {triGoalTracker ? (
-        <TriGoalTrackerHero tracker={triGoalTracker} progress={goalProgress} />
-      ) : (
-        <>
-          {goalTracker && bikeGoalTracker && (
-            <p className="px-1 text-xs font-medium uppercase tracking-wide text-slate-400">
-              Two goals in play · run + bike
-            </p>
-          )}
-          {goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} progress={goalProgress} />}
-          {bikeGoalTracker && <BikeGoalTrackerHero tracker={bikeGoalTracker} athleteId={athlete.id} progress={goalProgress} units={units} />}
-          {goalTracker && bikeGoalTracker && (
-            <CoordinatedBudget athleteId={athlete.id} currentBudget={athlete.weeklyHoursBudget ?? null} />
-          )}
-        </>
-      )}
-
+      {/* ── TODAY ────────────────────────────────────────────────────────
+          The most important thing on a daily visit: what to do right now,
+          and anything that changes it (how recovered you are, an injury). */}
       {/* Today, the one thing to do now, with the specific workout. A
           triathlete with several sessions today gets the stacked multi-sport
           view; everyone else gets the single-focal next-step banner. */}
@@ -391,18 +374,30 @@ export default async function PortalPage({
         </div>
       )}
 
-      {/* Your sports, always-present path to add a discipline (nav target #sports). */}
-      <div id="sports" className="scroll-mt-4" />
-      <YourSports athleteId={athlete.id} disciplines={disciplines} hasTriGoal={!!triGoalTracker} />
+      {/* An ACTIVE injury changes what today is, so it sits with today's session
+          (prominent status + the resume check), not down in the body section. */}
+      {injury && <InjuryPanel athleteId={athlete.id} injury={injury} />}
 
-      {/* ── YOUR BODY ────────────────────────────────────────────────────── */}
-      {(recovery.hasData || injury) && (
-        <SectionHeader>How your body is responding</SectionHeader>
+      {/* ── WHERE YOU STAND ─────────────────────────────────────────────── */}
+      {/* Where you stand. A triathlete's combined tracker supersedes the rest.
+          Otherwise run and bike goals coexist: both trackers stack, under one
+          coordinating header so the two commitments read as a single view. */}
+      {triGoalTracker ? (
+        <TriGoalTrackerHero tracker={triGoalTracker} progress={goalProgress} />
+      ) : (
+        <>
+          {goalTracker && bikeGoalTracker && (
+            <p className="px-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+              Two goals in play · run + bike
+            </p>
+          )}
+          {goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} progress={goalProgress} />}
+          {bikeGoalTracker && <BikeGoalTrackerHero tracker={bikeGoalTracker} athleteId={athlete.id} progress={goalProgress} units={units} />}
+          {goalTracker && bikeGoalTracker && (
+            <CoordinatedBudget athleteId={athlete.id} currentBudget={athlete.weeklyHoursBudget ?? null} />
+          )}
+        </>
       )}
-      {recovery.hasData && <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} />}
-
-      {/* Injury: prominent status + resume check when hurt, a quiet report link otherwise. */}
-      <InjuryPanel athleteId={athlete.id} injury={injury} />
 
       {/* ── YOUR TRAINING ────────────────────────────────────────────────── */}
       <SectionHeader>How training is going</SectionHeader>
@@ -440,13 +435,21 @@ export default async function PortalPage({
       {!latestRun && !latestOther && crossTraining.sessions === 0 && !calendar.hasActuals && (
         <Card title="Connect your watch">
           <p className="mb-3 text-xs text-slate-500">
-            Your runs and rides show up here automatically, with a coach&apos;s debrief on every run.
+            Your runs, rides and swims show up here automatically, with a coach&apos;s debrief on every session.
           </p>
           <ConnectStrava athleteId={athlete.id} connected={strava.connected} configured={strava.configured} />
         </Card>
       )}
 
       {consistency?.show && <ConsistencyStrip stats={consistency} multiSport={disciplines.count > 1} />}
+
+      {/* ── YOUR BODY ────────────────────────────────────────────────────── */}
+      {recovery.hasData && <SectionHeader>How your body is responding</SectionHeader>}
+      {recovery.hasData && <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} />}
+
+      {/* Not hurt: just the quiet "report it" link. (An active injury is shown
+          up top with today's session, because it changes what today is.) */}
+      {!injury && <InjuryPanel athleteId={athlete.id} injury={injury} />}
 
       <div id="training" className="scroll-mt-4" />
       <Card title="Planned vs actual" action={strava.connected ? <SyncButton athleteId={athlete.id} /> : undefined}>
@@ -458,6 +461,12 @@ export default async function PortalPage({
           </p>
         )}
       </Card>
+
+      {/* ── SETUP & TOOLS ─────────────────────────────────────────────────
+          Slow-changing controls belong below the daily read. */}
+      {/* Your sports, always-present path to add a discipline (nav target #sports). */}
+      <div id="sports" className="scroll-mt-4" />
+      <YourSports athleteId={athlete.id} disciplines={disciplines} hasTriGoal={!!triGoalTracker} />
 
       {/* Change goal / target time, collapsed; the tracker's CTA lands here.
           Discipline-aware: a cyclist edits on bike-setup, a triathlete edits the
@@ -476,6 +485,7 @@ export default async function PortalPage({
         hasBikeGoal={!!bikeGoalTracker}
         addTargetTimeHint={!!goalTracker?.cta}
       />
+
 
       {/* ── ASK YOUR COACH ───────────────────────────────────────────────── */}
       <SectionHeader>Ask your coach</SectionHeader>

@@ -109,7 +109,7 @@ function execNoteFor(exec: Execution, c: ConsistencyStats | null): string | null
     case 'slipping':
       return c.adherence28dPct != null
         ? `Training ${Math.max(1, 100 - c.adherence28dPct)}% under plan the last 4 weeks`
-        : `${c.runs28d} run${c.runs28d === 1 ? '' : 's'} logged in the last 4 weeks`;
+        : `${c.activeDays28d} active day${c.activeDays28d === 1 ? '' : 's'} in the last 4 weeks`;
     default:
       return null;
   }
@@ -136,7 +136,7 @@ export interface BuildGoalTrackerInput {
 export function driftingAdvice(days: number | null): string {
   if (days != null && days <= 13) {
     return days <= 1
-      ? "Race is basically here, the fitness is banked. Rest up, run smart, and we rebuild after."
+      ? "Race is basically here, the fitness is banked. Rest up, race smart, and we rebuild after."
       : `Only ${days} days out, too little runway to rebuild base, so don't cram. Arrive rested, race what you've got, and we build it back properly afterwards.`;
   }
   return 'The race is still yours, get two solid weeks back-to-back and the base rebuilds fast.';
@@ -254,7 +254,7 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
       ? `projected ${projected}`
       : verdict === 'drifting'
         ? consistency?.adherence28dPct != null
-          ? `${consistency.adherence28dPct}% of planned miles`
+          ? `${consistency.adherence28dPct}% of planned sessions`
           : `${consistency?.activeWeeks28d ?? 0}/4 active weeks`
         : verdict === 'stretch'
           ? 'reachable if it clicks'
@@ -275,7 +275,7 @@ export function buildGoalTracker(input: BuildGoalTrackerInput): GoalTracker | nu
       ? null
       : consistency.adherence28dPct != null
         ? `${Math.max(1, 100 - consistency.adherence28dPct)}% under plan`
-        : `${consistency.runs28d} run${consistency.runs28d === 1 ? '' : 's'} in 4 weeks`;
+        : `${consistency.activeDays28d} active day${consistency.activeDays28d === 1 ? '' : 's'} in 4 weeks`;
   // Affirm the ambitious goal and promise ONGOING EVALUATION rather than nagging
   // to lower it — the projection is recomputed from current fitness every time,
   // so "I'll keep checking your trajectory" is literally true. Adjusting stays a
