@@ -1,3 +1,5 @@
+> Historical review. For the September 2026 implementation audit and current recovery work, see [Daily experience review](daily-experience-review.md).
+
 # Competitive landscape & differentiation
 
 _Scan of 2026 coverage (marketing/SEO-heavy sources — directional, not gospel;

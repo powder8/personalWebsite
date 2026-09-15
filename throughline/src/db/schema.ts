@@ -589,6 +589,8 @@ export const checkIns = pgTable(
     soreness: integer('soreness'), // 0-10
     energy: integer('energy'), // 0-10 (mood/energy)
     yesterdayRpe: integer('yesterday_rpe'), // 0-10 RPE of yesterday's session
+    lifeStress: integer('life_stress'), // 0-10, self-reported load outside training
+    sleepQuality: integer('sleep_quality'), // 0-10, self-reported restorative sleep
     note: text('note'),
     submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
   },

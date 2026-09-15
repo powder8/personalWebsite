@@ -47,3 +47,11 @@ test('a session outside any window is unchanged', () => {
   assert.equal(r.paceFastSecPerKm, 220);
   assert.equal(r.adjustments.length, 0);
 });
+
+test('recovery windows preserve stronger coach reductions and never stack', () => {
+  const recovery = { type: 'recovery_day' as const, from: base.day, to: base.day, factor: 0.7 };
+  const r = applyDirectives(base, [recovery, recovery, { type: 'reduce_volume', from: base.day, to: base.day, factor: 0.5 }]);
+  assert.equal(r.distanceMeters, base.distanceMeters! * 0.5);
+  assert.equal(r.sessionType, 'easy');
+  assert.equal(r.paceFastSecPerKm, null);
+});

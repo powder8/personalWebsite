@@ -14,11 +14,11 @@ import 'server-only';
  * (low_recovery, missed_days) and rewrites them from today's signals, so the
  * plan always reflects the current state and nothing stacks.
  */
-import { and, eq, gte } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { getDb } from '@/db';
-import { athletes, readinessAssessments } from '@/db/schema';
+import { athletes } from '@/db/schema';
 import { todayISO } from '@/server/console';
-import type { Band } from '@/server/console';
+import { getRecoveryInsights, persistReadiness } from '@/server/recovery';
 import { getAdaptationState } from '@/server/adaptation';
 import { createDirective, clearAutoDirectives } from '@/server/directives';
 import { decideRecoveryEase, addDaysISO } from '@/server/monitorLogic';
@@ -84,12 +84,9 @@ export async function runMonitor(opts: { dryRun?: boolean } = {}): Promise<Monit
     }
 
     // --- Sustained low recovery ---
-    const bandRows = await db
-      .select({ day: readinessAssessments.day, band: readinessAssessments.band })
-      .from(readinessAssessments)
-      .where(and(eq(readinessAssessments.athleteId, a.id), gte(readinessAssessments.day, addDaysISO(today, -4))))
-      .orderBy(readinessAssessments.day);
-    const bands = bandRows.map((r) => (r.band as Band | null) ?? null);
+    const recovery = await getRecoveryInsights(db, a.id, today);
+    if (!opts.dryRun && recovery.readiness) await persistReadiness(db, a.id, recovery.readiness);
+    const bands = recovery.history.map((r) => r.band as 'easy' | 'normal' | 'go' | null);
     const ease = decideRecoveryEase(bands);
     if (ease) {
       if (!opts.dryRun) {

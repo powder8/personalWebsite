@@ -38,7 +38,7 @@ export function TrajectorySparkline({ progress }: { progress: GoalProgress }) {
       <div className="min-w-0">
         <p className={`text-sm font-semibold ${c.text}`}>{progress.label}</p>
         <p className="text-xs text-white/50">
-          {progress.onTrack ? 'On track — keep the trend going.' : 'Build the trend back up to close on your goal.'}
+          Load-based fitness estimate. Recovery weeks and tapering can lower it without undoing your progress.
         </p>
       </div>
     </div>

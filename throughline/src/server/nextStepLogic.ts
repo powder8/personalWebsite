@@ -114,7 +114,7 @@ function readinessNoteFor(
   if (!band) return undefined;
   const quality = isQualitySession(session.sessionType);
   if (band === 'go' && quality) {
-    return { tone: 'go', text: 'Recovery is green today, a good day to attack this one.' };
+    return { tone: 'go', text: 'Your current signals support the planned session. Start with the warm-up and reassess how you feel.' };
   }
   // Autonomous mode routes the low-readiness case through the interactive gate,
   // so the banner doesn't pre-empt it with a static caution here.
@@ -150,7 +150,7 @@ export function decideNextStep(input: NextStepInput): NextStep {
       kind: 'goal_done',
       emoji: '🎉',
       headline: 'That’s a wrap on this goal',
-      detail: 'Big effort. The fitness you built fades fast if it sits, pick your next race or focus and we’ll start a fresh block.',
+      detail: 'Big effort. Take time to recover and reflect, then choose your next goal when you feel ready.',
       cta: { type: 'scroll', href: '#goal-setup', label: 'Set my next goal' },
       tone: 'positive',
     };
@@ -207,7 +207,7 @@ export function decideNextStep(input: NextStepInput): NextStep {
       kind: 'rest_today',
       emoji: '😌',
       headline: 'Rest day, take it',
-      detail: 'Recovery is where the training sticks. Nothing on the plan today; you’re back at it tomorrow.',
+      detail: 'Recovery is where the training sticks. Nothing on the plan today. Reassess how you feel before your next planned session.',
       cta: { type: 'none' },
       tone: 'neutral',
     };

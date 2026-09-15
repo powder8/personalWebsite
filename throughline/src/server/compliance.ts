@@ -111,6 +111,7 @@ export async function getComplianceWeeks(
           day: s.day,
           sessionType: s.sessionType,
           distanceMeters: s.targetDistanceMeters,
+        durationSeconds: s.targetDurationSeconds,
           paceFastSecPerKm: s.targetPaceFastSecPerKm,
           paceSlowSecPerKm: s.targetPaceSlowSecPerKm,
         },
@@ -121,7 +122,7 @@ export async function getComplianceWeeks(
         discipline,
         sessionType: adj.sessionType,
         targetMeters: adj.distanceMeters ?? 0,
-        targetSeconds: adj.sessionType === 'rest' ? 0 : (s.targetDurationSeconds ?? 0),
+        targetSeconds: adj.durationSeconds ?? 0,
       });
     }
 

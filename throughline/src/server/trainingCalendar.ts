@@ -90,6 +90,7 @@ export async function getTrainingCalendar(
         day: r.day,
         sessionType: r.sessionType,
         distanceMeters: r.targetDistanceMeters,
+        durationSeconds: r.targetDurationSeconds,
         paceFastSecPerKm: r.targetPaceFastSecPerKm,
         paceSlowSecPerKm: r.targetPaceSlowSecPerKm,
       },
@@ -99,15 +100,15 @@ export async function getTrainingCalendar(
     const session: CalPlanned = {
       sessionType: adj.sessionType,
       discipline,
-      zone: r.zone,
+      zone: adj.adjustments.length ? null : r.zone,
       // Native volume per discipline; run's `miles` is unchanged.
       miles: discipline === 'run' ? metersToMiles(adj.distanceMeters) : 0,
-      durationMinutes: discipline === 'bike' ? (r.targetDurationSeconds ?? 0) / 60 : 0,
+      durationMinutes: discipline === 'bike' ? (adj.durationSeconds ?? 0) / 60 : 0,
       meters: discipline === 'swim' ? (adj.distanceMeters ?? 0) : 0,
-      loadTss: r.targetLoadTss ?? 0,
+      loadTss: adj.adjustments.length ? 0 : r.targetLoadTss ?? 0,
       paceFastSecPerKm: adj.paceFastSecPerKm,
       paceSlowSecPerKm: adj.paceSlowSecPerKm,
-      description: r.description,
+      description: adj.adjustments.length ? adj.adjustments.join('; ') : r.description,
       adjustments: adj.adjustments,
     };
     const existing = plannedByDay.get(r.day);

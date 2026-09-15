@@ -123,7 +123,7 @@ test('low readiness on an easy day → keep-it-easy caution', () => {
 test('green readiness on a quality day → go note', () => {
   const s = decideNextStep({ ...qualityDay, readinessBand: 'go' });
   assert.equal(s.readinessNote?.tone, 'go');
-  assert.match(s.readinessNote!.text, /green/i);
+  assert.match(s.readinessNote!.text, /support.*planned session/i);
 });
 
 test('green readiness on an easy day → no note (nothing to attack)', () => {

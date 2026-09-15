@@ -44,7 +44,7 @@ export function FeedbackWidget() {
   const field = 'mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm';
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed bottom-20 right-4 z-50 sm:bottom-4">
       {open ? (
         <div className="w-80 rounded-lg border border-slate-200 bg-card p-4 shadow-lg">
           <div className="mb-2 flex items-center justify-between">
