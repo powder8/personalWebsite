@@ -46,7 +46,9 @@ export type DriverKey =
   | 'sleep'
   | 'soreness'
   | 'energy'
-  | 'yesterday_rpe';
+  | 'yesterday_rpe'
+  | 'life_stress'
+  | 'sleep_quality';
 
 export interface ReadinessInput {
   day: string;
@@ -56,6 +58,8 @@ export interface ReadinessInput {
   soreness: number | null; // 0-10 subjective
   energy: number | null; // 0-10 subjective
   yesterdayRpe: number | null; // 0-10
+  lifeStress?: number | null; // 0-10, higher = more demanding
+  sleepQuality?: number | null; // 0-10, higher = more restorative
   /** Optional trend context for a more defensible sentence. */
   hrvDaysSuppressed?: number;
 }

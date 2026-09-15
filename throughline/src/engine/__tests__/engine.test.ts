@@ -188,5 +188,5 @@ test('no signals → safe default sentence, normal band', () => {
   });
   assert.equal(r.band, 'normal');
   assert.equal(r.sufficientData, false);
-  assert.match(r.sentence, /No signals/);
+  assert.match(r.sentence, /No current signals/);
 });

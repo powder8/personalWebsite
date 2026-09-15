@@ -40,6 +40,19 @@ const VERDICT_LABEL: Record<GoalTracker['verdict'], string> = {
 };
 
 export function GoalTrackerHero({ tracker, athleteId, progress }: { tracker: GoalTracker; athleteId: string; progress?: GoalProgress | null }) {
+  // The goal wizard stores the general-fitness path with this explicit name.
+  // It has no race-time success criterion: don't manufacture a race verdict.
+  if (tracker.raceLine === 'Build fitness') return (
+    <section className="rounded-3xl border border-white/10 bg-card p-5" aria-label="Fitness goal progress">
+      <p className="text-xs font-semibold uppercase tracking-wide text-lime-200">Your goal · build fitness</p>
+      <h2 className="mt-2 text-xl font-bold text-white">Build a rhythm you can sustain</h2>
+      <p className="mt-2 text-sm leading-relaxed text-slate-600">Progress means following a manageable plan and recovering between sessions. You do not need a race or a target time.</p>
+      {progress ? <div className="mt-4"><TrajectorySparkline progress={progress} /></div> :
+        <p className="mt-3 text-sm text-slate-500">Log a few weeks of training to build a meaningful trend.</p>}
+      {tracker.execNote && <p className="mt-3 text-sm text-slate-600">{tracker.execNote}</p>}
+      <a href={`/me/${athleteId}#training`} className="mt-4 inline-block py-2 text-sm font-semibold text-lime-200 underline">Review this week’s planned vs actual</a>
+    </section>
+  );
   const t = TONE[tracker.tone];
   return (
     <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 shadow-lg">
@@ -62,7 +75,7 @@ export function GoalTrackerHero({ tracker, athleteId, progress }: { tracker: Goa
               ? ` · ${tracker.distanceLabel}`
               : ''}
           </p>
-          <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-white">{tracker.headline}</h1>
+          <h2 className="mt-0.5 text-2xl font-bold tracking-tight text-white">{tracker.headline}</h2>
           {tracker.projectionLine && <p className="mt-1 text-sm text-slate-400">{tracker.projectionLine}</p>}
         </div>
         {tracker.daysAway != null && (

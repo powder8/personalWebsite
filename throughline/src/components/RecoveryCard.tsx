@@ -4,6 +4,7 @@
  * against the athlete's own baseline. Pure markup; data from server/recovery.ts.
  */
 import type { RecoverySnapshot, Trend } from '@/server/recovery';
+import type { RecoveryPattern } from '@/server/recoveryLogic';
 import type { ReadinessResult } from '@/engine';
 
 const TREND_COLOR: Record<Trend, string> = {
@@ -120,11 +121,21 @@ function trendLabel(z: number | null): string | undefined {
 export function RecoveryCard({
   snapshot,
   readiness,
+  pattern,
+  focus,
+  history,
+  today,
 }: {
   snapshot: RecoverySnapshot;
   readiness: ReadinessResult | null;
+  pattern?: RecoveryPattern;
+  focus?: string[];
+  history?: { day: string; band: string | null }[];
+  today?: string;
 }) {
   const { recoveryScore, recoveryBand } = snapshot;
+  const metricDate = (label: string, day: string | null | undefined) =>
+    today && day && day !== today ? `${label} · ${fmtDay(day)}` : label;
 
   return (
     <div className="rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-5 shadow-lg">
@@ -140,13 +151,15 @@ export function RecoveryCard({
         <div className="min-w-0 flex-1">
           {recoveryBand && (
             <div className={`text-lg font-bold tracking-tight ${BAND_RING[recoveryBand]}`}>
-              {BAND_WORD[recoveryBand]}
+              {BAND_WORD[recoveryBand]} · WHOOP
             </div>
           )}
           {readiness?.sentence && (
             <p className="mt-0.5 text-sm leading-snug text-white/80">{readiness.sentence}</p>
           )}
-          {snapshot.n < 14 && (
+          {!readiness && <p className="mt-1 text-sm text-slate-600">No current readiness assessment. Check in below; you do not need a wearable to get started.</p>}
+          {readiness && !readiness.sufficientData && <p className="mt-1 text-xs text-slate-500">Based on your check-in. Wearable baselines are unavailable or still forming.</p>}
+          {snapshot.n > 0 && snapshot.n < 14 && (
             <p className="mt-1 text-[11px] text-slate-500">
               Baseline still forming ({snapshot.n} days), trends sharpen as history builds.
             </p>
@@ -157,7 +170,7 @@ export function RecoveryCard({
       <div className="mt-4 grid grid-cols-3 gap-2">
         {snapshot.hrvMs != null && (
           <Metric
-            label="HRV"
+            label={metricDate("HRV", snapshot.signalDays?.hrv)}
             value={`${snapshot.hrvMs}`}
             unit="ms"
             sub={trendLabel(snapshot.hrvZ)}
@@ -166,7 +179,7 @@ export function RecoveryCard({
         )}
         {snapshot.restingHr != null && (
           <Metric
-            label="Resting HR"
+            label={metricDate("Resting HR", snapshot.signalDays?.restingHr)}
             value={`${snapshot.restingHr}`}
             unit="bpm"
             sub={trendLabel(snapshot.restingHrZ)}
@@ -175,7 +188,7 @@ export function RecoveryCard({
         )}
         {snapshot.sleepHours != null && (
           <Metric
-            label="Sleep"
+            label={metricDate("Sleep", snapshot.signalDays?.sleep)}
             value={`${snapshot.sleepHours}`}
             unit="h"
             sub={
@@ -197,6 +210,27 @@ export function RecoveryCard({
         </div>
       )}
 
+      {pattern && <div className="mt-4 rounded-2xl bg-white/5 p-4">
+        <h3 className="text-sm font-semibold text-white">{pattern.title}</h3>
+        <p className="mt-1 text-sm leading-relaxed text-slate-600">{pattern.body}</p>
+        {history && <div className="mt-3 grid grid-cols-7 gap-2" aria-label="Last seven days of readiness">
+          {history.map((d) => <div key={d.day} className="text-center">
+            <div className={`mx-auto h-2 w-full rounded-full ${d.band === 'easy' ? 'bg-amber-400' : d.band ? 'bg-emerald-400' : 'bg-white/10'}`} />
+            <span className="mt-1 block text-[10px] text-slate-500">{d.day.slice(8)}</span>
+            <span className="sr-only">{d.day}: {d.band ?? 'no data'}</span>
+          </div>)}
+        </div>}
+        <p className="mt-2 text-xs text-slate-500">{pattern.lowDays} low of {pattern.observedDays} observed days · grey means no data</p>
+      </div>}
+      {!!focus?.length && <div className="mt-4">
+        <h3 className="text-sm font-semibold text-white">What to do differently today</h3>
+        <ul className="mt-2 list-disc space-y-2 pl-4 text-sm leading-relaxed text-slate-600">{focus.map((action) => <li key={action}>{action}</li>)}</ul>
+      </div>}
+      {readiness && readiness.drivers.length > 0 && <details className="mt-4">
+        <summary className="cursor-pointer py-2 text-sm font-semibold text-slate-600">What is shaping today?</summary>
+        <ul className="mt-2 space-y-1 text-sm text-slate-600">{readiness.drivers.map((d) => <li key={d.key}>{d.note}</li>)}</ul>
+        <p className="mt-2 text-xs text-slate-500">Training guidance, not a diagnosis. A good score does not rule out pain or illness.</p>
+      </details>}
       <MoreMarkers snapshot={snapshot} />
     </div>
   );
@@ -231,7 +265,7 @@ function MoreMarkers({ snapshot }: { snapshot: RecoverySnapshot }) {
         ))}
       </div>
       <p className="mt-2 text-[10px] leading-relaxed text-slate-500">
-        A jump in resting breathing or skin temp, or a dip in blood oxygen, often shows up a day before you feel a cold coming on.
+        These readings can vary for many reasons. Consider them alongside how you feel; they do not diagnose illness.
       </p>
     </details>
   );

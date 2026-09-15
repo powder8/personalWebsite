@@ -86,7 +86,7 @@ export interface AthletePortal {
   goalRace: { name: string | null; date: string | null; daysAway: number | null };
   unavailable: DirectiveRow[];
   checkedInToday: boolean;
-  recentCheckIns: { day: string; soreness: number | null; energy: number | null; yesterdayRpe: number | null }[];
+  recentCheckIns: { day: string; soreness: number | null; energy: number | null; yesterdayRpe: number | null; lifeStress: number | null; sleepQuality: number | null; note: string | null }[];
   strava: {
     configured: boolean;
     connected: boolean;
@@ -121,6 +121,7 @@ export async function getAthletePortal(id: string): Promise<AthletePortal | null
         day: s.day,
         sessionType: s.sessionType,
         distanceMeters: s.targetDistanceMeters,
+        durationSeconds: s.targetDurationSeconds,
         paceFastSecPerKm: s.targetPaceFastSecPerKm,
         paceSlowSecPerKm: s.targetPaceSlowSecPerKm,
       },
@@ -132,15 +133,15 @@ export async function getAthletePortal(id: string): Promise<AthletePortal | null
       sessionType: adj.sessionType,
       discipline: s.discipline as 'run' | 'bike' | 'swim',
       distanceMeters: adj.distanceMeters,
-      durationSeconds: s.targetDurationSeconds ?? null,
-      targetPowerLoWatts: s.targetPowerLowWatts ?? null,
-      targetPowerHiWatts: s.targetPowerHighWatts ?? null,
+      durationSeconds: adj.durationSeconds ?? null,
+      targetPowerLoWatts: adj.adjustments.length ? null : s.targetPowerLowWatts ?? null,
+      targetPowerHiWatts: adj.adjustments.length ? null : s.targetPowerHighWatts ?? null,
       paceFastSecPerKm: adj.paceFastSecPerKm,
       paceSlowSecPerKm: adj.paceSlowSecPerKm,
-      description: s.description,
+      description: adj.sessionType === 'rest' ? 'Rest and recover.' : adj.adjustments.some((a) => a.startsWith('Recovery:')) ? 'Keep this session comfortable and conversational. Follow the adjusted volume above.' : adj.adjustments.length ? 'Follow the adjusted volume and targets above.' : s.description,
       pinned: s.pinned,
       adjustments: adj.adjustments,
-      segments: (s.segments as PortalSegment[] | null) ?? null,
+      segments: adj.adjustments.length ? null : (s.segments as PortalSegment[] | null) ?? null,
     };
   };
 
@@ -243,6 +244,9 @@ export async function getAthletePortal(id: string): Promise<AthletePortal | null
       soreness: c.soreness,
       energy: c.energy,
       yesterdayRpe: c.yesterdayRpe,
+      lifeStress: c.lifeStress,
+      sleepQuality: c.sleepQuality,
+      note: c.note,
     })),
     strava: {
       configured: stravaConfigured(),

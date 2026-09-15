@@ -13,7 +13,7 @@
  * show it as the headline but do NOT feed it back into the engine — that would
  * double-count its own inputs. The engine consumes the raw physiology.
  */
-import { and, eq, gte } from 'drizzle-orm';
+import { and, eq, gte, lte } from 'drizzle-orm';
 import type { DB } from '@/db';
 import {
   hrvRecords,
@@ -25,17 +25,19 @@ import {
 } from '@/db/schema';
 import {
   addDays,
-  computeBaseline,
   assessReadiness,
   type DailyReading,
   type ReadinessResult,
 } from '@/engine';
+
+import { currentSignal, recoveryPattern, recoveryFocus, type RecoveryPattern } from './recoveryLogic';
 
 const LOOKBACK_DAYS = 60;
 
 export type Trend = 'good' | 'watch' | 'low' | 'neutral';
 
 export interface RecoverySnapshot {
+  signalDays: { hrv: string | null; restingHr: string | null; sleep: string | null; recovery: string | null };
   asOf: string | null; // most recent day with any wearable data
   recoveryScore: number | null; // Whoop 0-100
   recoveryBand: 'green' | 'yellow' | 'red' | null;
@@ -63,9 +65,13 @@ export interface RecoveryInsights {
   hasData: boolean;
   snapshot: RecoverySnapshot;
   readiness: ReadinessResult | null;
+  pattern: RecoveryPattern;
+  focus: string[];
+  history: { day: string; band: string | null }[];
 }
 
 const EMPTY_SNAPSHOT: RecoverySnapshot = {
+  signalDays: { hrv: null, restingHr: null, sleep: null, recovery: null },
   asOf: null,
   recoveryScore: null,
   recoveryBand: null,
@@ -112,11 +118,11 @@ export async function getRecoveryInsights(
     db
       .select({ day: hrvRecords.day, ms: hrvRecords.overnightAvgMs })
       .from(hrvRecords)
-      .where(and(eq(hrvRecords.athleteId, athleteId), gte(hrvRecords.day, cutoff))),
+      .where(and(eq(hrvRecords.athleteId, athleteId), gte(hrvRecords.day, cutoff), lte(hrvRecords.day, today))),
     db
       .select({ day: restingHrRecords.day, hr: restingHrRecords.restingHr })
       .from(restingHrRecords)
-      .where(and(eq(restingHrRecords.athleteId, athleteId), gte(restingHrRecords.day, cutoff))),
+      .where(and(eq(restingHrRecords.athleteId, athleteId), gte(restingHrRecords.day, cutoff), lte(restingHrRecords.day, today))),
     db
       .select({
         day: sleepRecords.day,
@@ -127,24 +133,26 @@ export async function getRecoveryInsights(
         metrics: sleepRecords.metrics,
       })
       .from(sleepRecords)
-      .where(and(eq(sleepRecords.athleteId, athleteId), gte(sleepRecords.day, cutoff))),
+      .where(and(eq(sleepRecords.athleteId, athleteId), gte(sleepRecords.day, cutoff), lte(sleepRecords.day, today))),
     db
       .select({ day: dailySummaries.day, metrics: dailySummaries.metrics })
       .from(dailySummaries)
-      .where(and(eq(dailySummaries.athleteId, athleteId), gte(dailySummaries.day, cutoff))),
+      .where(and(eq(dailySummaries.athleteId, athleteId), gte(dailySummaries.day, cutoff), lte(dailySummaries.day, today))),
     db
       .select({
         day: checkIns.day,
         soreness: checkIns.soreness,
         energy: checkIns.energy,
         yesterdayRpe: checkIns.yesterdayRpe,
+        lifeStress: checkIns.lifeStress,
+        sleepQuality: checkIns.sleepQuality,
       })
       .from(checkIns)
-      .where(and(eq(checkIns.athleteId, athleteId), gte(checkIns.day, cutoff))),
+      .where(and(eq(checkIns.athleteId, athleteId), gte(checkIns.day, cutoff), lte(checkIns.day, today))),
   ]);
 
   const hasData = hrvRows.length > 0 || rhrRows.length > 0 || sleepRows.length > 0;
-  if (!hasData) return { hasData: false, snapshot: EMPTY_SNAPSHOT, readiness: null };
+
 
   // Readings for the engine (drop nulls).
   const hrv: DailyReading[] = hrvRows.filter((r) => r.ms != null).map((r) => ({ day: r.day, value: r.ms! }));
@@ -153,9 +161,9 @@ export async function getRecoveryInsights(
     .filter((r) => r.total != null)
     .map((r) => ({ day: r.day, value: r.total! / 3600 }));
 
-  const hrvBase = computeBaseline(hrv, today);
-  const rhrBase = computeBaseline(rhr, today);
-  const sleepBase = computeBaseline(sleepHrs, today);
+  const hrvBase = currentSignal(hrv, today);
+  const rhrBase = currentSignal(rhr, today);
+  const sleepBase = currentSignal(sleepHrs, today);
 
   // Latest sleep row (by day) for the last-night detail.
   const latestSleep = [...sleepRows].sort((a, b) => b.day.localeCompare(a.day))[0] ?? null;
@@ -163,10 +171,12 @@ export async function getRecoveryInsights(
   // Latest Whoop recovery score from daily summaries' metrics blob.
   const summariesByDay = [...summaryRows].sort((a, b) => b.day.localeCompare(a.day));
   let recoveryScore: number | null = null;
+  let recoveryDay: string | null = null;
   for (const s of summariesByDay) {
     const m = s.metrics as Record<string, number | null> | null;
     const rs = m?.recovery_score;
-    if (rs != null) {
+    if (typeof rs === "number" && Number.isFinite(rs) && rs >= 0 && rs <= 100 && s.day >= addDays(today, -1)) {
+      recoveryDay = s.day;
       recoveryScore = Math.round(rs);
       break;
     }
@@ -186,19 +196,20 @@ export async function getRecoveryInsights(
 
   const snapshot: RecoverySnapshot = {
     asOf,
+    signalDays: { hrv: hrvBase.day, restingHr: rhrBase.day, sleep: latestSleep?.day ?? null, recovery: recoveryDay },
     recoveryScore,
     recoveryBand,
-    hrvMs: hrvBase.latestValue != null ? Math.round(hrvBase.latestValue) : null,
-    hrvZ: hrvBase.latestZ,
-    hrvTrend: trendFromZ(hrvBase.latestZ),
-    restingHr: rhrBase.latestValue != null ? Math.round(rhrBase.latestValue) : null,
-    restingHrZ: rhrBase.latestZ,
-    restingHrTrend: trendFromZ(rhrBase.latestZ, true), // higher RHR = worse
+    hrvMs: hrvBase.value != null ? Math.round(hrvBase.value) : null,
+    hrvZ: hrvBase.z,
+    hrvTrend: trendFromZ(hrvBase.z),
+    restingHr: rhrBase.value != null ? Math.round(rhrBase.value) : null,
+    restingHrZ: rhrBase.z,
+    restingHrTrend: trendFromZ(rhrBase.z, true), // higher RHR = worse
     sleepHours: latestSleep?.total != null ? Math.round((latestSleep.total / 3600) * 10) / 10 : null,
-    sleepPerfPct: latestSleep?.score ?? null,
+    sleepPerfPct: sleepMetrics?.sleep_performance_pct ?? null,
     deepMin: latestSleep?.deep != null ? Math.round(latestSleep.deep / 60) : null,
     remMin: latestSleep?.rem != null ? Math.round(latestSleep.rem / 60) : null,
-    sleepTrend: trendFromZ(sleepBase.latestZ),
+    sleepTrend: trendFromZ(sleepBase.z),
     hrvSeries: lastN(hrv, 14),
     restingHrSeries: lastN(rhr, 14),
     n: hrvBase.n,
@@ -211,15 +222,37 @@ export async function getRecoveryInsights(
   const todayCheck = recentChecks.find((c) => c.day === today) ?? null;
   const readiness = assessReadiness({
     day: today,
-    hrvZ: hrvBase.latestZ,
-    restingHrZ: rhrBase.latestZ,
-    sleepZ: sleepBase.latestZ,
+    hrvZ: hrvBase.z,
+    restingHrZ: rhrBase.z,
+    sleepZ: sleepBase.z,
     soreness: todayCheck?.soreness ?? null,
     energy: todayCheck?.energy ?? null,
     yesterdayRpe: todayCheck?.yesterdayRpe ?? null,
+    lifeStress: todayCheck?.lifeStress ?? null,
+    sleepQuality: todayCheck?.sleepQuality ?? null,
   });
 
-  return { hasData: true, snapshot, readiness };
+  const live = readiness.drivers.length ? readiness : null;
+  // Reconstruct the recent window from source data. Trends must not depend on
+  // whether the athlete happened to open the app and persist a score that day.
+  const history = Array.from({ length: 7 }, (_, i) => {
+    const day = addDays(today, i - 6);
+    const c = recentChecks.find((r) => r.day === day);
+    const result = assessReadiness({ day,
+      hrvZ: currentSignal(hrv, day).z, restingHrZ: currentSignal(rhr, day).z,
+      sleepZ: currentSignal(sleepHrs, day).z,
+      soreness: c?.soreness ?? null, energy: c?.energy ?? null,
+      yesterdayRpe: c?.yesterdayRpe ?? null, lifeStress: c?.lifeStress, sleepQuality: c?.sleepQuality,
+    });
+    // A historical date requires its own observation; yesterday's wearable
+    // reading must not manufacture a second day of evidence.
+    const observed = !!c || [...hrv, ...rhr, ...sleepHrs].some((r) => r.day === day);
+    return { day, band: observed && result.drivers.length ? result.band : null };
+  });
+  const pattern = recoveryPattern(history, today);
+  const focus = recoveryFocus({ ...todayCheck, sleepZ: sleepBase.z, strained: pattern.kind === "strained" });
+  return { hasData, snapshot: hasData ? snapshot : EMPTY_SNAPSHOT, readiness: live,
+    history, pattern, focus };
 }
 
 /**

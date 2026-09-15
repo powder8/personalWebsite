@@ -25,6 +25,8 @@ export interface ReadinessGateInput {
   isRestDay: boolean;
   checkedInToday: boolean;
   energy: number | null; // today's check-in, if present (0-10)
+  lifeStress?: number | null;
+  sleepQuality?: number | null;
   soreness: number | null; // today's check-in, if present (0-10)
 }
 
@@ -56,17 +58,21 @@ export function decideReadinessGate(i: ReadinessGateInput): ReadinessGate {
     };
   }
 
-  if (feelsRough(i.energy, i.soreness)) {
+  if (feelsRough(i.energy, i.soreness) || (i.lifeStress ?? 0) >= 8 || (i.sleepQuality != null && i.sleepQuality <= 3)) {
     return {
       kind: 'ease',
       title: "Let's take today down a notch",
-      body: "Your recovery markers are low and you're feeling it too. Swap today's hard work for easy miles or a shorter effort, consistency over the month beats forcing one session.",
+      body: "Your recovery markers are low and you're feeling it too. Use ‘Make it easy’ to replace hard work with comfortable training, or take a recovery break. Your plan changes only when you choose.",
     };
   }
 
+  if (i.energy == null || i.soreness == null) return {
+    kind: 'ask', title: 'A little more context would help',
+    body: 'Add energy and soreness to your check-in before deciding whether to keep the harder session.',
+  };
   return {
     kind: 'hold',
     title: "Markers are low, but you feel good, keeping today",
-    body: "Your recovery data is a little low, but you're feeling fine, so we'll run today as planned. Start easy; if the legs feel flat in the first mile, back off, no hero sessions.",
+    body: "Your recovery data is a little low, but you're feeling fine, so the plan is unchanged. Start easy and reassess during the warm-up.",
   };
 }

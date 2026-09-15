@@ -61,6 +61,7 @@ export async function buildPlanIcs(db: DB, athleteId: string, from?: string): Pr
       day: plannedSessions.day,
       sessionType: plannedSessions.sessionType,
       targetDistanceMeters: plannedSessions.targetDistanceMeters,
+      targetDurationSeconds: plannedSessions.targetDurationSeconds,
       targetPaceFastSecPerKm: plannedSessions.targetPaceFastSecPerKm,
       targetPaceSlowSecPerKm: plannedSessions.targetPaceSlowSecPerKm,
       description: plannedSessions.description,
@@ -96,6 +97,7 @@ export async function buildPlanIcs(db: DB, athleteId: string, from?: string): Pr
         day: s.day,
         sessionType: s.sessionType,
         distanceMeters: s.targetDistanceMeters,
+        durationSeconds: s.targetDurationSeconds,
         paceFastSecPerKm: s.targetPaceFastSecPerKm,
         paceSlowSecPerKm: s.targetPaceSlowSecPerKm,
       },
@@ -116,7 +118,7 @@ export async function buildPlanIcs(db: DB, athleteId: string, from?: string): Pr
         `Pace ${secPerKmToMinPerMile(adj.paceFastSecPerKm)}-${secPerKmToMinPerMile(adj.paceSlowSecPerKm ?? adj.paceFastSecPerKm)}/mi`,
       );
     }
-    if (s.description) descParts.push(s.description);
+    if (s.description && !adj.adjustments.length) descParts.push(s.description);
     if (adj.adjustments.length) descParts.push(`Adjusted: ${adj.adjustments.join('; ')}`);
 
     lines.push(

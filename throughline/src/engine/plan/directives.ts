@@ -12,7 +12,7 @@
  */
 const MI_TO_KM = 1.609344;
 
-export type AdjustmentType = 'pace_adjust' | 'reduce_volume' | 'unavailable';
+export type AdjustmentType = 'pace_adjust' | 'reduce_volume' | 'unavailable' | 'recovery_day';
 
 export interface ActiveDirective {
   type: AdjustmentType;
@@ -27,6 +27,7 @@ export interface AdjustableSession {
   day: string;
   sessionType: string;
   distanceMeters: number | null;
+  durationSeconds?: number | null;
   paceFastSecPerKm: number | null;
   paceSlowSecPerKm: number | null;
 }
@@ -57,9 +58,24 @@ export function applyDirectives(
       ...out,
       sessionType: 'rest',
       distanceMeters: 0,
+      durationSeconds: 0,
       paceFastSecPerKm: null,
       paceSlowSecPerKm: null,
       adjustments,
+    };
+  }
+
+  // Recovery is a reversible input overlay, across all sports. Never retain
+  // quality targets under an "easy" label. Multiple windows don't compound.
+  const recovery = active.filter((d) => d.type === 'recovery_day');
+  if (recovery.length && out.sessionType !== 'rest') {
+    const existingFactor = active.filter((d) => d.type === 'reduce_volume').reduce((f, d) => f * (d.factor ?? 1), 1);
+    const factor = Math.max(0, Math.min(existingFactor, ...recovery.map((d) => d.factor ?? 0.7)));
+    return { ...out, sessionType: 'easy',
+      distanceMeters: out.distanceMeters == null ? null : out.distanceMeters * factor,
+      durationSeconds: out.durationSeconds == null ? null : out.durationSeconds * factor,
+      paceFastSecPerKm: null, paceSlowSecPerKm: null,
+      adjustments: [`Recovery: easy effort, ${Math.round(factor * 100)}% of planned volume. ${recovery[0].label ?? ''}`.trim()],
     };
   }
 
@@ -82,8 +98,9 @@ export function applyDirectives(
   const factor = active
     .filter((d) => d.type === 'reduce_volume' && d.factor)
     .reduce((f, d) => f * (d.factor ?? 1), 1);
-  if (factor !== 1 && out.distanceMeters != null) {
-    out = { ...out, distanceMeters: out.distanceMeters * factor };
+  if (factor !== 1 && (out.distanceMeters != null || out.durationSeconds != null)) {
+    out = { ...out, distanceMeters: out.distanceMeters == null ? null : out.distanceMeters * factor,
+      durationSeconds: out.durationSeconds == null ? null : out.durationSeconds * factor };
     const lbl = active.find((d) => d.type === 'reduce_volume')?.label;
     adjustments.push(`shortened to ${Math.round(factor * 100)}%${lbl ? `, ${lbl}` : ''}`);
   }

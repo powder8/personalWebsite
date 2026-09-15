@@ -198,9 +198,16 @@ export function TrainingCalendar({
           </div>
         </details>
       )}
-      {nowAndAhead.map((w) => (
+      {nowAndAhead.slice(0, 1).map((w) => (
         <Week key={w.weekStart} week={w} today={today} expanded={expanded} toggle={toggle} athleteId={athleteId} multiSport={multiSport} units={units} />
       ))}
+
+      {nowAndAhead.length > 1 && <details>
+        <summary className="cursor-pointer py-3 text-sm font-semibold text-slate-600">Coming weeks · {nowAndAhead.length - 1}</summary>
+        <div className="mt-2 space-y-3">{nowAndAhead.slice(1).map((w) => (
+          <Week key={w.weekStart} week={w} today={today} expanded={expanded} toggle={toggle} athleteId={athleteId} multiSport={multiSport} units={units} />
+        ))}</div>
+      </details>}
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 px-1 pt-1 text-[11px] text-slate-400">
         <span><span className="text-emerald-600">✓</span> hit</span>

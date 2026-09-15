@@ -1,3 +1,5 @@
+> Historical review. For the September 2026 implementation audit and current recovery work, see [Daily experience review](daily-experience-review.md).
+
 # Throughline — Competitive Analysis & Feature Gaps
 
 _Last updated: 2026-06-07. Compiled from current product research (Runna, Garmin Coach/Run Coach, TrainingPeaks, Final Surge, Nike Run Club, Coopah, Runcoach, Strava) mapped against Throughline's actual capabilities._

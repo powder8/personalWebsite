@@ -26,7 +26,9 @@ import { getSessionDebrief } from '@/server/sessionDebrief';
 import { getRunDebrief } from '@/server/runDebrief';
 import { RecoveryCard } from '@/components/RecoveryCard';
 import { getRecoveryInsights, persistReadiness } from '@/server/recovery';
-import { ReadinessCheck } from '@/components/ReadinessCheck';
+import { DailyBriefing } from '@/components/DailyBriefing';
+import { RecoveryAdjustment } from '@/components/RecoveryAdjustment';
+import { listActiveDirectives } from '@/server/directives';
 import { decideReadinessGate } from '@/server/readinessGate';
 import { GoalTrackerHero } from '@/components/GoalTrackerHero';
 import { TriGoalTrackerHero } from '@/components/TriGoalTrackerHero';
@@ -144,7 +146,7 @@ export default async function PortalPage({
   const {
     athlete,
     today,
-    todaySession,
+    todaySession: originalTodaySession,
     todaySessions,
     goalRace,
     checkedInToday,
@@ -164,7 +166,7 @@ export default async function PortalPage({
   // strength session counts too, not just a run. The calendar day already matches
   // the logged activity to the planned discipline, so a done day means done.
   const todayCalDay = calendar.weeks.find((w) => w.isCurrent)?.days.find((d) => d.day === today) ?? null;
-  const ranToday = todayCalDay?.status === 'done' || latestRun?.day === today || adaptation?.layoffDays === 0;
+  let ranToday = todayCalDay?.status === 'done' || latestRun?.day === today || adaptation?.layoffDays === 0;
   // The sports actually logged today (for the "done" headline — name what was
   // DONE, not what was planned). Union of the calendar's actuals with the latest
   // run/ride when they landed today, so a run still reads as a run even if it
@@ -176,6 +178,13 @@ export default async function PortalPage({
     if (latestOther?.day === today) s.add(latestOther.sport);
     return [...s];
   })();
+
+  const trainingSessionsToday = todaySessions.filter((s) => !isRestSession(s));
+  const remainingSessions = trainingSessionsToday.filter((s) => !loggedSports.includes(s.discipline));
+  if (trainingSessionsToday.length > 1) ranToday = remainingSessions.length === 0;
+  const todaySession = remainingSessions[0] ?? originalTodaySession;
+  const recoveryAdjustments = (await listActiveDirectives(db, id)).filter((d) =>
+    d.source === 'athlete' && d.category === 'low_recovery' && d.from <= today && (!d.to || d.to >= today));
 
   // Goal tracker hook — the "where do I stand?" verdict. Only when there's a
   // live goal to track (a finished/absent goal is handled by the goal-setup CTA).
@@ -216,6 +225,8 @@ export default async function PortalPage({
     checkedInToday,
     energy: todayCheckIn?.energy ?? null,
     soreness: todayCheckIn?.soreness ?? null,
+    lifeStress: todayCheckIn?.lifeStress ?? null,
+    sleepQuality: todayCheckIn?.sleepQuality ?? null,
   });
 
   // The specific workout to render inline in the next-step card on a training
@@ -227,7 +238,7 @@ export default async function PortalPage({
           paceLabel: sessionTargetLabel(todaySession, units),
           segments: todaySession.segments ?? [],
           description: todaySession.description ?? null,
-          terrain: SESSION_TERRAIN[todaySession.sessionType] ?? null,
+          terrain: todaySession.adjustments.some((a) => a.startsWith('Recovery:')) ? 'Keep it gentle, flat and familiar.' : SESSION_TERRAIN[todaySession.sessionType] ?? null,
           adjustments: todaySession.adjustments,
         }
       : null;
@@ -264,9 +275,8 @@ export default async function PortalPage({
   // triathlete gets the stacked view; a single-sport athlete keeps the focal
   // NextStepBanner untouched. Only stack on an actual training day — the
   // lifecycle states (done/rest/ease-back) stay with the banner.
-  const trainingSessionsToday = todaySessions.filter((s) => !isRestSession(s));
   const showTodayStack =
-    !ranToday && trainingSessionsToday.length > 1 && (nextStep.kind === 'today' || nextStep.kind === 'eased_today');
+    !ranToday && remainingSessions.length > 1 && (nextStep.kind === 'today' || nextStep.kind === 'eased_today');
 
   // ── SETUP STAGE — no live goal. One job: pick the goal (plus connect the
   // watch). Everything else stays out of the way until training starts.
@@ -280,8 +290,7 @@ export default async function PortalPage({
             <>
               <h1 className="text-2xl font-bold tracking-tight">You raced {goalRace.name}! 🎉</h1>
               <p className="mt-1 text-sm text-white/80">
-                Big effort. The fitness you built fades fast if it sits, pick the next goal and we&apos;ll build the
-                plan that keeps it.
+                Big effort. Give yourself time to recover and reflect. Your next goal can wait until you feel ready.
               </p>
             </>
           ) : (
@@ -295,6 +304,12 @@ export default async function PortalPage({
           )}
         </div>
 
+        <section id="recovery" className="scroll-mt-6 space-y-3" aria-label="Recovery between goals">
+          <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} pattern={recovery.pattern} focus={recovery.focus} history={recovery.history} today={today} />
+          <Card title="Your daily check-in"><CheckInForm athleteId={id} day={today} initial={todayCheckIn} /></Card>
+          {injury && <InjuryPanel athleteId={id} injury={injury} />}
+        </section>
+        <div id="progress" className="scroll-mt-4" />
         <div id="goal-setup" className="scroll-mt-4" />
         <Card title={goalDone ? "What's next?" : 'Set your goal'} className="border-lime-400/30 ring-1 ring-inset ring-lime-400/30">
           <GoalSetup athleteId={athlete.id} hasAnchor={hasAnchor} hasGoal={!!goalRace.name} startOpen units={units} />
@@ -307,7 +322,7 @@ export default async function PortalPage({
             <p className="mb-3 text-xs text-slate-500">
               Your runs sync automatically, so the plan reacts to what you actually do.
             </p>
-            <ConnectStrava athleteId={athlete.id} connected={strava.connected} configured={strava.configured} />
+            <ConnectStrava athleteId={athlete.id} connected={strava.connected} configured={strava.configured} autoImport={autoImportStrava} />
           </Card>
         )}
 
@@ -328,7 +343,21 @@ export default async function PortalPage({
   // how has training gone → ask the coach.
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-20 sm:pb-4">
-      <p className="px-1 pt-1 text-sm text-slate-400">Hi {firstName} 👋 · {today}</p>
+      <DailyBriefing firstName={firstName} today={today} recovery={recovery}
+        checkedIn={checkedInToday} goalName={goalRace.name} daysAway={goalRace.daysAway}
+        progress={goalProgress} adherence={consistency?.adherence28dPct ?? null} />
+
+      <section id="recovery" className="scroll-mt-6 space-y-3" aria-label="Recovery and body">
+        <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} pattern={recovery.pattern} focus={recovery.focus} history={recovery.history} today={today} />
+        <div id="check-in" className="scroll-mt-6 rounded-3xl border border-white/10 bg-card p-5">
+          <details open={!checkedInToday}>
+            <summary className="cursor-pointer py-1 text-base font-semibold text-white">{checkedInToday ? 'Today’s check-in · saved' : 'How are you feeling today?'}</summary>
+            <div className="mt-4"><CheckInForm athleteId={id} day={today} initial={todayCheckIn} /></div>
+          </details>
+          <RecoveryAdjustment athleteId={id} day={today} active={recoveryAdjustments} />
+        </div>
+      </section>
+      <div id="today" className="scroll-mt-6" />
 
       {/* ── TODAY ────────────────────────────────────────────────────────
           The most important thing on a daily visit: what to do right now,
@@ -337,7 +366,7 @@ export default async function PortalPage({
           triathlete with several sessions today gets the stacked multi-sport
           view; everyone else gets the single-focal next-step banner. */}
       {showTodayStack ? (
-        <TodayStack sessions={trainingSessionsToday} units={units} />
+        <TodayStack sessions={remainingSessions} units={units} />
       ) : (
         <NextStepBanner
           step={nextStep}
@@ -350,27 +379,11 @@ export default async function PortalPage({
         />
       )}
 
-      {/* Autonomous readiness gate: ask before easing, then recommend. */}
-      {readinessGate.kind === 'ask' && (
-        <ReadinessCheck athleteId={athlete.id} day={today} title={readinessGate.title} body={readinessGate.body} />
-      )}
-      {(readinessGate.kind === 'ease' || readinessGate.kind === 'hold') && (
-        <div
-          className={`rounded-3xl p-5 shadow-lg ring-1 ring-inset ${
-            readinessGate.kind === 'ease'
-              ? 'bg-amber-400/10 ring-amber-400/25'
-              : 'bg-emerald-400/10 ring-emerald-400/25'
-          }`}
-        >
-          <h2
-            className={`flex items-center gap-2 text-base font-bold tracking-tight ${
-              readinessGate.kind === 'ease' ? 'text-amber-200' : 'text-emerald-200'
-            }`}
-          >
-            <span aria-hidden>{readinessGate.kind === 'ease' ? '🔻' : '👍'}</span>
-            <span>{readinessGate.title}</span>
-          </h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-white/80">{readinessGate.body}</p>
+      {readinessGate.kind !== 'none' && (
+        <div className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4">
+          <h2 className="font-semibold text-amber-200">{readinessGate.title}</h2>
+          <p className="mt-1 text-sm text-slate-700">{readinessGate.body}</p>
+          <a href="#recovery" className="mt-2 inline-block py-2 text-sm font-semibold text-lime-200 underline">Review recovery &amp; adjust today</a>
         </div>
       )}
 
@@ -378,6 +391,7 @@ export default async function PortalPage({
           (prominent status + the resume check), not down in the body section. */}
       {injury && <InjuryPanel athleteId={athlete.id} injury={injury} />}
 
+      <div id="progress" className="scroll-mt-6" />
       {/* ── WHERE YOU STAND ─────────────────────────────────────────────── */}
       {/* Where you stand. A triathlete's combined tracker supersedes the rest.
           Otherwise run and bike goals coexist: both trackers stack, under one
@@ -437,15 +451,14 @@ export default async function PortalPage({
           <p className="mb-3 text-xs text-slate-500">
             Your runs, rides and swims show up here automatically, with a coach&apos;s debrief on every session.
           </p>
-          <ConnectStrava athleteId={athlete.id} connected={strava.connected} configured={strava.configured} />
+          <ConnectStrava athleteId={athlete.id} connected={strava.connected} configured={strava.configured} autoImport={autoImportStrava} />
         </Card>
       )}
 
       {consistency?.show && <ConsistencyStrip stats={consistency} multiSport={disciplines.count > 1} />}
 
       {/* ── YOUR BODY ────────────────────────────────────────────────────── */}
-      {recovery.hasData && <SectionHeader>How your body is responding</SectionHeader>}
-      {recovery.hasData && <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} />}
+
 
       {/* Not hurt: just the quiet "report it" link. (An active injury is shown
           up top with today's session, because it changes what today is.) */}
@@ -466,7 +479,7 @@ export default async function PortalPage({
           Slow-changing controls belong below the daily read. */}
       {/* Your sports, always-present path to add a discipline (nav target #sports). */}
       <div id="sports" className="scroll-mt-4" />
-      <YourSports athleteId={athlete.id} disciplines={disciplines} hasTriGoal={!!triGoalTracker} />
+      <details className="rounded-2xl border border-white/10 p-4"><summary className="cursor-pointer py-2 font-semibold">Sports &amp; training setup</summary><div className="mt-3"><YourSports athleteId={athlete.id} disciplines={disciplines} hasTriGoal={!!triGoalTracker} /></div></details>
 
       {/* Change goal / target time, collapsed; the tracker's CTA lands here.
           Discipline-aware: a cyclist edits on bike-setup, a triathlete edits the
@@ -483,7 +496,7 @@ export default async function PortalPage({
         isTriathlon={!!triGoalTracker || !!goalTracker?.triathlonHint}
         hasRunGoal={!triGoalTracker && !goalTracker?.triathlonHint && !!goalTracker}
         hasBikeGoal={!!bikeGoalTracker}
-        addTargetTimeHint={!!goalTracker?.cta}
+        addTargetTimeHint={goalRace.name !== 'Build fitness' && !!goalTracker?.cta}
       />
 
 

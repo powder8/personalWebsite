@@ -28,6 +28,8 @@ export const DEFAULT_PARAMS: EngineParams = {
     soreness: 1,
     energy: 0.6,
     yesterday_rpe: 0.4,
+    life_stress: 0.8,
+    sleep_quality: 0.6,
   },
 };
 
@@ -84,12 +86,26 @@ export function assessReadiness(
     add('yesterday_rpe', subjective(10 - input.yesterdayRpe) * 0.5, input.yesterdayRpe, `yesterday's RPE ${input.yesterdayRpe}/10`);
   }
 
+  if (input.lifeStress != null) {
+    add('life_stress', -Math.max(0, subjective(input.lifeStress)), input.lifeStress, `life stress ${input.lifeStress}/10`);
+  }
+  if (input.sleepQuality != null) {
+    add('sleep_quality', subjective(input.sleepQuality), input.sleepQuality, `sleep quality ${input.sleepQuality}/10`);
+  }
+
   // Weighted mean of contributions, in [-1, 1].
   const usedWeight = drivers.reduce((s, d) => s + (w[d.key] ?? 1), 0);
   const raw = usedWeight > 0 ? drivers.reduce((s, d) => s + d.contribution, 0) / usedWeight : 0;
 
   // Conservatism shifts the score: >0.5 nudges toward easy, <0.5 toward go.
-  const adjusted = clamp(raw - (params.conservatism - 0.5) * 0.6, -1, 1);
+  let adjusted = clamp(raw - (params.conservatism - 0.5) * 0.6, -1, 1);
+
+  // Strong subjective fatigue must not be averaged away by a good wearable day.
+  // These are conservative coaching rules, not medical thresholds.
+  if ((input.soreness ?? 0) >= 8 || (input.energy != null && input.energy <= 2) ||
+      ((input.lifeStress ?? 0) >= 8 && (input.sleepQuality != null && input.sleepQuality <= 3))) {
+    adjusted = Math.min(adjusted, -BAND_THRESHOLD);
+  }
 
   const band: ReadinessBand =
     adjusted >= BAND_THRESHOLD ? 'go' : adjusted <= -BAND_THRESHOLD ? 'easy' : 'normal';
@@ -144,7 +160,7 @@ function buildSentence(
   sufficientData: boolean,
 ): string {
   if (drivers.length === 0) {
-    return 'No signals available yet, defaulting to a normal session.';
+    return 'No current signals yet. Check in before deciding how hard to train.';
   }
 
   // Pick the drivers that most justify the call: for easy/normal, the most
