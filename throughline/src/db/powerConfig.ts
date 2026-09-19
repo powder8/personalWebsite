@@ -4,9 +4,9 @@
  * of db/paceConfig.ts. Used by cycling plan generation and the console's
  * engine-params editor.
  */
-import { eq } from 'drizzle-orm';
+import { and, desc, eq, gte, isNotNull } from 'drizzle-orm';
 import type { DB } from './client';
-import { athletes, engineSettings } from './schema';
+import { athletes, engineSettings, dailySummaries } from './schema';
 import {
   resolveFtp,
   resolvePowerZones,
@@ -31,13 +31,25 @@ export async function getAthleteFtp(db: DB, athleteId: string): Promise<number |
   return resolveFtp(cfg, global);
 }
 
+/** A scale reading older than this no longer describes today's rider. */
+const MEASURED_WEIGHT_MAX_AGE_DAYS = 45;
+
 /**
- * The athlete's body mass (kg) from their power config, used by the bike
- * watts↔speed goal-time model. Null when unset — callers default it. (Weight is
- * carried on powerConfig for W/kg + climbing; a dynamic weight feed can update
- * it over time.)
+ * The athlete's body mass (kg) for the bike watts↔speed goal-time model and
+ * W/kg. Prefers the most recent MEASURED weight (a connected scale, via Garmin
+ * body composition) when it's recent; otherwise the number typed into the power
+ * config. Null when neither exists — callers default it.
  */
 export async function getAthleteWeightKg(db: DB, athleteId: string): Promise<number | null> {
+  const since = new Date(Date.now() - MEASURED_WEIGHT_MAX_AGE_DAYS * 86400000).toISOString().slice(0, 10);
+  const [measured] = await db
+    .select({ weightKg: dailySummaries.weightKg })
+    .from(dailySummaries)
+    .where(and(eq(dailySummaries.athleteId, athleteId), isNotNull(dailySummaries.weightKg), gte(dailySummaries.day, since)))
+    .orderBy(desc(dailySummaries.day))
+    .limit(1);
+  if (measured?.weightKg != null && measured.weightKg > 0) return measured.weightKg;
+
   const [athlete] = await db.select().from(athletes).where(eq(athletes.id, athleteId)).limit(1);
   if (!athlete) return null;
   const cfg = (athlete.powerConfig as AthletePowerConfig | null) ?? {};

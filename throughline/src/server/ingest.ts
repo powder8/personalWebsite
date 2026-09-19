@@ -81,6 +81,9 @@ export async function persistNormalizedBatch(
           bodyBatteryHigh: sql`coalesce(excluded.body_battery_high, ${dailySummaries.bodyBatteryHigh})`,
           vo2maxRunning: sql`coalesce(excluded.vo2max_running, ${dailySummaries.vo2maxRunning})`,
           vo2maxCycling: sql`coalesce(excluded.vo2max_cycling, ${dailySummaries.vo2maxCycling})`,
+          weightKg: sql`coalesce(excluded.weight_kg, ${dailySummaries.weightKg})`,
+          bodyFatPct: sql`coalesce(excluded.body_fat_pct, ${dailySummaries.bodyFatPct})`,
+          bmi: sql`coalesce(excluded.bmi, ${dailySummaries.bmi})`,
           metrics: sql`coalesce(excluded.metrics, ${dailySummaries.metrics})`,
         },
       });

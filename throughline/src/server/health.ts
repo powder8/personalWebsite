@@ -55,12 +55,27 @@ export interface SleepHealth {
 }
 
 export interface BodyHealth {
-  /** All null in v1 — weight persistence is deferred (no column, no source). */
+  /** Latest reading from a connected scale (Withings → Garmin body composition). */
   weightKg: number | null;
-  heightCm: number | null;
+  bodyFatPct: number | null;
+  /** Garmin computes BMI from the profile height; we store no height ourselves. */
   bmi: number | null;
   bmiCategory: string | null;
-  persistenceDeferred: true;
+  /** Day of the latest reading. */
+  measuredOn: string | null;
+  /** Change over ~4 weeks (latest vs the mean of readings 21–35 days ago). */
+  weightChangeKg: number | null;
+  /** True until a scale reading exists — the card shows how to connect one. */
+  noSource: boolean;
+}
+
+/** WHO population bands — a screen, not a verdict (reads high for muscular athletes). */
+function bmiCategory(bmi: number | null): string | null {
+  if (bmi == null) return null;
+  if (bmi < 18.5) return 'Underweight';
+  if (bmi < 25) return 'Healthy range';
+  if (bmi < 30) return 'Overweight range';
+  return 'Obese range';
 }
 
 export interface HealthSnapshot {
@@ -96,6 +111,9 @@ export async function getHealthSnapshot(
   const age = ageFromDob(athlete.dateOfBirth, today);
 
   const sleepCutoff = addDays(today, -SLEEP_WINDOW_DAYS);
+  // Weight needs a longer look-back than steps/sleep: the 4-week change compares
+  // the latest reading against readings 3–5 weeks earlier.
+  const dailyCutoff = addDays(today, -42);
   const activityCutoff = addDays(today, -ACTIVITY_WINDOW_DAYS);
 
   const [vdot, recovery, sleepRows, sportRows, stepRows] = await Promise.all([
@@ -121,17 +139,40 @@ export async function getHealthSnapshot(
         steps: dailySummaries.steps,
         vo2maxRunning: dailySummaries.vo2maxRunning,
         vo2maxCycling: dailySummaries.vo2maxCycling,
+        weightKg: dailySummaries.weightKg,
+        bodyFatPct: dailySummaries.bodyFatPct,
+        bmi: dailySummaries.bmi,
       })
       .from(dailySummaries)
-      .where(and(eq(dailySummaries.athleteId, athleteId), gte(dailySummaries.day, sleepCutoff))),
+      .where(and(eq(dailySummaries.athleteId, athleteId), gte(dailySummaries.day, dailyCutoff))),
   ]);
 
   // ── Steps (avg/day over the window, from any wearable) ──
-  const stepVals = stepRows.map((r) => r.steps).filter((s): s is number => s != null && s > 0);
+  const stepVals = stepRows.filter((r) => r.day >= sleepCutoff).map((r) => r.steps).filter((s): s is number => s != null && s > 0);
   const steps =
     stepVals.length > 0
       ? { avgPerDay: Math.round(stepVals.reduce((a, b) => a + b, 0) / stepVals.length), days: stepVals.length }
       : null;
+
+  // ── Body composition (a connected scale, via Garmin) ──
+  const weighed = [...stepRows].filter((r) => r.weightKg != null).sort((a, b) => a.day.localeCompare(b.day));
+  const latestWeigh = weighed.at(-1) ?? null;
+  const fourWeeksAgo = latestWeigh
+    ? weighed.filter((r) => {
+        const age = (Date.parse(latestWeigh.day) - Date.parse(r.day)) / 86400000;
+        return age >= 21 && age <= 35;
+      })
+    : [];
+  const priorMean = fourWeeksAgo.length ? fourWeeksAgo.reduce((s, r) => s + (r.weightKg as number), 0) / fourWeeksAgo.length : null;
+  const body: BodyHealth = {
+    weightKg: latestWeigh?.weightKg ?? null,
+    bodyFatPct: latestWeigh?.bodyFatPct ?? null,
+    bmi: latestWeigh?.bmi ?? null,
+    bmiCategory: bmiCategory(latestWeigh?.bmi ?? null),
+    measuredOn: latestWeigh?.day ?? null,
+    weightChangeKg: latestWeigh && priorMean != null ? Math.round(((latestWeigh.weightKg as number) - priorMean) * 10) / 10 : null,
+    noSource: !latestWeigh,
+  };
 
   // ── Cardio ──
   // A device-MEASURED VO2max beats the VDOT proxy when we have one. Garmin
@@ -179,13 +220,7 @@ export async function getHealthSnapshot(
     readiness: recovery.readiness,
     restingHrContext: restingHrContext(recovery.snapshot.restingHr),
     sleep,
-    body: {
-      weightKg: null,
-      heightCm: null,
-      bmi: null,
-      bmiCategory: null,
-      persistenceDeferred: true,
-    },
+    body,
     sports,
     steps,
     hasWearable: recovery.hasData,

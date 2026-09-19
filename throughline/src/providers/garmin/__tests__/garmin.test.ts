@@ -106,3 +106,21 @@ test('a running-only VO2max leaves cycling null rather than copying it across', 
   assert.equal(d.vo2maxRunning, 51);
   assert.equal(d.vo2maxCycling, null);
 });
+
+test('bodyComps (a Withings scale via Garmin) → weight, body fat and BMI on the measured day', () => {
+  const d = garmin.normalize('bodyComps', {
+    calendarDate: '2026-09-18',
+    measurementTimeInSeconds: 1789700000,
+    weightInGrams: 74350,
+    bodyFatInPercent: 14.2,
+    bodyMassIndex: 22.9,
+  }).dailySummaries![0];
+  assert.equal(d.day, '2026-09-18');
+  assert.equal(d.weightKg, 74.35, 'grams → kg, two decimals');
+  assert.equal(d.bodyFatPct, 14.2);
+  assert.equal(d.bmi, 22.9);
+});
+
+test('a bodyComps summary with no measurements stores nothing', () => {
+  assert.deepEqual(garmin.normalize('bodyComps', { calendarDate: '2026-09-18' }), {});
+});
