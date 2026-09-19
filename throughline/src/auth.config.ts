@@ -55,7 +55,22 @@ const COACH_PREFIXES = ['/coach', '/athletes', '/escalations', '/feedback', '/im
  * /privacy. (The authenticated Whoop sync lives at /api/athletes/<id>/whoop/sync,
  * which stays gated by the athlete-ownership check below.)
  */
-const PUBLIC_PREFIXES = ['/signin', '/privacy', '/api/auth', '/api/whoop', '/api/webhooks', '/api/inngest', '/api/cron'];
+const PUBLIC_PREFIXES = [
+  '/signin',
+  '/privacy',
+  '/api/auth',
+  '/api/whoop',
+  '/api/webhooks',
+  '/api/inngest',
+  '/api/cron',
+  // PWA surface: the browser fetches these WITHOUT a session (the manifest at
+  // install time, the worker script on registration, the offline fallback with
+  // no network). Gating them 307s to /signin and silently breaks installability.
+  '/manifest.webmanifest',
+  '/sw.js',
+  '/offline',
+  '/icons/',
+];
 
 /**
  * Extract the athlete id an athlete-scoped path is addressing, so a non-coach
