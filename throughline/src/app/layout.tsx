@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { getDb } from "@/db";
@@ -10,6 +10,7 @@ import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
 import { auth, signOut } from "@/auth";
 import { authConfigured } from "@/auth.config";
 import "./globals.css";
+import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration';
 
 async function counts(): Promise<{ escalations: number; feedback: number }> {
   try {
@@ -33,6 +34,24 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Throughline. Coach Console",
   description: "AI endurance coach: readiness-aware training.",
+  applicationName: "Throughline",
+  // Installed-app behaviour on iOS (Safari ignores most of the manifest and
+  // reads these instead): full-screen, dark status bar, app title.
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Throughline" },
+  formatDetection: { telephone: false },
+  // Next emits the modern `mobile-web-app-capable`; iOS before 17.4 only reads
+  // the Apple-prefixed one. Emit both so older iPhones launch full-screen too.
+  other: { "apple-mobile-web-app-capable": "yes" },
+};
+
+// Viewport lives apart from metadata in the App Router. `viewport-fit=cover`
+// lets the dark shell extend under the notch/home bar; safe-area padding is
+// applied where content sits at the edges.
+export const viewport: Viewport = {
+  themeColor: "#0c1018",
+  viewportFit: "cover",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default async function RootLayout({
@@ -60,6 +79,7 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
+        <ServiceWorkerRegistration />
         <header className="border-b border-slate-200 bg-card">
           <div className="mx-auto flex max-w-5xl items-center gap-3 px-5 py-3">
             <Link href="/" className="font-semibold tracking-tight text-slate-900">
