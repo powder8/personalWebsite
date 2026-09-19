@@ -6,6 +6,11 @@ import { getHealthSnapshot } from '@/server/health';
 import { HealthView } from '@/components/HealthView';
 import { getFitnessProgress } from '@/server/fitnessProgress';
 import { FitnessBySportCard } from '@/components/FitnessBySportCard';
+import { getHealthTrends } from '@/server/healthTrends';
+import { HealthTrackerCard } from '@/components/HealthTrackerCard';
+import { athletes } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { asUnits } from '@/lib/units';
 import { BottomNav } from '@/components/BottomNav';
 
 export const dynamic = 'force-dynamic';
@@ -20,11 +25,14 @@ export default async function HealthPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const db = await getDb();
   const today = todayISO();
-  const [snapshot, fitnessProgress] = await Promise.all([
+  const [snapshot, fitnessProgress, healthTrends, [athlete]] = await Promise.all([
     getHealthSnapshot(db, id, today),
     getFitnessProgress(db, id, today),
+    getHealthTrends(db, id, today),
+    db.select({ units: athletes.units }).from(athletes).where(eq(athletes.id, id)).limit(1),
   ]);
   if (!snapshot) notFound();
+  const units = asUnits(athlete?.units);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-20 sm:pb-4">
@@ -48,7 +56,11 @@ export default async function HealthPage({ params }: { params: Promise<{ id: str
         </p>
       </div>
 
-      <HealthView snapshot={snapshot} />
+      {/* The general tracker first: every health signal against your own
+          baseline in one read. The cards below give each one its depth. */}
+      <HealthTrackerCard trends={healthTrends} units={units} />
+
+      <HealthView snapshot={snapshot} units={units} />
 
       {/* Per-sport performance trend — the counterpart to the load-based PMC. */}
       <FitnessBySportCard progress={fitnessProgress} />

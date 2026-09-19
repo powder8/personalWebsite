@@ -152,6 +152,18 @@ export const garmin: Provider = {
           ],
         };
       }
+      case 'bodyComps': {
+        // Garmin Body Composition summary (a Withings scale synced to Garmin
+        // Connect lands here): weight in grams, body fat %, and a BMI Garmin
+        // computes from the profile height. Stored on the day it was measured.
+        const day = isoDay(p.calendarDate as string | undefined, (p.measurementTimeInSeconds ?? p.startTimeInSeconds) as number);
+        const grams = p.weightInGrams as number | undefined;
+        const weightKg = grams != null && grams > 0 ? Math.round(grams / 10) / 100 : null;
+        const bodyFatPct = (p.bodyFatInPercent as number) ?? null;
+        const bmi = (p.bodyMassIndex as number) ?? null;
+        if (weightKg == null && bodyFatPct == null && bmi == null) return {};
+        return { dailySummaries: [{ day, weightKg, bodyFatPct, bmi, metrics: p }] };
+      }
       case 'hrv':
         // Garmin HRV summary: overnight average in ms (`lastNightAvg`), plus a
         // 5-min values map we keep in metrics for later.

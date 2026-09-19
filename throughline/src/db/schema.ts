@@ -510,6 +510,12 @@ export const dailySummaries = pgTable(
     // estimate in server/healthLogic — a real number beats a proxy when present.
     vo2maxRunning: doublePrecision('vo2max_running'),
     vo2maxCycling: doublePrecision('vo2max_cycling'),
+    // Body composition from a connected scale (Withings → Garmin Connect →
+    // Garmin bodyComps). A HEALTH signal, never training load: weight trend
+    // against training load is an early under-fuelling tell; W/kg reads it too.
+    weightKg: doublePrecision('weight_kg'),
+    bodyFatPct: doublePrecision('body_fat_pct'),
+    bmi: doublePrecision('bmi'), // Garmin computes it from the profile height; we store no height
     metrics: jsonb('metrics'), // any extra provider fields
   },
   (t) => [uniqueIndex('daily_summaries_athlete_day_uq').on(t.athleteId, t.day)],

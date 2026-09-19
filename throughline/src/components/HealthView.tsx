@@ -233,21 +233,44 @@ function SleepCard({ snapshot }: { snapshot: HealthSnapshot }) {
 }
 
 /** Metric 4b: body / BMI — persistence DEFERRED in v1, shown as a clear stub. */
-function BodyCard() {
+function BodyCard({ snapshot, units }: { snapshot: HealthSnapshot; units: 'mi' | 'km' }) {
+  const { body } = snapshot;
+  if (body.noSource) {
+    return (
+      <GradientCard title="Body composition">
+        <p className="mt-2 text-sm leading-relaxed text-white/80">
+          Connect a smart scale and your weight, body fat and BMI trend will show here. A Withings scale syncs to
+          Garmin Connect (Withings app → Settings → Garmin), and Garmin sends it on.
+        </p>
+      </GradientCard>
+    );
+  }
+  const w = (kg: number) => (units === 'km' ? `${kg.toFixed(1)}` : `${(kg * 2.20462).toFixed(1)}`);
+  const wUnit = units === 'km' ? 'kg' : 'lb';
+  const change = body.weightChangeKg;
+  const changeLabel =
+    change == null ? '-' : `${change > 0 ? '+' : ''}${units === 'km' ? change.toFixed(1) : (change * 2.20462).toFixed(1)}`;
   return (
-    <GradientCard title="Body composition" aside="coming soon">
-      <p className="mt-2 text-sm leading-relaxed text-white/80">
-        Weight and BMI trend will live here. Logging isn&apos;t wired up yet, this is a placeholder while we add
-        weight entry.
-      </p>
-      <div className="mt-3 grid grid-cols-3 gap-2 opacity-50">
-        <StatTile label="Weight" value="-" unit="kg" />
-        <StatTile label="BMI" value="-" />
-        <StatTile label="Trend" value="-" />
+    <GradientCard title="Body composition" aside={body.measuredOn ? `weighed ${body.measuredOn}` : undefined}>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <StatTile label="Weight" value={body.weightKg != null ? w(body.weightKg) : '-'} unit={wUnit} valueClass="text-sky-300" />
+        <StatTile
+          label="4-week change"
+          value={changeLabel}
+          unit={change != null ? wUnit : undefined}
+          sub={change == null ? 'needs 3+ weeks of readings' : undefined}
+          valueClass={change == null ? 'text-white' : 'text-white'}
+        />
+        {body.bodyFatPct != null ? (
+          <StatTile label="Body fat" value={`${body.bodyFatPct.toFixed(1)}`} unit="%" />
+        ) : (
+          <StatTile label="BMI" value={body.bmi != null ? body.bmi.toFixed(1) : '-'} sub={body.bmiCategory ?? undefined} />
+        )}
       </div>
       <p className="mt-3 text-[10px] leading-relaxed text-slate-500">
-        BMI is a population screen (WHO bands) that doesn&apos;t separate muscle from fat, so it reads high for many
-        trained athletes, we&apos;ll surface it with that caveat once entry lands.
+        Weight is reported without judgement, a fall you did not intend during a hard block is an early
+        under-fuelling sign, worth a conversation with your coach.
+        {body.bmi != null && ` BMI ${body.bmi.toFixed(1)} (${body.bmiCategory}) is a population screen that reads high for muscular athletes.`}
       </p>
     </GradientCard>
   );
@@ -262,7 +285,7 @@ const SPORT_LABEL: Record<string, string> = {
   other: 'Other',
 };
 
-export function HealthView({ snapshot }: { snapshot: HealthSnapshot }) {
+export function HealthView({ snapshot, units = 'mi' }: { snapshot: HealthSnapshot; units?: 'mi' | 'km' }) {
   const totalActs = snapshot.sports.reduce((a, s) => a + s.count, 0);
   return (
     <div className="space-y-4">
@@ -292,7 +315,7 @@ export function HealthView({ snapshot }: { snapshot: HealthSnapshot }) {
 
       <SleepCard snapshot={snapshot} />
       <StepsCard snapshot={snapshot} />
-      <BodyCard />
+      <BodyCard snapshot={snapshot} units={units} />
     </div>
   );
 }
