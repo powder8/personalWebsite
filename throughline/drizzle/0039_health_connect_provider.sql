@@ -1,0 +1,1 @@
+ALTER TYPE "public"."provider" ADD VALUE 'health_connect';

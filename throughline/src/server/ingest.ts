@@ -4,7 +4,7 @@
  * state. Shared by the async normalizer (Inngest) and the Strava pull sync, so
  * there is ONE place that knows how a batch lands in the DB.
  */
-import { sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import type { DB } from '@/db';
 import {
   activities,
@@ -15,6 +15,10 @@ import {
 } from '@/db/schema';
 import type { NormalizedBatch, ProviderId } from '@/providers/types';
 import { getDefaultShoeId } from '@/server/shoes';
+import { isSameWorkout, DUP_START_WINDOW_SEC, type WorkoutKey } from '@/server/deviceHealthLogic';
+
+/** Sources whose workouts are pushed from the phone's health store (thin records). */
+const DEVICE_PROVIDERS: ProviderId[] = ['apple', 'health_connect'];
 
 export async function persistNormalizedBatch(
   db: DB,
@@ -64,6 +68,9 @@ export async function persistNormalizedBatch(
           mapPolyline: sql`coalesce(excluded.map_polyline, ${activities.mapPolyline})`,
         },
       });
+    if (!DEVICE_PROVIDERS.includes(provider)) {
+      await supersedeDeviceWorkouts(db, athleteId, batch.activities);
+    }
   }
   if (batch.dailySummaries?.length) {
     await db
@@ -106,4 +113,39 @@ export async function persistNormalizedBatch(
       .values(batch.restingHrRecords.map((r) => ({ ...r, ...common })))
       .onConflictDoNothing({ target: [restingHrRecords.athleteId, restingHrRecords.day] });
   }
+}
+
+/**
+ * Cross-source dedup, richer-source side: when Strava/Garmin land an activity
+ * that a device (HealthKit / Health Connect) already pushed, the device copy
+ * yields — it has no splits, route, or power. Scoped to the time range just
+ * written. The device-side check (skip a push that another source already
+ * holds) lives in deviceHealth.ts; between them, order of arrival stops
+ * mattering.
+ */
+export async function supersedeDeviceWorkouts(
+  db: DB,
+  athleteId: string,
+  written: WorkoutKey[],
+): Promise<number> {
+  if (written.length === 0) return 0;
+  const times = written.map((w) => w.startTime.getTime());
+  const pad = DUP_START_WINDOW_SEC * 1000;
+  const deviceRows = await db
+    .select({ id: activities.id, sport: activities.sport, startTime: activities.startTime, durationSeconds: activities.durationSeconds })
+    .from(activities)
+    .where(
+      and(
+        eq(activities.athleteId, athleteId),
+        inArray(activities.provider, DEVICE_PROVIDERS),
+        gte(activities.startTime, new Date(Math.min(...times) - pad)),
+        lte(activities.startTime, new Date(Math.max(...times) + pad)),
+      ),
+    );
+  const doomed = deviceRows
+    .filter((d) => written.some((w) => isSameWorkout(d, w)))
+    .map((d) => d.id);
+  if (doomed.length === 0) return 0;
+  await db.delete(activities).where(inArray(activities.id, doomed));
+  return doomed.length;
 }

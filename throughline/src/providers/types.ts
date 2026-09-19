@@ -13,7 +13,8 @@ import type {
   restingHrRecords,
 } from '@/db/schema';
 
-export type ProviderId = 'garmin' | 'strava';
+/** OAuth providers plus the on-device health stores the native app pushes from. */
+export type ProviderId = 'garmin' | 'strava' | 'apple' | 'health_connect';
 
 /** OAuth result a provider hands back after a successful connect flow. */
 export interface ProviderTokens {
