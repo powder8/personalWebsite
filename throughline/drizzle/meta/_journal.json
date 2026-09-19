@@ -267,6 +267,13 @@
       "when": 1789820686540,
       "tag": "0037_body_composition",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1789835860180,
+      "tag": "0038_activity_judgment",
+      "breakpoints": true
     }
   ]
 }

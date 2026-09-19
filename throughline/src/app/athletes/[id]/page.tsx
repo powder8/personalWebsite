@@ -16,6 +16,8 @@ import { AnchorControl } from '@/components/AnchorControl';
 import { PmcChart, PmcLegend } from '@/components/PmcChart';
 import { getFitnessFatigueSeries } from '@/server/fitness';
 import { getComplianceWeeks, type DayStatus } from '@/server/compliance';
+import { listDisagreements, typesafeConfigured } from '@/server/activityJudgment';
+import { ClassificationReview } from '@/components/ClassificationReview';
 import { getTrainingInsights } from '@/server/insights';
 import { getCycle, computeCycle } from '@/server/cycle';
 import { WeeklyVolumeChart } from '@/components/WeeklyVolumeChart';
@@ -59,6 +61,7 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
   if (!detail) notFound();
   const fitness = await getFitnessFatigueSeries(id);
   const compliance = await getComplianceWeeks(id, TODAY);
+  const classification = await listDisagreements(db, id, 90);
   const insights = await getTrainingInsights(id);
   const cycle = computeCycle(await getCycle(db, id), TODAY);
   const trainingSummary = await getTrainingSummary(db, id, TODAY, 12);
@@ -445,6 +448,15 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
           )}
         </Card>
       )}
+
+      <Card title="Activity classification (shadow)">
+        <ClassificationReview
+          athleteId={athlete.id}
+          judged={classification.judged}
+          rows={classification.rows}
+          configured={typesafeConfigured()}
+        />
+      </Card>
 
       {/* Current plan week */}
       <Card title={currentWeek ? `This week, ${currentWeek.plan.phase ?? ''} (cycle ${currentWeek.plan.cycle ?? '-'})` : 'This week'}>

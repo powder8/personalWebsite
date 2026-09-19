@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { syncStravaActivities } from '@/server/strava';
 import { ensureAutoAnchor } from '@/server/anchor';
+import { judgeUnjudgedActivities } from '@/server/activityJudgment';
 import { todayISO } from '@/server/console';
 import { guardAthleteWrite } from '@/server/apiAccess';
 
@@ -35,6 +36,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     if (result.done) {
       try {
         await ensureAutoAnchor(db, id, { today: todayISO() });
+      } catch {
+        /* non-fatal */
+      }
+      // Shadow-classify the new activities (TypeSafe). Never changes `sport`;
+      // records where the model disagrees with the provider mapping. Skips
+      // itself when unconfigured; never blocks the sync.
+      try {
+        await judgeUnjudgedActivities(db, id, { days: 90, limit: 40 });
       } catch {
         /* non-fatal */
       }
