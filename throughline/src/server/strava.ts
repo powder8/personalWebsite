@@ -11,6 +11,7 @@ import { connectedAccounts, rawEvents, activities } from '@/db/schema';
 import { strava, normalizeActivity, type StravaActivity } from '@/providers/strava';
 import { stravaEnv } from '@/providers/strava/env';
 import { payloadHash } from '@/lib/hash';
+import { supersedeDeviceWorkouts } from './ingest';
 import {
   pickFtpCandidates,
   ftpFromWattsStream,
@@ -263,6 +264,13 @@ async function ingestStravaPage(
         sport: sql`excluded.sport`,
       },
     });
+  // Strava is the richer record: a device (HealthKit / Health Connect) copy of
+  // the same session yields to it. Best-effort; never blocks the sync.
+  try {
+    await supersedeDeviceWorkouts(db, athleteId, actValues);
+  } catch {
+    /* non-fatal */
+  }
   return insertedRaw.length;
 }
 
