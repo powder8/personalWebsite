@@ -2,6 +2,8 @@
  * Goal tracker DB layer — fetches inputs and builds the verdict. The pure
  * fusion logic lives in goalTrackerLogic.ts (testable without server-only deps).
  */
+import { assessGoalFeasibility } from '@/engine/plan/feasibility';
+import { predictRaceTimeSeconds } from '@/engine/plan/vdot';
 import type { DB } from '@/db';
 import type { ConsistencyStats } from '@/server/consistencyLogic';
 import { getRacePlan } from '@/server/racePlan';
@@ -21,7 +23,7 @@ export async function getGoalTracker(
   const racePlan = await getRacePlan(db, athleteId, today);
   if (!racePlan) return null;
   const daysAway = Math.floor((Date.parse(racePlan.goal.date) - Date.parse(today)) / 86400000);
-  return buildGoalTracker({
+  const tracker = buildGoalTracker({
     goalName: racePlan.goal.name,
     distanceLabel: racePlan.goal.distanceLabel,
     distanceMeters: racePlan.goal.distanceMeters,
@@ -32,4 +34,17 @@ export async function getGoalTracker(
     feasibility: racePlan.feasibility,
     consistency,
   });
+  const currentVdot = racePlan.grounding.demonstrated?.vdot ?? racePlan.target?.vdot;
+  const distance = racePlan.goal.distanceMeters;
+  if (tracker && racePlan.goal.name !== 'Build fitness' && !tracker.triathlonHint && currentVdot != null && distance && daysAway >= 0) {
+    const build = assessGoalFeasibility({ currentVdot, goalVdot: currentVdot, weeksToRace: Math.floor(daysAway / 7), goalDistanceMeters: distance });
+    tracker.potential = {
+      currentSeconds: predictRaceTimeSeconds(currentVdot, distance),
+      buildSeconds: build.projectedTimeSeconds,
+      distanceMeters: distance,
+      trainableWeeks: build.trainableWeeks,
+      provisional: !racePlan.grounding.demonstrated,
+    };
+  }
+  return tracker;
 }

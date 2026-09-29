@@ -26,7 +26,6 @@ import { getSessionDebrief } from '@/server/sessionDebrief';
 import { getRunDebrief } from '@/server/runDebrief';
 import { RecoveryCard } from '@/components/RecoveryCard';
 import { getRecoveryInsights, persistReadiness } from '@/server/recovery';
-import { DailyBriefing } from '@/components/DailyBriefing';
 import { RecoveryAdjustment } from '@/components/RecoveryAdjustment';
 import { listActiveDirectives } from '@/server/directives';
 import { decideReadinessGate } from '@/server/readinessGate';
@@ -343,20 +342,39 @@ export default async function PortalPage({
   // how has training gone → ask the coach.
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-20 sm:pb-4">
-      <DailyBriefing firstName={firstName} today={today} recovery={recovery}
-        checkedIn={checkedInToday} goalName={goalRace.name} daysAway={goalRace.daysAway}
-        progress={goalProgress} adherence={consistency?.adherence28dPct ?? null} />
+      <header className="px-1 pt-2">
+        <p className="text-sm text-slate-400">{today}</p>
+        <h1 className="mt-1 text-2xl font-bold text-white">Your training, {firstName}</h1>
+        <nav aria-label="Your training" className="mt-4 flex flex-wrap gap-2 text-sm">
+          <a href="#progress" className="rounded-full bg-white/10 px-4 py-2">Where I stand</a>
+          <a href="#today" className="rounded-full bg-lime-300 px-4 py-2 font-semibold text-slate-950">Today’s focus</a>
+          <a href="#training" className="rounded-full bg-white/10 px-4 py-2">My week</a>
+        </nav>
+      </header>
 
-      <section id="recovery" className="scroll-mt-6 space-y-3" aria-label="Recovery and body">
-        <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} pattern={recovery.pattern} focus={recovery.focus} history={recovery.history} today={today} />
-        <div id="check-in" className="scroll-mt-6 rounded-3xl border border-white/10 bg-card p-5">
-          <details open={!checkedInToday}>
-            <summary className="cursor-pointer py-1 text-base font-semibold text-white">{checkedInToday ? 'Today’s check-in · saved' : 'How are you feeling today?'}</summary>
-            <div className="mt-4"><CheckInForm athleteId={id} day={today} initial={todayCheckIn} /></div>
-          </details>
-          <RecoveryAdjustment athleteId={id} day={today} active={recoveryAdjustments} />
-        </div>
-      </section>
+      <div id="progress" className="scroll-mt-6" />
+      {/* ── WHERE YOU STAND ─────────────────────────────────────────────── */}
+      {/* Where you stand. A triathlete's combined tracker supersedes the rest.
+          Otherwise run and bike goals coexist: both trackers stack, under one
+          coordinating header so the two commitments read as a single view. */}
+      {triGoalTracker ? (
+        <TriGoalTrackerHero tracker={triGoalTracker} progress={goalProgress} />
+      ) : (
+        <>
+          {goalTracker && bikeGoalTracker && (
+            <p className="px-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+              Two goals in play · run + bike
+            </p>
+          )}
+          {goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} progress={goalProgress} units={units} />}
+          {bikeGoalTracker && <BikeGoalTrackerHero tracker={bikeGoalTracker} athleteId={athlete.id} progress={goalProgress} units={units} />}
+          {goalTracker && bikeGoalTracker && (
+            <CoordinatedBudget athleteId={athlete.id} currentBudget={athlete.weeklyHoursBudget ?? null} />
+          )}
+        </>
+      )}
+
+      <SectionHeader>Today’s focus</SectionHeader>
       <div id="today" className="scroll-mt-6" />
 
       {/* ── TODAY ────────────────────────────────────────────────────────
@@ -391,30 +409,21 @@ export default async function PortalPage({
           (prominent status + the resume check), not down in the body section. */}
       {injury && <InjuryPanel athleteId={athlete.id} injury={injury} />}
 
-      <div id="progress" className="scroll-mt-6" />
-      {/* ── WHERE YOU STAND ─────────────────────────────────────────────── */}
-      {/* Where you stand. A triathlete's combined tracker supersedes the rest.
-          Otherwise run and bike goals coexist: both trackers stack, under one
-          coordinating header so the two commitments read as a single view. */}
-      {triGoalTracker ? (
-        <TriGoalTrackerHero tracker={triGoalTracker} progress={goalProgress} />
-      ) : (
-        <>
-          {goalTracker && bikeGoalTracker && (
-            <p className="px-1 text-xs font-medium uppercase tracking-wide text-slate-400">
-              Two goals in play · run + bike
-            </p>
-          )}
-          {goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} progress={goalProgress} />}
-          {bikeGoalTracker && <BikeGoalTrackerHero tracker={bikeGoalTracker} athleteId={athlete.id} progress={goalProgress} units={units} />}
-          {goalTracker && bikeGoalTracker && (
-            <CoordinatedBudget athleteId={athlete.id} currentBudget={athlete.weeklyHoursBudget ?? null} />
-          )}
-        </>
-      )}
+      <section id="recovery" className="scroll-mt-6 space-y-3" aria-label="Recovery and body">
+        <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} pattern={recovery.pattern} focus={recovery.focus} history={recovery.history} today={today} />
+        <div id="check-in" className="scroll-mt-6 rounded-3xl border border-white/10 bg-card p-5">
+          <details open={!checkedInToday}>
+            <summary className="cursor-pointer py-1 text-base font-semibold text-white">{checkedInToday ? 'Today’s check-in · saved' : 'How are you feeling today?'}</summary>
+            <div className="mt-4"><CheckInForm athleteId={id} day={today} initial={todayCheckIn} /></div>
+          </details>
+          <RecoveryAdjustment athleteId={id} day={today} active={recoveryAdjustments} />
+        </div>
+      </section>
 
       {/* ── YOUR TRAINING ────────────────────────────────────────────────── */}
-      <SectionHeader>How training is going</SectionHeader>
+      <details className="rounded-3xl border border-white/10 bg-card p-5">
+        <summary className="cursor-pointer font-semibold text-white">Recent training &amp; feedback</summary>
+        <div className="mt-4 space-y-4">
 
       {/* ONE coach's debrief, of the LATEST session across sports. A ride
           yesterday is evaluated as a ride; the run from last week doesn't get
@@ -456,6 +465,9 @@ export default async function PortalPage({
       )}
 
       {consistency?.show && <ConsistencyStrip stats={consistency} multiSport={disciplines.count > 1} />}
+
+        </div>
+      </details>
 
       {/* ── YOUR BODY ────────────────────────────────────────────────────── */}
 

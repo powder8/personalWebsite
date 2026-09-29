@@ -3,6 +3,7 @@
  * One honest verdict (fitness × execution), the projected outcome vs the goal,
  * and the single lever that moves it. Pure markup; data from server/goalTracker.
  */
+import { fmtPace, type Units } from '@/lib/units';
 import type { GoalTracker, GoalTone } from '@/server/goalTracker';
 import type { GoalProgress } from '@/server/goalProgress';
 import { TrajectorySparkline } from '@/components/TrajectorySparkline';
@@ -39,7 +40,7 @@ const VERDICT_LABEL: Record<GoalTracker['verdict'], string> = {
   at_risk: 'a big reach',
 };
 
-export function GoalTrackerHero({ tracker, athleteId, progress }: { tracker: GoalTracker; athleteId: string; progress?: GoalProgress | null }) {
+export function GoalTrackerHero({ tracker, athleteId, progress, units = 'mi' }: { tracker: GoalTracker; athleteId: string; progress?: GoalProgress | null; units?: Units }) {
   // The goal wizard stores the general-fitness path with this explicit name.
   // It has no race-time success criterion: don't manufacture a race verdict.
   if (tracker.raceLine === 'Build fitness') return (
@@ -76,7 +77,7 @@ export function GoalTrackerHero({ tracker, athleteId, progress }: { tracker: Goa
               : ''}
           </p>
           <h2 className="mt-0.5 text-2xl font-bold tracking-tight text-white">{tracker.headline}</h2>
-          {tracker.projectionLine && <p className="mt-1 text-sm text-slate-400">{tracker.projectionLine}</p>}
+          {!tracker.potential && tracker.projectionLine && <p className="mt-1 text-sm text-slate-400">{tracker.projectionLine}</p>}
         </div>
         {tracker.daysAway != null && (
           <div className="shrink-0 text-right">
@@ -88,22 +89,35 @@ export function GoalTrackerHero({ tracker, athleteId, progress }: { tracker: Goa
         )}
       </div>
 
-      {/* Progress-to-goal bar: fill = projected outcome, marker = the goal line. */}
-      <div className={`relative mt-4 h-2 rounded-full ${t.bar}`}>
-        <div
-          className={`absolute inset-y-0 left-0 rounded-full ${t.fill}`}
-          style={{ width: `${tracker.fillPct}%` }}
-        />
-        <div
-          className="absolute -top-1 -bottom-1 w-0.5 bg-white"
-          style={{ left: `${tracker.goalMarkerPct}%` }}
-        />
-      </div>
-      <div className="mt-1 flex justify-between text-[11px] text-slate-500">
-        <span>{tracker.leftLabel}</span>
-        <span>{tracker.rightLabel}</span>
-      </div>
+      {tracker.potential && (
+        <section className="mt-5 rounded-2xl bg-white/5 p-4" aria-label="Running potential">
+          <h3 className="font-semibold text-white">How fast could I go?</h3>
+          <p className="mt-1 text-xs text-slate-400">Estimates for {tracker.distanceLabel || tracker.raceLine} · {tracker.potential.trainableWeeks} training weeks before taper</p>
+          <dl className="mt-4 grid grid-cols-2 gap-4">
+            {[
+              { label: 'At current fitness', seconds: tracker.potential.currentSeconds, note: 'If fitness stays the same' },
+              { label: 'With a consistent build', seconds: tracker.potential.buildSeconds, note: 'If you adapt well to regular training' },
+            ].map(({ label, seconds, note }) => (
+              <div key={label}>
+                <dt className="text-xs text-slate-400">{label}</dt>
+                <dd className="mt-1 text-xl font-bold tabular-nums text-lime-200">{raceClock(seconds)}</dd>
+                <dd className="mt-1 text-sm text-white">{fmtPace(seconds / (tracker.potential!.distanceMeters / 1000), units)}</dd>
+                <dd className="mt-1 text-xs text-slate-400">{note}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-4 text-xs leading-relaxed text-slate-400">Illustrative estimates, not guarantees. The build uses Throughline’s existing fitness-gain model and time until your race; it does not yet model weekly hours or harder sessions. More intensity does not automatically mean a faster result.</p>
+          {tracker.potential.provisional && <p className="mt-2 text-xs text-amber-200">Provisional: based on your saved fitness estimate, without a recent demonstrated effort.</p>}
+          {tracker.potential.trainableWeeks === 0 && <p className="mt-2 text-xs text-white">There’s no build time left before taper. Focus on arriving rested.</p>}
+        </section>
+      )}
 
+      {!tracker.potential && !tracker.triathlonHint && (
+        <p className="mt-4 rounded-2xl bg-white/5 p-4 text-sm text-slate-400">To estimate how fast you could go, add a race distance and a current fitness benchmark in your goal settings.</p>
+      )}
+
+      <details className="mt-4">
+        <summary className="cursor-pointer py-2 text-sm font-medium text-slate-400">Why this estimate &amp; your training trend</summary>
       {/* The honest "why": what the gap actually is and the runway it needs. */}
       {tracker.gapNote && (
         <p className="mt-3 text-sm leading-relaxed text-white/70">{tracker.gapNote}</p>
@@ -117,7 +131,10 @@ export function GoalTrackerHero({ tracker, athleteId, progress }: { tracker: Goa
         </div>
       )}
 
+      </details>
+
       <div className={`mt-4 rounded-2xl p-3.5 ring-1 ring-inset ${t.ring} ${t.bar}`}>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/50">Your next step</p>
         {tracker.execNote && (
           <div className={`text-xs font-semibold ${t.text}`}>{tracker.execNote}</div>
         )}
@@ -175,4 +192,12 @@ export function GoalTrackerHero({ tracker, athleteId, progress }: { tracker: Goa
       )}
     </div>
   );
+}
+
+function raceClock(seconds: number): string {
+  const total = Math.round(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const remainder = String(total % 60).padStart(2, '0');
+  return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${remainder}` : `${minutes}:${remainder}`;
 }
