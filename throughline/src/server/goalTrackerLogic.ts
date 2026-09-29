@@ -30,6 +30,7 @@ export type GoalVerdict = 'ahead' | 'on_track' | 'stretch' | 'drifting' | 'at_ri
 export type GoalTone = 'positive' | 'caution' | 'risk';
 
 export interface GoalTracker {
+  potential?: { currentSeconds: number; buildSeconds: number; distanceMeters: number; trainableWeeks: number; provisional: boolean } | null;
   verdict: GoalVerdict;
   tone: GoalTone;
   raceLine: string; // race name, e.g. "Chicago Marathon"
