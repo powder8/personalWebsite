@@ -286,17 +286,17 @@ export default async function PortalPage({
       <div className="mx-auto max-w-2xl space-y-4 pb-20 sm:pb-4">
         <p className="px-1 pt-1 text-sm text-slate-400">Hi {firstName} 👋 · {today}</p>
 
-        <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 text-white shadow-lg">
+        <div className="overflow-hidden rounded-3xl surface-hero p-6 text-white">
           {goalDone ? (
             <>
-              <h1 className="text-2xl font-bold tracking-tight">You raced {goalRace.name}! 🎉</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">You raced {goalRace.name}! 🎉</h1>
               <p className="mt-1 text-sm text-white/80">
                 Big effort. Give yourself time to recover and reflect. Your next goal can wait until you feel ready.
               </p>
             </>
           ) : (
             <>
-              <h1 className="text-2xl font-bold tracking-tight">What are you chasing?</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">What are you chasing?</h1>
               <p className="mt-1 text-sm text-white/80">
                 Pick a race or a goal and I&apos;ll build your week-by-week plan, every session specific, adjusted to how
                 your body is responding.
@@ -381,7 +381,7 @@ export default async function PortalPage({
 
       {/* The daily check-in is a daily action, so it lives on Today: open until
           it's done, then a one-line "saved" that can be reopened. */}
-      <div id="check-in" className="scroll-mt-20 rounded-3xl border border-white/10 bg-card p-5">
+      <div id="check-in" className="scroll-mt-20 rounded-3xl bg-card ring-1 ring-inset ring-white/[0.06] p-5">
         <details open={!checkedInToday}>
           <summary className="cursor-pointer py-1 text-base font-semibold text-white">
             {checkedInToday ? 'Today’s check-in · saved ✓' : 'How are you feeling today?'}
@@ -395,7 +395,7 @@ export default async function PortalPage({
       {(triGoalTracker || goalTracker || bikeGoalTracker) && (
         <a
           href={`/me/${athlete.id}?tab=progress`}
-          className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-card px-4 py-3 text-sm transition hover:bg-white/[0.04]"
+          className="flex items-center justify-between gap-3 rounded-2xl bg-card ring-1 ring-inset ring-white/[0.06] px-4 py-3 text-sm transition hover:bg-white/[0.04]"
         >
           <span className="min-w-0 text-slate-400">
             <span className="font-semibold text-white">{goalRace.name}</span>
@@ -417,7 +417,7 @@ export default async function PortalPage({
       ) : (
         <>
           {goalTracker && bikeGoalTracker && (
-            <p className="px-1 text-xs font-medium uppercase tracking-wide text-slate-400">Two goals in play · run + bike</p>
+            <p className="px-1 text-[13px] font-medium text-slate-400">Two goals in play · run + bike</p>
           )}
           {goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} progress={goalProgress} units={units} />}
           {bikeGoalTracker && <BikeGoalTrackerHero tracker={bikeGoalTracker} athleteId={athlete.id} progress={goalProgress} units={units} />}
@@ -446,7 +446,7 @@ export default async function PortalPage({
 
       <Link
         href={`/me/${athlete.id}/insights`}
-        className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-card px-4 py-3 text-sm transition hover:bg-white/[0.04]"
+        className="flex items-center justify-between gap-3 rounded-2xl bg-card ring-1 ring-inset ring-white/[0.06] px-4 py-3 text-sm transition hover:bg-white/[0.04]"
       >
         <span className="text-slate-400">What has driven your fitness, from your own history</span>
         <span aria-hidden className="shrink-0 font-semibold text-lime-300">Patterns →</span>
@@ -504,7 +504,7 @@ export default async function PortalPage({
       )}
 
       <div id="sports" className="scroll-mt-20" />
-      <details className="rounded-2xl border border-white/10 bg-card p-4">
+      <details className="rounded-2xl bg-card ring-1 ring-inset ring-white/[0.06] p-4">
         <summary className="cursor-pointer py-1 font-semibold text-white">Sports &amp; training setup</summary>
         <div className="mt-3"><YourSports athleteId={athlete.id} disciplines={disciplines} hasTriGoal={!!triGoalTracker} /></div>
       </details>
@@ -517,7 +517,7 @@ export default async function PortalPage({
       <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} pattern={recovery.pattern} focus={recovery.focus} history={recovery.history} today={today} />
       <Link
         href={`/me/${athlete.id}/health`}
-        className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-card px-4 py-3 text-sm transition hover:bg-white/[0.04]"
+        className="flex items-center justify-between gap-3 rounded-2xl bg-card ring-1 ring-inset ring-white/[0.06] px-4 py-3 text-sm transition hover:bg-white/[0.04]"
       >
         <span className="text-slate-400">Resting HR, HRV, sleep, weight and steps over 12 weeks</span>
         <span aria-hidden className="shrink-0 font-semibold text-lime-300">Health →</span>
@@ -554,9 +554,13 @@ export default async function PortalPage({
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-24 sm:pb-4">
-      <header className="px-1 pt-1">
-        <p className="text-sm text-slate-400">{dateLabel}</p>
-        <h1 className="mt-0.5 text-2xl font-bold text-white">Hi {firstName}</h1>
+      {/* Gemini-style greeting: a big, quiet hello with the name in the brand gradient. */}
+      <header className="px-1 pb-1 pt-2">
+        <p className="text-sm text-slate-500">{dateLabel}</p>
+        <h1 className="mt-1 text-[2rem] font-semibold leading-tight tracking-tight text-white sm:text-4xl">
+          Hi,{' '}
+          <span className="bg-gradient-to-r from-lime-200 via-lime-300 to-emerald-300 bg-clip-text text-transparent">{firstName}</span>
+        </h1>
       </header>
       <PortalTabs tabs={tabs} initial={initialTab} />
     </div>

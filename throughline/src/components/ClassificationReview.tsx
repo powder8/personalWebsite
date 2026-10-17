@@ -39,7 +39,7 @@ export function ClassificationReview({
         <p className="text-sm text-emerald-600">The model agrees with the provider on all {judged} judged activities.</p>
       ) : (
         <table className="w-full text-sm">
-          <thead className="text-left text-xs uppercase tracking-wide text-slate-400">
+          <thead className="text-left text-[13px] text-slate-400">
             <tr>
               <th className="py-1 font-medium">Date</th>
               <th className="py-1 font-medium">Activity</th>

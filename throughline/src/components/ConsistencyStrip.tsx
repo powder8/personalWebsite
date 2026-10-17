@@ -7,10 +7,10 @@ import type { ConsistencyStats } from '@/server/consistencyLogic';
 function Stat({ value, label, sublabel, accent }: { value: string; label: string; sublabel?: string; accent?: boolean }) {
   return (
     <div className="min-w-0">
-      <div className={`text-xl font-extrabold tracking-tight tabular-nums ${accent ? 'text-lime-300' : 'text-white'}`}>
+      <div className={`text-xl font-semibold tracking-tight tabular-nums ${accent ? 'text-lime-300' : 'text-white'}`}>
         {value}
       </div>
-      <div className="truncate text-[10px] font-medium uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="truncate text-xs font-medium text-slate-400">{label}</div>
       {sublabel && <div className="truncate text-[9px] text-slate-500">{sublabel}</div>}
     </div>
   );
@@ -18,7 +18,7 @@ function Stat({ value, label, sublabel, accent }: { value: string; label: string
 
 export function ConsistencyStrip({ stats, multiSport = false }: { stats: ConsistencyStats; multiSport?: boolean }) {
   return (
-    <div className="rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-5 shadow-lg">
+    <div className="rounded-3xl surface-hero p-5">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-bold tracking-tight text-white">{stats.headline}</p>
         {stats.longestStreak > stats.currentStreak && stats.longestStreak >= 4 && (

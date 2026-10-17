@@ -52,8 +52,8 @@ export function ReadinessCheck({
   }
 
   return (
-    <div className="rounded-3xl bg-gradient-to-br from-amber-500/20 via-[#10141f] to-[#0c0f17] p-5 shadow-lg ring-1 ring-inset ring-amber-400/30">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-300/90">A quick gut check</div>
+    <div className="rounded-3xl surface-hero-caution p-6">
+      <div className="text-xs font-medium text-amber-300/90">A quick gut check</div>
       <h2 className="mt-1 flex items-center gap-2 text-lg font-bold tracking-tight text-white">
         <span aria-hidden>🫀</span>
         <span>{title}</span>

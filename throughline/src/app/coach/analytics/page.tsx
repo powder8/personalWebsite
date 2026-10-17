@@ -250,7 +250,7 @@ function SignupChart({ weeks }: { weeks: AdminAnalytics['growth']['athleteSignup
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Athlete signups per week, last 12 weeks">
-      <line x1={PAD_L} x2={W - PAD_R} y1={H - PAD_B} y2={H - PAD_B} stroke="#26304a" strokeWidth={1} />
+      <line x1={PAD_L} x2={W - PAD_R} y1={H - PAD_B} y2={H - PAD_B} stroke="#2a2a2f" strokeWidth={1} />
       {weeks.map((w, i) => {
         const cx = PAD_L + i * slot + slot / 2;
         const x = cx - barW / 2;

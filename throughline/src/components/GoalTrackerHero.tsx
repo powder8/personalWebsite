@@ -33,20 +33,20 @@ const TONE: Record<GoalTone, { fill: string; text: string; chip: string; ring: s
 };
 
 const VERDICT_LABEL: Record<GoalTracker['verdict'], string> = {
-  ahead: 'ahead of goal',
-  on_track: 'on track',
-  stretch: 'a stretch',
-  drifting: 'drifting',
-  at_risk: 'a big reach',
+  ahead: 'Ahead of goal',
+  on_track: 'On track',
+  stretch: 'A stretch',
+  drifting: 'Drifting',
+  at_risk: 'A big reach',
 };
 
 export function GoalTrackerHero({ tracker, athleteId, progress, units = 'mi' }: { tracker: GoalTracker; athleteId: string; progress?: GoalProgress | null; units?: Units }) {
   // The goal wizard stores the general-fitness path with this explicit name.
   // It has no race-time success criterion: don't manufacture a race verdict.
   if (tracker.raceLine === 'Build fitness') return (
-    <section className="rounded-3xl border border-white/10 bg-card p-5" aria-label="Fitness goal progress">
-      <p className="text-xs font-semibold uppercase tracking-wide text-lime-200">Your goal · build fitness</p>
-      <h2 className="mt-2 text-xl font-bold text-white">Build a rhythm you can sustain</h2>
+    <section className="rounded-3xl bg-card ring-1 ring-inset ring-white/[0.06] p-5" aria-label="Fitness goal progress">
+      <p className="text-[13px] font-medium text-lime-200">Your goal · build fitness</p>
+      <h2 className="mt-2 text-xl font-semibold text-white">Build a rhythm you can sustain</h2>
       <p className="mt-2 text-sm leading-relaxed text-slate-600">Progress means following a manageable plan and recovering between sessions. You do not need a race or a target time.</p>
       {progress ? <div className="mt-4"><TrajectorySparkline progress={progress} /></div> :
         <p className="mt-3 text-sm text-slate-500">Log a few weeks of training to build a meaningful trend.</p>}
@@ -56,14 +56,14 @@ export function GoalTrackerHero({ tracker, athleteId, progress, units = 'mi' }: 
   );
   const t = TONE[tracker.tone];
   return (
-    <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 shadow-lg">
+    <div className="overflow-hidden rounded-3xl surface-hero p-6">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-sky-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-300 ring-1 ring-inset ring-sky-400/25">
+            <span className="inline-flex items-center gap-1 rounded-full bg-sky-400/15 px-2 py-0.5 text-xs font-mediumr text-sky-300 ring-1 ring-inset ring-sky-400/25">
               🏃 Run
             </span>
-            <div className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.chip}`}>
+            <div className={`flex items-center gap-1.5 text-xs font-medium ${t.chip}`}>
               <span className={`h-1.5 w-1.5 rounded-full ${t.fill}`} />
               {VERDICT_LABEL[tracker.verdict]}
             </div>
@@ -76,15 +76,15 @@ export function GoalTrackerHero({ tracker, athleteId, progress, units = 'mi' }: 
               ? ` · ${tracker.distanceLabel}`
               : ''}
           </p>
-          <h2 className="mt-0.5 text-2xl font-bold tracking-tight text-white">{tracker.headline}</h2>
+          <h2 className="mt-0.5 text-2xl font-semibold tracking-tight text-white">{tracker.headline}</h2>
           {!tracker.potential && tracker.projectionLine && <p className="mt-1 text-sm text-slate-400">{tracker.projectionLine}</p>}
         </div>
         {tracker.daysAway != null && (
           <div className="shrink-0 text-right">
-            <div className="text-5xl font-extrabold leading-none tracking-tight text-lime-300 tabular-nums">
+            <div className="text-5xl font-semibold leading-none tracking-tight text-lime-300 tabular-nums">
               {tracker.daysAway}
             </div>
-            <div className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">days to go</div>
+            <div className="mt-1 text-[13px] font-medium text-slate-400">days to go</div>
           </div>
         )}
       </div>
@@ -100,7 +100,7 @@ export function GoalTrackerHero({ tracker, athleteId, progress, units = 'mi' }: 
             ].map(({ label, seconds, note }) => (
               <div key={label}>
                 <dt className="text-xs text-slate-400">{label}</dt>
-                <dd className="mt-1 text-xl font-bold tabular-nums text-lime-200">{raceClock(seconds)}</dd>
+                <dd className="mt-1 text-xl font-semibold tabular-nums text-lime-200">{raceClock(seconds)}</dd>
                 <dd className="mt-1 text-sm text-white">{fmtPace(seconds / (tracker.potential!.distanceMeters / 1000), units)}</dd>
                 <dd className="mt-1 text-xs text-slate-400">{note}</dd>
               </div>
@@ -126,7 +126,7 @@ export function GoalTrackerHero({ tracker, athleteId, progress, units = 'mi' }: 
       {/* Trajectory: the fitness trend that decides whether you're closing on it. */}
       {progress && (
         <div className="mt-4 rounded-2xl bg-white/[0.04] p-3.5 ring-1 ring-inset ring-white/10">
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/50">Your trajectory</div>
+          <div className="mb-2 text-xs font-medium text-white/50">Your trajectory</div>
           <TrajectorySparkline progress={progress} />
         </div>
       )}
@@ -134,7 +134,7 @@ export function GoalTrackerHero({ tracker, athleteId, progress, units = 'mi' }: 
       </details>
 
       <div className={`mt-4 rounded-2xl p-3.5 ring-1 ring-inset ${t.ring} ${t.bar}`}>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/50">Your next step</p>
+        <p className="mb-2 text-[13px] font-medium text-white/50">Your next step</p>
         {tracker.execNote && (
           <div className={`text-xs font-semibold ${t.text}`}>{tracker.execNote}</div>
         )}
@@ -144,7 +144,7 @@ export function GoalTrackerHero({ tracker, athleteId, progress, units = 'mi' }: 
           // opens it when they want the full "what it'd take" read. Native <details>
           // → no JS, works in this server component.
           <details className="group mt-3 border-t border-white/10 pt-2">
-            <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/50 hover:text-white/70">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium text-white/50 hover:text-white/70">
               <span className="transition group-open:rotate-90">›</span>
               What it’d take, and how we’ll track it
             </summary>
@@ -157,7 +157,7 @@ export function GoalTrackerHero({ tracker, athleteId, progress, units = 'mi' }: 
                 ] as const
               ).map(([term, desc]) => (
                 <div key={term}>
-                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-white/50">{term}</dt>
+                  <dt className="text-xs font-medium text-white/50">{term}</dt>
                   <dd className="text-sm leading-relaxed text-white/80">{desc}</dd>
                 </div>
               ))}

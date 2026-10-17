@@ -90,9 +90,9 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
         ← Back to your training
       </Link>
 
-      <div className="rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 text-white shadow-lg">
+      <div className="rounded-3xl surface-hero p-6 text-white">
         <p className="text-sm text-slate-400">{day}</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight">
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
           <span aria-hidden className="mr-1.5">{EMOJI[sport] ?? '🏅'}</span>
           {act.name ?? NOUN[sport] ?? 'Session'}
         </h1>
@@ -100,7 +100,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {tiles.map((t) => (
               <div key={t.label} className="rounded-2xl bg-white/[0.04] px-3 py-2.5 ring-1 ring-inset ring-white/10">
-                <div className="text-[10px] font-medium uppercase tracking-wide text-white/40">{t.label}</div>
+                <div className="text-xs font-medium text-white/40">{t.label}</div>
                 <div className="mt-0.5 text-lg font-bold tabular-nums text-white/90">{t.value}</div>
               </div>
             ))}
@@ -117,7 +117,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
       {showSplits && (
         <Card title="Splits">
           <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wide text-slate-400">
+            <thead className="text-left text-[13px] text-slate-400">
               <tr>
                 <th className="py-1 font-medium">#</th>
                 <th className="py-1 text-right font-medium">Distance</th>

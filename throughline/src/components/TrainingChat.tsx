@@ -118,7 +118,7 @@ export function TrainingChat({
                   key={s}
                   type="button"
                   onClick={() => send(s)}
-                  className="rounded-full border border-slate-200 bg-card px-3 py-1.5 text-xs text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                  className="rounded-full bg-white/[0.06] px-3.5 py-2 text-sm text-slate-700 transition hover:bg-white/[0.1]"
                 >
                   {s}
                 </button>
@@ -131,13 +131,13 @@ export function TrainingChat({
               <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
                 <div className={m.role === 'user' ? 'max-w-[85%]' : 'w-full'}>
                   {m.role === 'assistant' && (
-                    <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">Coach</div>
+                    <div className="mb-1 text-xs font-medium text-slate-400">Coach</div>
                   )}
                   <div
                     className={
                       m.role === 'user'
-                        ? 'whitespace-pre-wrap rounded-2xl rounded-br-sm bg-sky-600 px-3.5 py-2 text-sm text-white'
-                        : 'whitespace-pre-wrap text-sm leading-relaxed text-slate-800'
+                        ? 'whitespace-pre-wrap rounded-3xl rounded-br-md bg-[#26262a] px-4 py-2.5 text-[15px] text-white'
+                        : 'whitespace-pre-wrap text-[15px] leading-relaxed text-slate-800'
                     }
                   >
                     {m.content}
@@ -163,7 +163,7 @@ export function TrainingChat({
             {pending && (
               <div className="flex justify-start">
                 <div className="w-full">
-                  <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">Coach</div>
+                  <div className="mb-1 text-xs font-medium text-slate-400">Coach</div>
                   <div className="flex gap-1 py-1" aria-label="Thinking">
                     <Dot /> <Dot delay="150ms" /> <Dot delay="300ms" />
                   </div>
@@ -182,7 +182,7 @@ export function TrainingChat({
         }}
         className="mt-3"
       >
-        <div className="flex items-end gap-2 rounded-2xl border border-slate-300 bg-card px-3 py-2 shadow-sm transition focus-within:border-slate-400">
+        <div className="flex items-end gap-2 rounded-[1.75rem] bg-[#1b1b1e] py-2 pl-5 pr-2 ring-1 ring-inset ring-white/[0.08] transition focus-within:ring-white/20">
           <textarea
             ref={taRef}
             value={input}
@@ -201,13 +201,13 @@ export function TrainingChat({
               audience === 'coach' ? 'Message your coaching assistant...' : 'Message your coach... (Enter to send)'
             }
             disabled={pending}
-            className="max-h-40 flex-1 resize-none bg-transparent py-1 text-sm text-slate-800 outline-none placeholder:text-slate-400"
+            className="max-h-40 flex-1 resize-none bg-transparent py-2 text-[15px] text-white outline-none placeholder:text-slate-500"
           />
           <button
             type="submit"
             disabled={pending || !input.trim()}
             aria-label="Send"
-            className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-700 text-white transition hover:bg-sky-800 disabled:opacity-40"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#0a0a0b] transition hover:bg-slate-800 disabled:bg-white/10 disabled:text-slate-500"
           >
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 19V5M5 12l7-7 7 7" />

@@ -23,7 +23,7 @@ export function RunFeedbackCard({
     <div className={`rounded-2xl ${tone.bg} p-4 ring-1 ring-inset ${tone.ring}`}>
       <div className="flex items-center gap-2">
         <span className={`inline-block h-2 w-2 rounded-full ${tone.dot}`} />
-        <span className={`text-[11px] font-semibold uppercase tracking-wide ${tone.label}`}>Coach&rsquo;s take</span>
+        <span className={`text-xs font-medium ${tone.label}`}>Coach&rsquo;s take</span>
       </div>
       <p className="mt-1.5 text-base font-bold tracking-tight text-slate-900">{feedback.headline}</p>
       <p className={`mt-1 ${compact ? 'text-xs' : 'text-sm'} leading-relaxed text-slate-600`}>{feedback.detail}</p>

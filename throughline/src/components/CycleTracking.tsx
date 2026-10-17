@@ -135,7 +135,7 @@ export function CycleTracking({
           )}
           {status.upcoming.length > 0 && (
             <div className="mt-2 border-t border-rose-400/30 pt-2">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Projected next cycles</div>
+              <div className="text-xs font-medium text-slate-500">Projected next cycles</div>
               <ul className="mt-1 space-y-0.5 text-xs text-slate-600">
                 {status.upcoming.map((c) => (
                   <li key={c.start}>

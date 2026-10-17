@@ -38,7 +38,7 @@ export function RecoveryAdjustment({ athleteId, day, active = [] }: {
         </select>
       </label>
       <div className="mt-3 flex flex-wrap gap-2">
-        <button disabled={pending} onClick={() => choose('easy')} className="min-h-11 rounded-xl bg-lime-300 px-4 text-sm font-semibold text-[#10141f] disabled:opacity-50">{pending ? 'Updating…' : 'Make it easy'}</button>
+        <button disabled={pending} onClick={() => choose('easy')} className="min-h-11 rounded-xl bg-lime-300 px-4 text-sm font-semibold text-[#121214] disabled:opacity-50">{pending ? 'Updating…' : 'Make it easy'}</button>
         <button disabled={pending} onClick={() => choose('rest')} className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm font-semibold disabled:opacity-50">Take a recovery break</button>
       </div>
     </details>

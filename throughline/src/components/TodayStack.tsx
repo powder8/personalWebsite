@@ -44,9 +44,9 @@ export function TodayStack({ sessions, units }: { sessions: PortalSession[]; uni
   const summary = ordered.map((s) => EMOJI[s.discipline] ?? '•').join(' ');
 
   return (
-    <div className="rounded-3xl bg-gradient-to-br from-indigo-500/15 via-transparent to-transparent p-5 shadow-lg ring-1 ring-inset ring-indigo-400/25">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Your next step</div>
-      <h2 className="mt-1 flex items-center gap-2 text-xl font-extrabold tracking-tight text-white">
+    <div className="surface-hero rounded-3xl p-6">
+      <div className="text-xs font-medium text-slate-400">Your next step</div>
+      <h2 className="mt-1 flex items-center gap-2 text-xl font-semibold tracking-tight text-white">
         <span aria-hidden>{summary}</span>
         <span>Today: {ordered.length} sessions</span>
       </h2>

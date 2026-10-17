@@ -46,7 +46,7 @@ export default async function HealthPage({ params }: { params: Promise<{ id: str
           </svg>
           Back to training
         </Link>
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">· Health</span>
+        <span className="text-[13px] font-medium text-slate-400">· Health</span>
       </div>
 
       <div className="px-1">

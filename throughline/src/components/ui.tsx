@@ -68,10 +68,10 @@ export function Card({
   className?: string;
 }) {
   return (
-    <section className={`rounded-2xl border border-slate-200/70 bg-card p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ${className}`}>
+    <section className={`rounded-3xl bg-card p-5 ring-1 ring-inset ring-white/[0.06] sm:p-6 ${className}`}>
       {(title || action) && (
-        <div className="mb-3 flex items-center justify-between gap-2">
-          {title && <h2 className="text-sm font-semibold text-slate-700">{title}</h2>}
+        <div className="mb-4 flex items-center justify-between gap-3">
+          {title && <h2 className="text-[17px] font-semibold tracking-tight text-white">{title}</h2>}
           {action}
         </div>
       )}

@@ -161,7 +161,7 @@ export function GoalSetup({
           card sets cycling). Without it, a multisport athlete can't tell which
           sport the "miles" fields belong to. */}
       <div className="flex items-center gap-2">
-        <span className="inline-flex items-center gap-1 rounded-full bg-sky-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-300 ring-1 ring-inset ring-sky-400/30">
+        <span className="inline-flex items-center gap-1 rounded-full bg-sky-400/15 px-2 py-0.5 text-xs font-mediumr text-sky-300 ring-1 ring-inset ring-sky-400/30">
           🏃 Running goal
         </span>
       </div>
@@ -306,7 +306,7 @@ export function GoalSetup({
         <button
           type="submit"
           disabled={pending}
-          className="rounded bg-violet-700 px-4 py-2 text-sm font-medium text-white hover:bg-violet-800 disabled:opacity-50"
+          className="rounded-full bg-lime-300 px-5 py-2.5 text-sm font-semibold text-[#0a0a0b] transition hover:bg-lime-200 disabled:opacity-50"
         >
           {pending ? 'Building your plan...' : submitLabel ?? (hasGoal ? 'Update goal & rebuild plan' : 'Set goal & build my plan')}
         </button>

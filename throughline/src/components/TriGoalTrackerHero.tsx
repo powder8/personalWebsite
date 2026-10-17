@@ -24,11 +24,11 @@ const VERDICT_TONE: Record<FeasibilityVerdict, keyof typeof TONE> = {
   beyond_reach: 'risk',
 };
 const VERDICT_LABEL: Record<FeasibilityVerdict, string> = {
-  ahead: 'within reach',
-  on_track: 'on track',
-  stretch: 'a stretch',
-  unrealistic: 'a longer game',
-  beyond_reach: 'beyond reach',
+  ahead: 'Within reach',
+  on_track: 'On track',
+  stretch: 'A stretch',
+  unrealistic: 'A longer game',
+  beyond_reach: 'Beyond reach',
 };
 
 const EMOJI: Record<Discipline, string> = { swim: '🏊', bike: '🚴', run: '🏃' };
@@ -56,14 +56,14 @@ export function TriGoalTrackerHero({ tracker, progress }: { tracker: TriGoalTrac
   const t = TONE[VERDICT_TONE[f.verdict]];
 
   return (
-    <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 shadow-lg">
+    <div className="overflow-hidden rounded-3xl surface-hero p-6">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <div className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.text}`}>
+          <div className={`flex items-center gap-1.5 text-xs font-medium ${t.text}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${t.fill}`} />
             {tracker.goalName} · {VERDICT_LABEL[f.verdict]}
           </div>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-white">{f.headline}</h1>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">{f.headline}</h1>
           <p className="mt-1 text-sm text-slate-400">
             Target <span className="font-semibold tabular-nums text-white/80">{clock(f.targetFinishSeconds)}</span>
             {' · '}realistic on a normal build{' '}
@@ -72,10 +72,10 @@ export function TriGoalTrackerHero({ tracker, progress }: { tracker: TriGoalTrac
         </div>
         {tracker.daysAway >= 0 && (
           <div className="shrink-0 text-right">
-            <div className="text-5xl font-extrabold leading-none tracking-tight text-lime-300 tabular-nums">
+            <div className="text-5xl font-semibold leading-none tracking-tight text-lime-300 tabular-nums">
               {tracker.daysAway}
             </div>
-            <div className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">days to go</div>
+            <div className="mt-1 text-[13px] font-medium text-slate-400">days to go</div>
           </div>
         )}
       </div>
@@ -100,7 +100,7 @@ export function TriGoalTrackerHero({ tracker, progress }: { tracker: TriGoalTrac
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
                     {NAME[d]}
-                    <span className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-400 ring-1 ring-inset ring-white/15">
+                    <span className="rounded px-1.5 py-0.5 text-xs font-medium text-slate-400 ring-1 ring-inset ring-white/15">
                       not started
                     </span>
                   </div>
@@ -122,7 +122,7 @@ export function TriGoalTrackerHero({ tracker, progress }: { tracker: TriGoalTrac
                 <div className="flex items-center gap-2 text-sm font-semibold text-white">
                   {NAME[d]}
                   {binding && (
-                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${lt.text} ${lt.bar}`}>
+                    <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${lt.text} ${lt.bar}`}>
                       limiter
                     </span>
                   )}
@@ -150,7 +150,7 @@ export function TriGoalTrackerHero({ tracker, progress }: { tracker: TriGoalTrac
       {/* Trajectory: the fitness trend that decides whether you're closing on it. */}
       {progress && (
         <div className="mt-4 rounded-2xl bg-white/[0.04] p-3.5 ring-1 ring-inset ring-white/10">
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/50">Your trajectory</div>
+          <div className="mb-2 text-xs font-medium text-white/50">Your trajectory</div>
           <TrajectorySparkline progress={progress} />
         </div>
       )}

@@ -33,7 +33,7 @@ export function CalendarSubscribe({ athleteId }: { athleteId: string }) {
         <button
           type="button"
           onClick={subscribe}
-          className="rounded bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800"
+          className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#0a0a0b] transition hover:bg-slate-800"
         >
           Add to my calendar
         </button>

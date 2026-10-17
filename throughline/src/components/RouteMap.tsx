@@ -40,10 +40,10 @@ export function RouteMap({ polyline }: { polyline: string }) {
       <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Run route map">
         {/* subtle grid for spatial feel */}
         {Array.from({ length: 7 }, (_, i) => (
-          <line key={`v${i}`} x1={(i + 1) * (W / 8)} x2={(i + 1) * (W / 8)} y1={0} y2={H} stroke="#26304a" strokeWidth={1} />
+          <line key={`v${i}`} x1={(i + 1) * (W / 8)} x2={(i + 1) * (W / 8)} y1={0} y2={H} stroke="#2a2a2f" strokeWidth={1} />
         ))}
         {Array.from({ length: 3 }, (_, i) => (
-          <line key={`h${i}`} x1={0} x2={W} y1={(i + 1) * (H / 4)} y2={(i + 1) * (H / 4)} stroke="#26304a" strokeWidth={1} />
+          <line key={`h${i}`} x1={0} x2={W} y1={(i + 1) * (H / 4)} y2={(i + 1) * (H / 4)} stroke="#2a2a2f" strokeWidth={1} />
         ))}
         {/* route */}
         <path d={d} fill="none" stroke="#0f172a" strokeWidth={3.5} strokeLinejoin="round" strokeLinecap="round" opacity={0.15} transform="translate(0 2)" />

@@ -32,7 +32,7 @@ export function CrossTrainingCard({ summary, units }: { summary: CrossTrainingSu
     <div className="rounded-2xl bg-emerald-400/10 p-4 ring-1 ring-inset ring-emerald-400/20">
       <div className="flex items-center gap-2">
         <span className="text-lg">{icons}</span>
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
+        <span className="text-xs font-medium text-emerald-300">
           Cross-training · last 2 weeks
         </span>
       </div>

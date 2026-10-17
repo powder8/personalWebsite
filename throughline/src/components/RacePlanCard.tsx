@@ -39,15 +39,15 @@ export function RacePlanCard({ plan, athleteId }: { plan: RacePlan; athleteId: s
       {/* Target window, grounded in current fitness */}
       {plan.target && (
         <div className="rounded-2xl bg-slate-50 p-4">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          <div className="text-xs font-medium text-slate-500">
             Your target window · {plan.goal.distanceLabel ?? 'goal race'}
           </div>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold tracking-tight text-slate-900 tabular-nums">
+            <span className="text-3xl font-semibold tracking-tight text-slate-900 tabular-nums">
               {fmtTime(plan.target.stretchSeconds)}
             </span>
             <span className="text-lg font-semibold text-slate-400">-</span>
-            <span className="text-3xl font-extrabold tracking-tight text-slate-500 tabular-nums">
+            <span className="text-3xl font-semibold tracking-tight text-slate-500 tabular-nums">
               {fmtTime(plan.target.solidSeconds)}
             </span>
           </div>
@@ -66,7 +66,7 @@ export function RacePlanCard({ plan, athleteId }: { plan: RacePlan; athleteId: s
       {plan.feasibility && (
         <div className={`mt-3 rounded-2xl p-3 ring-1 ring-inset ${FEAS_TONE[plan.feasibility.verdict]}`}>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wide">{plan.feasibility.headline}</span>
+            <span className="text-xs font-medium">{plan.feasibility.headline}</span>
           </div>
           <p className="mt-1 text-xs leading-relaxed text-slate-600">{plan.feasibility.note}</p>
         </div>
@@ -75,7 +75,7 @@ export function RacePlanCard({ plan, athleteId }: { plan: RacePlan; athleteId: s
       {/* Tune-up race windows */}
       {plan.windows.length > 0 && (
         <div className="mt-4">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <div className="mb-2 text-[13px] font-medium text-slate-500">
             Warm-up races on the way
           </div>
           <ol className="space-y-2">

@@ -150,7 +150,7 @@ export function TriGoalSetup({
         </div>
         <a
           href={`/me/${athleteId}`}
-          className="inline-block rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-[#0c1018] transition hover:bg-lime-200"
+          className="inline-block rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-[#0a0a0b] transition hover:bg-lime-200"
         >
           Go to my plan →
         </a>
@@ -209,7 +209,7 @@ export function TriGoalSetup({
 
       {/* Anchors */}
       <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-inset ring-white/10">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Where your fitness is now</div>
+        <div className="text-[13px] font-medium text-slate-400">Where your fitness is now</div>
         <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
           Don&apos;t know your 10K time or FTP? Leave them blank. I&apos;ll start from a sensible estimate and sharpen
           your plan automatically as you log real runs and rides.
@@ -271,7 +271,7 @@ export function TriGoalSetup({
 
       {/* Real-world schedule */}
       <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-inset ring-white/10">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Your week (optional)</div>
+        <div className="text-[13px] font-medium text-slate-400">Your week (optional)</div>
         <p className="mt-1 mb-3 text-[11px] text-slate-500">
           I&apos;ll lay swim/bike/run onto the days you can actually train, swims only on pool days, the long ride+run on your long day.
         </p>
@@ -301,7 +301,7 @@ export function TriGoalSetup({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-full bg-lime-300 px-5 py-2.5 text-sm font-semibold text-[#0c1018] transition hover:bg-lime-200 disabled:opacity-50"
+        className="rounded-full bg-lime-300 px-5 py-2.5 text-sm font-semibold text-[#0a0a0b] transition hover:bg-lime-200 disabled:opacity-50"
       >
         {pending ? 'Building your plan...' : 'Build my triathlon plan'}
       </button>

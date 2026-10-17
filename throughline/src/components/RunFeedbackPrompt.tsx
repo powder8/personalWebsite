@@ -57,13 +57,13 @@ export function RunFeedbackPrompt({
 
   const chip = (active: boolean) =>
     `rounded-full px-3 py-1.5 text-sm font-medium ring-1 ring-inset transition ${
-      active ? 'bg-lime-300 text-[#0c1018] ring-lime-300' : 'bg-slate-800 text-slate-300 ring-slate-600 hover:bg-slate-700'
+      active ? 'bg-lime-300 text-[#0a0a0b] ring-lime-300' : 'bg-slate-800 text-slate-300 ring-slate-600 hover:bg-slate-700'
     }`;
 
   return (
-    <div className="rounded-2xl bg-[#11151f] p-4 ring-1 ring-inset ring-slate-700/50">
+    <div className="rounded-2xl bg-[#121214] p-4 ring-1 ring-inset ring-slate-700/50">
       <div className="flex items-center gap-2">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        <div className="text-xs font-medium text-slate-400">
           {existing ? 'Your note to your coach' : 'How did it feel?'}
         </div>
         {existing && (
@@ -88,7 +88,7 @@ export function RunFeedbackPrompt({
       </div>
 
       <div className="mt-3">
-        <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">Surface</div>
+        <div className="mb-1 text-xs font-medium text-slate-500">Surface</div>
         <div className="flex flex-wrap gap-2">
           {SURFACES.map((s) => (
             <button key={s} onClick={() => setSurface(surface === s ? null : s)} className={chip(surface === s)}>
@@ -110,7 +110,7 @@ export function RunFeedbackPrompt({
         <button
           onClick={save}
           disabled={pending || saved}
-          className="rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-[#0c1018] transition hover:bg-lime-200 disabled:opacity-50"
+          className="rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-[#0a0a0b] transition hover:bg-lime-200 disabled:opacity-50"
         >
           {saved ? 'Saved ✓' : pending ? 'Saving...' : existing ? 'Update note' : 'Send to coach'}
         </button>

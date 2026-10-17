@@ -84,7 +84,7 @@ function Spark({ t }: { t: HealthTrend }) {
 export function HealthTrackerCard({ trends, units }: { trends: HealthTrends; units: 'mi' | 'km' }) {
   if (trends.trends.length === 0) return null;
   return (
-    <section className="rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-5 shadow-lg">
+    <section className="rounded-3xl surface-hero p-5">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-bold tracking-tight text-white">Health tracker</h2>
         <span className="text-[11px] text-slate-500">last 7 days vs the month before · {trends.windowWeeks}-week trend</span>

@@ -1,10 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  /* Runna-style dark theme: near-black page, elevated dark cards, volt/lime
-     accents. Forms render dark natively via color-scheme. */
-  --background: #0a0d14;
-  --foreground: #e8ecf5;
+  /* Neutral near-black (no blue cast), one volt accent. Modeled on current
+     product design (Gemini, Revolut, ElevenLabs, Linear): flat surfaces,
+     hairline borders, big confident type, color only where it means something. */
+  --background: #0a0a0b;
+  --foreground: #ededef;
   color-scheme: dark;
 }
 
@@ -22,28 +23,146 @@
  *   - "bg-slate-50/100" surfaces become dark insets
  *   - "text-slate-700/800/900" body text becomes light
  *   - "text-slate-400/500" muted labels stay mid-gray (legible on dark)
- * `--color-card` is the elevated card surface (swept from bg-white).
+ * `--color-card` is the elevated card surface (swept from bg-white). True
+ * neutrals: the old navy-tinted scale is most of what read as dated.
  */
 @theme {
-  --color-card: #141927;
-  --color-slate-50: #0f1420;
-  --color-slate-100: #1a2133;
-  --color-slate-200: #273043;
-  --color-slate-300: #344056;
-  --color-slate-400: #8a93a9;
-  --color-slate-500: #99a3b8;
-  --color-slate-600: #b3bccd;
-  --color-slate-700: #cbd3e1;
-  --color-slate-800: #dfe5ef;
-  --color-slate-900: #eff2f8;
-  --color-slate-950: #f8fafc;
+  --color-card: #141416;
+  --color-slate-50: #111113;
+  --color-slate-100: #1b1b1e;
+  --color-slate-200: #27272b;
+  --color-slate-300: #34343a;
+  --color-slate-400: #8a8a93;
+  --color-slate-500: #9c9ca5;
+  --color-slate-600: #b4b4bc;
+  --color-slate-700: #cbcbd1;
+  --color-slate-800: #e1e1e5;
+  --color-slate-900: #f1f1f3;
+  --color-slate-950: #fafafa;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  /* Geist (loaded in layout.tsx) — was accidentally overridden by Arial, which
-     made the whole app render in a system font. */
+  /* Geist (loaded in layout.tsx). */
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01";
+}
+
+@layer base {
+/* Display type: tight tracking and balanced wrapping, like the references. */
+h1,
+h2,
+h3 {
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+}
+
+::selection {
+  background: rgb(190 242 100 / 0.3);
+}
+
+:focus-visible {
+  outline: 2px solid rgb(190 242 100 / 0.7);
+  outline-offset: 2px;
+}
+}
+
+/*
+ * The one hero surface (goal trackers, today's session, landing hero). Flat
+ * card with a faint volt glow in one corner instead of the old navy→indigo
+ * gradient. Tone variants keep the meaning (caution/positive) without a
+ * full-color wash.
+ */
+@utility surface-hero {
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgb(190 242 100 / 0.07), transparent 55%),
+    radial-gradient(90% 70% at 100% 100%, rgb(255 255 255 / 0.03), transparent 60%),
+    #151517;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.07);
+}
+@utility surface-hero-caution {
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgb(251 191 36 / 0.09), transparent 55%),
+    #151517;
+  box-shadow: inset 0 0 0 1px rgb(251 191 36 / 0.14);
+}
+@utility surface-hero-positive {
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgb(52 211 153 / 0.09), transparent 55%),
+    #151517;
+  box-shadow: inset 0 0 0 1px rgb(52 211 153 / 0.14);
+}
+
+/* Gentle entrance for tab panels. */
+@keyframes tl-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@utility animate-fade-up {
+  animation: tl-fade-up 220ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up {
+    animation: none;
+  }
+}
+
+@layer base {
+/*
+ * Disclosure rows: drop the browser's ▶ triangle for a quiet chevron on the
+ * right. Summaries that draw their own marker opt out with `list-none`.
+ */
+summary {
+  list-style: none;
+}
+summary::-webkit-details-marker {
+  display: none;
+}
+summary:not(.list-none) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+summary:not(.list-none)::after {
+  content: "";
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  background-color: currentColor;
+  opacity: 0.5;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+  transition: transform 160ms ease;
+}
+details[open] > summary:not(.list-none)::after {
+  transform: rotate(180deg);
+}
+
+/* Form controls: one consistent, softer field style across the app. */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="date"],
+input[type="time"],
+input:not([type]),
+select,
+textarea {
+  border-radius: 0.75rem;
+}
+input[type="range"] {
+  accent-color: #bef264;
+}
 }

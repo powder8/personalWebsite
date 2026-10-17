@@ -69,13 +69,13 @@ function MultiSportTimeChart({ timeByWeek, sports }: { timeByWeek: WeekTime[]; s
 
   return (
     <div>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Weekly training time by sport</h3>
+      <h3 className="mb-2 text-[13px] font-medium text-slate-500">Weekly training time by sport</h3>
       <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Weekly training time by sport, last 12 weeks">
         {ticks.map((t) => {
           const y = plotBottom - t * plotHeight;
           return (
             <g key={t}>
-              <line x1={PAD_L} x2={W - padR} y1={y} y2={y} stroke="#26304a" strokeWidth={1} />
+              <line x1={PAD_L} x2={W - padR} y1={y} y2={y} stroke="#2a2a2f" strokeWidth={1} />
               <text x={PAD_L - 4} y={y + 3} textAnchor="end" className="fill-slate-400" fontSize={9}>
                 {Math.round(t * topHours)}
               </text>
@@ -179,7 +179,7 @@ export function WeeklyVolumeChart({ summary, runLinkBase, units }: { summary: Tr
             const y = plotBottom - t * plotHeight;
             return (
               <g key={t}>
-                <line x1={PAD_L} x2={W - padR} y1={y} y2={y} stroke="#26304a" strokeWidth={1} />
+                <line x1={PAD_L} x2={W - padR} y1={y} y2={y} stroke="#2a2a2f" strokeWidth={1} />
                 <text x={PAD_L - 4} y={y + 3} textAnchor="end" className="fill-slate-400" fontSize={9}>
                   {Math.round(t * distanceValue(milesTop * 1609.344, units))}
                 </text>
@@ -246,12 +246,12 @@ export function WeeklyVolumeChart({ summary, runLinkBase, units }: { summary: Tr
 
       {/* Labeled efforts table */}
       <div>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <h3 className="mb-2 text-[13px] font-medium text-slate-500">
           Workouts, long runs &amp; races
         </h3>
         {efforts.length ? (
           <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wide text-slate-400">
+            <thead className="text-left text-[13px] text-slate-400">
               <tr>
                 <th className="py-1 font-medium">Date</th>
                 <th className="py-1 font-medium">Type</th>
