@@ -1,13 +1,15 @@
 /**
  * POST /api/athletes/[id]/ftp — update the athlete's cycling FTP and re-tune the
- * future rides in one shot (no full plan regeneration). Body: { ftpWatts: number }.
- * Returns the new FTP + how many rides were re-tuned.
+ * future rides in one shot (no full plan regeneration). Body: { ftpWatts: number }
+ * pins an entered FTP; { mode: 'auto' } hands it back to ride power and
+ * re-estimates now. Returns the FTP + how many rides were re-tuned.
  */
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { setAthleteFtp } from '@/server/bikeAdjust';
 import { todayISO } from '@/server/console';
 import { guardAthleteWrite } from '@/server/apiAccess';
+import { ensureAutoFtp, trackFtpFromRides } from '@/server/autoFtp';
 
 export const runtime = 'nodejs';
 
@@ -16,11 +18,21 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const denied = await guardAthleteWrite(id);
   if (denied) return denied;
 
-  let body: { ftpWatts?: unknown };
+  let body: { ftpWatts?: unknown; mode?: unknown };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
+  }
+  if (body.mode === 'auto') {
+    try {
+      const db = await getDb();
+      await trackFtpFromRides(db, id);
+      const res = await ensureAutoFtp(db, id, { today: todayISO() });
+      return NextResponse.json({ ok: true, mode: 'auto', status: res.status, ftpWatts: res.ftpWatts, updatedSessions: res.updatedSessions ?? 0 });
+    } catch (e) {
+      return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });
+    }
   }
   const ftpWatts = Number(body.ftpWatts);
   if (!(ftpWatts > 0) || ftpWatts > 600) {

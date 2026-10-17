@@ -9,11 +9,13 @@
  *
  * Returns 200 fast; Strava retries on non-2xx and disables slow endpoints.
  */
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { getDb } from '@/db';
 import { getProvider } from '@/providers';
 import { stravaEnv } from '@/providers/strava/env';
 import { athleteIdForStravaOwner, fetchAndIngestActivityById } from '@/server/strava';
+import { ensureAutoFtp } from '@/server/autoFtp';
+import { todayISO } from '@/server/console';
 
 export const runtime = 'nodejs';
 
@@ -45,6 +47,7 @@ export async function POST(req: Request) {
 
   const db = await getDb();
   let handled = 0;
+  const touched = new Set<string>();
   for (const item of inbound) {
     const e = item.payload as { object_id?: number; aspect_type?: string };
     if (e.aspect_type === 'delete') continue; // we keep history; ignore deletes for now
@@ -54,9 +57,23 @@ export async function POST(req: Request) {
     try {
       await fetchAndIngestActivityById(db, athleteId, e.object_id);
       handled++;
+      touched.add(athleteId);
     } catch {
       /* swallow: respond 200 so Strava doesn't disable the endpoint */
     }
+  }
+  // A new ride may move the FTP. That costs a few Strava calls, so it runs
+  // after the response (Strava wants a fast 200); throttled inside.
+  if (touched.size) {
+    after(async () => {
+      for (const athleteId of touched) {
+        try {
+          await ensureAutoFtp(db, athleteId, { today: todayISO() });
+        } catch {
+          /* best-effort */
+        }
+      }
+    });
   }
   return NextResponse.json({ handled }, { status: 200 });
 }

@@ -78,6 +78,16 @@ export interface AthletePowerConfig {
   goalElevationGainMeters?: number; // the goal race's total climbing (with distance → time feasibility)
   // --- provenance (identical semantics to paceConfig.anchorSource) ---
   anchorSource?: 'auto' | 'manual';
+  /**
+   * What the FTP number rests on: a body-mass 'starter' guess, the athlete's
+   * own 'rides' (best 20-min power), or a 'manual' entry. Unset + auto is a
+   * legacy starter guess.
+   */
+  ftpBasis?: 'starter' | 'rides' | 'manual';
+  /** The ride-power estimate behind an auto FTP (for "updated from your rides"). */
+  ftpEstimate?: { confidence: 'high' | 'medium' | 'low'; sampleSize: number; on: string };
+  /** Last time the rides were checked for a new FTP (ISO instant; throttles Strava calls). */
+  autoFtpCheckedAt?: string;
   // --- per-athlete overrides layered on the global model ---
   bandOverrides?: Partial<PowerZoneModel>; // custom %FTP bands
   zoneOverrides?: Partial<Record<PowerZoneKey, PowerZoneOverride>>; // final watt nudges
