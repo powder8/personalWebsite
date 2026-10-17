@@ -6,7 +6,7 @@ import { countActiveEscalations } from "@/server/escalations";
 import { countOpenFeedback } from "@/server/feedback";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { Analytics } from "@/components/Analytics";
-import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
+import { VercelAnalyticsMasked } from "@/components/VercelAnalyticsMasked";
 import { auth, signOut } from "@/auth";
 import { authConfigured } from "@/auth.config";
 import "./globals.css";
@@ -189,7 +189,7 @@ export default async function RootLayout({
           }}
         />
         <Analytics />
-        <VercelAnalytics />
+        <VercelAnalyticsMasked />
       </body>
     </html>
   );

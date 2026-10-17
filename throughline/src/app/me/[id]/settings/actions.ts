@@ -4,6 +4,7 @@
  * step). Only the athlete themself, or an admin, may delete an account; the
  * typed confirmation guards against a stray click.
  */
+import { redirect } from 'next/navigation';
 import { auth, signOut } from '@/auth';
 import { authConfigured } from '@/auth.config';
 import { getDb } from '@/db';
@@ -29,7 +30,8 @@ export async function deleteMyAccount(athleteId: string, _prev: DeleteState, for
     console.error('[delete-account]', e instanceof Error ? e.message : e);
     return { error: 'We could not delete your account. Try again, or contact us.' };
   }
-  // Your session pointed at the deleted account: end it.
+  // Your session pointed at the deleted account: end it. (An admin deleting
+  // someone else's account just leaves the now-missing page.)
   if (isSelf && authConfigured()) await signOut({ redirectTo: '/?account=deleted' });
-  return {};
+  redirect('/?account=deleted');
 }
