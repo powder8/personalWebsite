@@ -32,7 +32,7 @@ export default async function FeedbackPage() {
       {rows.length === 0 ? (
         <Card>
           <p className="text-sm text-slate-500">
-            No feedback yet. Heather can use the 💬 button (bottom-right) on any page.
+            No feedback yet. Anyone signed in can send feedback with the chat button in the bottom-right corner of any page.
           </p>
         </Card>
       ) : (

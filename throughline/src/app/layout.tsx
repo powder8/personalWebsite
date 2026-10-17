@@ -172,7 +172,9 @@ export default async function RootLayout({
           </div>
         </header>
         <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-6">{children}</main>
-        <FeedbackWidget />
+        {/* Signed-out visitors can't post feedback (the API needs a session), so
+            the landing and sign-in pages don't offer it. */}
+        {!signedOut && <FeedbackWidget sentAs={session?.user?.name || session?.user?.email || null} />}
         {/* GoatCounter (shared badoo.goatcounter.com). Server-rendered inline so
             it's in the SSR HTML and runs on first load: set the UUID-masking
             path filter, then inject count.js. SPA navigations are counted by

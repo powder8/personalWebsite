@@ -4,7 +4,11 @@ import { useState } from 'react';
 
 const CATEGORIES = ['plans', 'paces', 'races', 'readiness', 'ui', 'bug', 'idea', 'other'];
 
-export function FeedbackWidget() {
+/**
+ * `sentAs` is shown, not submitted: the server records the signed-in user as
+ * the author and ignores any name in the request.
+ */
+export function FeedbackWidget({ sentAs }: { sentAs?: string | null }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
@@ -20,7 +24,6 @@ export function FeedbackWidget() {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          author: String(fd.get('author') || 'Heather'),
           category: String(fd.get('category') || ''),
           body: String(fd.get('body') || ''),
           path: typeof window !== 'undefined' ? window.location.pathname : '',
@@ -54,20 +57,16 @@ export function FeedbackWidget() {
             </button>
           </div>
           {done ? (
-            <p className="py-4 text-center text-sm text-emerald-300">Thanks, sent! 🙌</p>
+            <p className="py-4 text-center text-sm text-emerald-300">Thanks. We got your feedback.</p>
           ) : (
             <form onSubmit={onSubmit} className="space-y-2">
               <p className="text-xs text-slate-500">
-                What would you change here? Captured with the page you’re on.
+                What would you change on this page? We save the page address with your note.
               </p>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="text-xs text-slate-600">
-                  Name
-                  <input name="author" defaultValue="Heather" className={field} />
-                </label>
-                <label className="text-xs text-slate-600">
+              <div>
+                <label className="block text-xs text-slate-600">
                   Topic
-                  <select name="category" defaultValue="plans" className={field}>
+                  <select name="category" defaultValue="ui" className={field}>
                     {CATEGORIES.map((c) => (
                       <option key={c}>{c}</option>
                     ))}
@@ -85,6 +84,7 @@ export function FeedbackWidget() {
               >
                 {pending ? 'Sending...' : 'Send feedback'}
               </button>
+              {sentAs && <p className="text-center text-xs text-slate-500">Sent as {sentAs}</p>}
               {err && <p className="text-xs text-rose-600">{err}</p>}
             </form>
           )}
