@@ -34,7 +34,7 @@ export function FileUploadForm() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <label className="text-xs text-slate-600">
           Athlete name
-          <input name="name" required placeholder="Heather Tanner" className={field} />
+          <input name="name" required placeholder="Athlete name" className={field} />
         </label>
         <label className="text-xs text-slate-600">
           Email (unique id)

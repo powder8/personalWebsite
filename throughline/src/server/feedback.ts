@@ -19,7 +19,7 @@ export async function createFeedback(db: DB, input: NewFeedback): Promise<void> 
   const body = (input.body ?? '').trim();
   if (!body) throw new Error('Feedback body is required.');
   await db.insert(feedback).values({
-    author: (input.author ?? 'Heather').trim() || 'Heather',
+    author: (input.author ?? 'Anonymous').trim() || 'Anonymous',
     path: input.path ?? null,
     category: input.category ?? null,
     body,

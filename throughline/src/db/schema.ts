@@ -335,7 +335,7 @@ export const feedback = pgTable(
   'feedback',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    author: text('author').notNull().default('Heather'),
+    author: text('author').notNull().default('Anonymous'),
     path: text('path'), // page the feedback was left on
     category: text('category'), // 'plans' | 'paces' | 'races' | 'ui' | 'bug' | 'idea' | …
     body: text('body').notNull(),
