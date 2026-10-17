@@ -7,6 +7,8 @@
  */
 import { and, desc, eq, like, sql } from 'drizzle-orm';
 import type { DB } from '@/db';
+import { sealToken } from './tokenCrypto';
+import { openAccountTokens } from './connectedAccountTokens';
 import { connectedAccounts, rawEvents, activities } from '@/db/schema';
 import { strava, normalizeActivity, type StravaActivity } from '@/providers/strava';
 import { stravaEnv } from '@/providers/strava/env';
@@ -37,7 +39,8 @@ export async function getStravaAccount(db: DB, athleteId: string): Promise<Strav
     .from(connectedAccounts)
     .where(and(eq(connectedAccounts.athleteId, athleteId), eq(connectedAccounts.provider, 'strava')))
     .limit(1);
-  return acct ?? null;
+  if (!acct) return null;
+  return openAccountTokens(db, acct);
 }
 
 /** Upsert tokens from a completed OAuth exchange. */
@@ -53,8 +56,8 @@ export async function saveStravaTokens(
       athleteId,
       provider: 'strava',
       providerUserId: tokens.providerUserId,
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken ?? null,
+      accessToken: sealToken(tokens.accessToken),
+      refreshToken: sealToken(tokens.refreshToken ?? null),
       tokenExpiresAt: tokens.expiresAt ?? null,
       scopes: tokens.scopes ?? null,
       status: 'active',
@@ -65,8 +68,8 @@ export async function saveStravaTokens(
       target: [connectedAccounts.provider, connectedAccounts.providerUserId],
       set: {
         athleteId,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken ?? null,
+        accessToken: sealToken(tokens.accessToken),
+        refreshToken: sealToken(tokens.refreshToken ?? null),
         tokenExpiresAt: tokens.expiresAt ?? null,
         scopes: tokens.scopes ?? null,
         status: 'active',
@@ -87,8 +90,8 @@ async function ensureAccessToken(db: DB, acct: StravaAccount): Promise<string> {
   await db
     .update(connectedAccounts)
     .set({
-      accessToken: refreshed.accessToken,
-      refreshToken: refreshed.refreshToken ?? acct.refreshToken,
+      accessToken: sealToken(refreshed.accessToken),
+      refreshToken: sealToken(refreshed.refreshToken ?? acct.refreshToken),
       tokenExpiresAt: refreshed.expiresAt ?? null,
       status: 'active',
       updatedAt: new Date(),

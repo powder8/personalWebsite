@@ -8,6 +8,8 @@
  */
 import { and, eq, sql } from 'drizzle-orm';
 import type { DB } from '@/db';
+import { sealToken } from './tokenCrypto';
+import { openAccountTokens } from './connectedAccountTokens';
 import {
   activities,
   connectedAccounts,
@@ -46,7 +48,8 @@ export async function getWhoopAccount(db: DB, athleteId: string): Promise<WhoopA
     .from(connectedAccounts)
     .where(and(eq(connectedAccounts.athleteId, athleteId), eq(connectedAccounts.provider, 'whoop')))
     .limit(1);
-  return acct ?? null;
+  if (!acct) return null;
+  return openAccountTokens(db, acct);
 }
 
 export async function saveWhoopTokens(
@@ -61,8 +64,8 @@ export async function saveWhoopTokens(
       athleteId,
       provider: 'whoop',
       providerUserId: tokens.providerUserId,
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
+      accessToken: sealToken(tokens.accessToken),
+      refreshToken: sealToken(tokens.refreshToken),
       tokenExpiresAt: tokens.expiresAt,
       scopes: tokens.scopes,
       status: 'active',
@@ -73,8 +76,8 @@ export async function saveWhoopTokens(
       target: [connectedAccounts.provider, connectedAccounts.providerUserId],
       set: {
         athleteId,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
+        accessToken: sealToken(tokens.accessToken),
+        refreshToken: sealToken(tokens.refreshToken),
         tokenExpiresAt: tokens.expiresAt,
         scopes: tokens.scopes,
         status: 'active',
@@ -94,8 +97,8 @@ async function ensureAccessToken(db: DB, acct: WhoopAccount): Promise<string> {
   await db
     .update(connectedAccounts)
     .set({
-      accessToken: refreshed.accessToken,
-      refreshToken: refreshed.refreshToken ?? acct.refreshToken,
+      accessToken: sealToken(refreshed.accessToken),
+      refreshToken: sealToken(refreshed.refreshToken ?? acct.refreshToken),
       tokenExpiresAt: refreshed.expiresAt ?? null,
       status: 'active',
       updatedAt: new Date(),

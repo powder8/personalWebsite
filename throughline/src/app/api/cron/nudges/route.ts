@@ -10,6 +10,8 @@ import { NextResponse } from 'next/server';
 import { createHash, timingSafeEqual } from 'crypto';
 import { runNudges } from '@/server/nudges';
 import { runMonitor } from '@/server/monitor';
+import { sealLegacyTokens } from '@/server/connectedAccountTokens';
+import { getDb } from '@/db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,9 +41,11 @@ export async function GET(req: Request) {
   try {
     // Adapt the schedule to recovery/layoff signals BEFORE nudging, so any
     // message reflects the just-adjusted plan.
+    // Housekeeping: encrypt any token stored before encryption existed.
+    const tokensSealed = dryRun ? 0 : await sealLegacyTokens(await getDb()).catch(() => 0);
     const monitor = await runMonitor({ dryRun });
     const nudges = await runNudges({ dryRun, now });
-    return NextResponse.json({ ok: true, dryRun, monitor, nudges });
+    return NextResponse.json({ ok: true, dryRun, monitor, nudges, tokensSealed });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 500 });
   }
