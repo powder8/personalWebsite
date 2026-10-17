@@ -9,6 +9,7 @@ import { getDb } from '@/db';
 import { guardAthleteWrite } from '@/server/apiAccess';
 import { parseStravaRouteId } from '@/lib/stravaRoute';
 import { fetchStravaRoute } from '@/server/strava';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -34,6 +35,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const stats = await fetchStravaRoute(db, id, routeId);
     return NextResponse.json({ ok: true, ...stats });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Lookup failed.' }, { status: 422 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Lookup failed.') }, { status: 422 });
   }
 }

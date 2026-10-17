@@ -1,11 +1,10 @@
 import Link from 'next/link';
-import { redirect, notFound } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { auth, signOut } from '@/auth';
 import { authConfigured } from '@/auth.config';
 import { getAthletePortal } from '@/server/portal';
 import { getTrainingInsights } from '@/server/insights';
 import { Card } from '@/components/ui';
-import { secPerKmToMinPerMile } from '@/engine/plan';
 import { ConnectStrava } from '@/components/ConnectStrava';
 import { ConnectWhoop } from '@/components/ConnectWhoop';
 import { ConnectGarmin } from '@/components/ConnectGarmin';
@@ -44,9 +43,6 @@ import { athleteToday } from '@/server/athleteToday';
 
 export const dynamic = 'force-dynamic';
 
-function pace(sec: number | null): string {
-  return sec == null ? '' : `${secPerKmToMinPerMile(sec)}/mi`;
-}
 
 export default async function SettingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

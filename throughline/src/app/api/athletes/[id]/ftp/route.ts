@@ -10,6 +10,7 @@ import { athleteToday } from '@/server/athleteToday';
 import { setAthleteFtp } from '@/server/bikeAdjust';
 import { guardAthleteWrite } from '@/server/apiAccess';
 import { ensureAutoFtp, trackFtpFromRides } from '@/server/autoFtp';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -31,7 +32,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       const res = await ensureAutoFtp(db, id, { today: (await athleteToday(id)) });
       return NextResponse.json({ ok: true, mode: 'auto', status: res.status, ftpWatts: res.ftpWatts, updatedSessions: res.updatedSessions ?? 0 });
     } catch (e) {
-      return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });
+      return NextResponse.json({ error: publicErrorMessage(e, 'Failed.') }, { status: 422 });
     }
   }
   const ftpWatts = Number(body.ftpWatts);
@@ -43,6 +44,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const res = await setAthleteFtp(db, id, ftpWatts, { today: (await athleteToday(id)) });
     return NextResponse.json({ ok: true, ftpWatts: res.ftpWatts, updatedSessions: res.updatedSessions });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Failed.') }, { status: 422 });
   }
 }

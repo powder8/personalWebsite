@@ -9,6 +9,7 @@ import { guardAthleteWrite } from '@/server/apiAccess';
 import { consumeRateLimit } from '@/server/rateLimit';
 import { auth } from '@/auth';
 import { authConfigured } from '@/auth.config';
+import { publicErrorMessage } from '@/lib/publicError';
 
 /** Each call is a paid model request: cap volume per athlete and input size. */
 const CHAT_RATE = [
@@ -61,6 +62,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const { reply, actions } = await askTrainingQuestion(db, id, messages, { audience });
     return NextResponse.json({ ok: true, reply, actions });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Chat failed.' }, { status: 422 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Chat failed.') }, { status: 422 });
   }
 }

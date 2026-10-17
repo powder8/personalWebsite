@@ -5,7 +5,7 @@ import { buildTimeByWeek } from '../weeklyVolumeLogic';
 const WEEKS = ['2026-08-03', '2026-08-10', '2026-08-17'];
 
 test('minutes bucket into their week by sport', () => {
-  const { byWeek, sports } = buildTimeByWeek(
+  const { byWeek } = buildTimeByWeek(
     [
       { weekStart: '2026-08-10', sport: 'bike', minutes: 90 },
       { weekStart: '2026-08-10', sport: 'bike', minutes: 30 },

@@ -20,6 +20,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { getDb } from '@/db';
 import { whoopEnv } from '@/providers/whoop/env';
 import { athleteIdForWhoopUser, deleteWhoopWorkout, syncWhoopData } from '@/server/whoop';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
     await syncWhoopData(db, athleteId, 3);
     return NextResponse.json({ ok: true });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Sync failed.';
+    const msg = publicErrorMessage(e, 'Sync failed.');
     console.error('[whoop-webhook]', msg);
     // Acknowledge receipt even on error so WHOOP doesn't hammer retries against
     // a transient failure; the next event (or manual sync) will reconcile.

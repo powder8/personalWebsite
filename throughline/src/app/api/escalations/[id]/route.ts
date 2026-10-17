@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { getEscalationAthleteId, setEscalationStatus, type EscalationStatus } from '@/server/escalations';
 import { guardAthleteConsole } from '@/server/apiAccess';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -32,6 +33,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     await setEscalationStatus(db, id, status);
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Failed.') }, { status: 422 });
   }
 }

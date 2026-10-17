@@ -10,6 +10,7 @@ import { ensureAutoAnchor } from '@/server/anchor';
 import { ensureAutoFtp } from '@/server/autoFtp';
 import { judgeUnjudgedActivities } from '@/server/activityJudgment';
 import { guardAthleteWrite } from '@/server/apiAccess';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // each call processes a bounded chunk; client loops until done
@@ -58,6 +59,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Sync failed.' }, { status: 422 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Sync failed.') }, { status: 422 });
   }
 }

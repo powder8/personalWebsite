@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { syncWhoopData } from '@/server/whoop';
 import { guardAthleteWrite } from '@/server/apiAccess';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -20,7 +21,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     const result = await syncWhoopData(db, athleteId, 30);
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
-    const error = e instanceof Error ? e.message : 'Sync failed.';
+    const error = publicErrorMessage(e, 'Sync failed.');
     return NextResponse.json({ ok: false, error }, { status: 500 });
   }
 }

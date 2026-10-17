@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { guardAthleteWrite } from '@/server/apiAccess';
 import { estimateFtpFromStrava } from '@/server/strava';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -20,6 +21,6 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     const est = await estimateFtpFromStrava(db, id);
     return NextResponse.json({ ok: true, ...(est ?? { ftpWatts: null }) });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Estimate failed.' }, { status: 422 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Estimate failed.') }, { status: 422 });
   }
 }

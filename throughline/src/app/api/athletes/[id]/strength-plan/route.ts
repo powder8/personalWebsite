@@ -8,6 +8,7 @@ import { getDb } from '@/db';
 import { athleteToday } from '@/server/athleteToday';
 import { setupSupportingStrength } from '@/server/strengthSeason';
 import { guardAthleteWrite } from '@/server/apiAccess';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -32,6 +33,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const res = await setupSupportingStrength(db, id, (await athleteToday(id)), { daysPerWeek });
     return NextResponse.json({ ok: true, ...res });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Failed.') }, { status: 422 });
   }
 }

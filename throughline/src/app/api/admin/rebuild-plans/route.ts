@@ -17,6 +17,7 @@ import { getDb } from '@/db';
 import { athletes, plans } from '@/db/schema';
 import { ensureSeasonCoverage } from '@/server/seasonCoverage';
 import { todayISO } from '@/server/console';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -56,7 +57,7 @@ export async function POST() {
       const r = await ensureSeasonCoverage(db, a.id, today);
       results.push({ name: a.name, status: r.status, generated: r.generated, published: r.published });
     } catch (e) {
-      results.push({ name: a.name, error: e instanceof Error ? e.message : 'failed' });
+      results.push({ name: a.name, error: publicErrorMessage(e, 'failed') });
     }
   }
 

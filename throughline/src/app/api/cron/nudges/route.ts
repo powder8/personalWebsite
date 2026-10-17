@@ -12,6 +12,7 @@ import { runNudges } from '@/server/nudges';
 import { runMonitor } from '@/server/monitor';
 import { sealLegacyTokens } from '@/server/connectedAccountTokens';
 import { getDb } from '@/db';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -47,7 +48,7 @@ export async function GET(req: Request) {
     const nudges = await runNudges({ dryRun, now });
     return NextResponse.json({ ok: true, dryRun, monitor, nudges, tokensSealed });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 500 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Failed.') }, { status: 500 });
   }
 }
 

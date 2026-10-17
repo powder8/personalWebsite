@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { editSession, getSessionAthleteId, type SessionEdits, type OverrideReason } from '@/server/sessionEdit';
 import { guardAthleteConsole } from '@/server/apiAccess';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -43,6 +44,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     await editSession(db, id, body.edits ?? {}, { reasonCode, note: body.note });
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Failed.') }, { status: 422 });
   }
 }

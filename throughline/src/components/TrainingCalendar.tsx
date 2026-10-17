@@ -222,7 +222,7 @@ export function TrainingCalendar({
 
 function Week({
   week,
-  today,
+  today: _today,
   expanded,
   toggle,
   athleteId,

@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server';
 import { saveRunFeedback, type RunFeedbackInput } from '@/server/runDebrief';
 import { guardAthleteWrite } from '@/server/apiAccess';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -24,6 +25,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string; ac
     await saveRunFeedback(id, activityId, body);
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Failed.') }, { status: 422 });
   }
 }
