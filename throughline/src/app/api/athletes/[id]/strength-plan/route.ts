@@ -5,8 +5,8 @@
  */
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
+import { athleteToday } from '@/server/athleteToday';
 import { setupSupportingStrength } from '@/server/strengthSeason';
-import { todayISO } from '@/server/console';
 import { guardAthleteWrite } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
@@ -29,7 +29,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   try {
     const db = await getDb();
-    const res = await setupSupportingStrength(db, id, todayISO(), { daysPerWeek });
+    const res = await setupSupportingStrength(db, id, (await athleteToday(id)), { daysPerWeek });
     return NextResponse.json({ ok: true, ...res });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });

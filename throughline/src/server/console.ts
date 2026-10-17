@@ -38,20 +38,9 @@ import {
   activities,
 } from '@/db/schema';
 
-/**
- * The app's "today" (YYYY-MM-DD), computed per call in the app timezone —
- * APP_TIMEZONE env, default Europe/London. Overridable with APP_TODAY for
- * demos/tests (this is how the original seeded-demo date worked).
- */
-export function todayISO(): string {
-  if (process.env.APP_TODAY) return process.env.APP_TODAY;
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: process.env.APP_TIMEZONE || 'Europe/London',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
-}
+// Pure date helpers live in lib/today (importable from tests).
+import { todayISO } from '@/lib/today';
+export { todayISO, todayForTimezone } from '@/lib/today';
 
 export type Band = 'easy' | 'normal' | 'go';
 

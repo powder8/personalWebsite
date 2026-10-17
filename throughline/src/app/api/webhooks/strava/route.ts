@@ -15,7 +15,7 @@ import { getProvider } from '@/providers';
 import { stravaEnv } from '@/providers/strava/env';
 import { athleteIdForStravaOwner, fetchAndIngestActivityById } from '@/server/strava';
 import { ensureAutoFtp } from '@/server/autoFtp';
-import { todayISO } from '@/server/console';
+import { athleteToday } from '@/server/athleteToday';
 
 export const runtime = 'nodejs';
 
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
     after(async () => {
       for (const athleteId of touched) {
         try {
-          await ensureAutoFtp(db, athleteId, { today: todayISO() });
+          await ensureAutoFtp(db, athleteId, { today: await athleteToday(athleteId) });
         } catch {
           /* best-effort */
         }

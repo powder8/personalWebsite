@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
+import { safeCallbackPath } from '@/lib/safeRedirect';
 import { signIn, auth } from '@/auth';
 import { authConfigured } from '@/auth.config';
 
@@ -14,7 +16,11 @@ export default async function SignInPage({
 }: {
   searchParams: Promise<{ callbackUrl?: string; error?: string }>;
 }) {
-  const { callbackUrl, error } = await searchParams;
+  const { callbackUrl: rawCallback, error } = await searchParams;
+  // Only same-site paths: an absolute or protocol-relative URL here would be an
+  // open redirect (a signed-in user bounced straight to another site).
+  const host = (await headers()).get('host');
+  const callbackUrl = safeCallbackPath(rawCallback, host);
 
   if (!authConfigured()) {
     return (

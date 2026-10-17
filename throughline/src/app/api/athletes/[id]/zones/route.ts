@@ -4,8 +4,8 @@
  */
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
+import { athleteToday } from '@/server/athleteToday';
 import { adjustAthleteZones } from '@/server/paceAdjust';
-import { todayISO } from '@/server/console';
 import type { ZoneKey } from '@/engine/plan';
 import { guardAthleteWrite } from '@/server/apiAccess';
 
@@ -32,7 +32,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
   try {
     const db = await getDb();
-    const result = await adjustAthleteZones(db, id, deltas, { today: todayISO() });
+    const result = await adjustAthleteZones(db, id, deltas, { today: (await athleteToday(id)) });
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });

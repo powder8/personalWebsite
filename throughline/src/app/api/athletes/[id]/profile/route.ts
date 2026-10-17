@@ -20,14 +20,19 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const denied = await guardAthleteWrite(id);
   if (denied) return denied;
 
-  let body: { dateOfBirth?: string | null; sex?: string };
+  let body: { dateOfBirth?: string | null; sex?: string; timezone?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
-  const set: { dateOfBirth?: string | null; sex?: string; updatedAt: Date } = { updatedAt: new Date() };
+  const set: { dateOfBirth?: string | null; sex?: string; timezone?: string; updatedAt: Date } = { updatedAt: new Date() };
+  if (body.timezone != null) {
+    const tz = String(body.timezone);
+    if (!isValidTimeZone(tz)) return NextResponse.json({ error: 'Unknown timezone.' }, { status: 400 });
+    set.timezone = tz;
+  }
   if ('dateOfBirth' in body) {
     const dob = body.dateOfBirth ? String(body.dateOfBirth) : null;
     if (dob != null && !DATE_RE.test(dob)) {
@@ -46,5 +51,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });
+  }
+}
+
+/** A real IANA zone name ("America/New_York"), as Intl understands it. */
+function isValidTimeZone(tz: string): boolean {
+  if (!tz || tz.length > 64) return false;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
   }
 }

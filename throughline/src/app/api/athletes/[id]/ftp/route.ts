@@ -6,8 +6,8 @@
  */
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
+import { athleteToday } from '@/server/athleteToday';
 import { setAthleteFtp } from '@/server/bikeAdjust';
-import { todayISO } from '@/server/console';
 import { guardAthleteWrite } from '@/server/apiAccess';
 import { ensureAutoFtp, trackFtpFromRides } from '@/server/autoFtp';
 
@@ -28,7 +28,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     try {
       const db = await getDb();
       await trackFtpFromRides(db, id);
-      const res = await ensureAutoFtp(db, id, { today: todayISO() });
+      const res = await ensureAutoFtp(db, id, { today: (await athleteToday(id)) });
       return NextResponse.json({ ok: true, mode: 'auto', status: res.status, ftpWatts: res.ftpWatts, updatedSessions: res.updatedSessions ?? 0 });
     } catch (e) {
       return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });
@@ -40,7 +40,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
   try {
     const db = await getDb();
-    const res = await setAthleteFtp(db, id, ftpWatts, { today: todayISO() });
+    const res = await setAthleteFtp(db, id, ftpWatts, { today: (await athleteToday(id)) });
     return NextResponse.json({ ok: true, ftpWatts: res.ftpWatts, updatedSessions: res.updatedSessions });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });

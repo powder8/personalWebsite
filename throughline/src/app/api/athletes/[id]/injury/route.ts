@@ -10,7 +10,7 @@
  */
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
-import { todayISO } from '@/server/console';
+import { athleteToday } from '@/server/athleteToday';
 import { reportInjury, resumeInjury, pushCheckBack, clearInjury } from '@/server/injury';
 import { guardAthleteWrite } from '@/server/apiAccess';
 
@@ -36,7 +36,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   const db = await getDb();
-  const today = todayISO();
+  const today = (await athleteToday(id));
   try {
     switch (body.action) {
       case 'report':

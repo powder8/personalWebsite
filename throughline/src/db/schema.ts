@@ -1015,3 +1015,17 @@ export const runDebriefs = pgTable(
   },
   (t) => [uniqueIndex('run_debriefs_activity_uq').on(t.activityId)],
 );
+
+// ---------------------------------------------------------------------------
+// Rate limiting — one row per allowed request, counted in a sliding window.
+// Postgres-backed so the limit holds across serverless instances.
+// ---------------------------------------------------------------------------
+export const rateLimitEvents = pgTable(
+  'rate_limit_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    key: text('key').notNull(), // e.g. 'chat:<athleteId>'
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('rate_limit_events_key_idx').on(t.key, t.createdAt)],
+);

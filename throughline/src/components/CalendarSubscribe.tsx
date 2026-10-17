@@ -8,9 +8,10 @@ import { useState } from 'react';
  * copyable URL for clients that need to paste it. The origin is read at click
  * time (client-only) to avoid SSR/CSR hydration mismatch.
  */
-export function CalendarSubscribe({ athleteId }: { athleteId: string }) {
+export function CalendarSubscribe({ athleteId, token }: { athleteId: string; token: string | null }) {
   const [copied, setCopied] = useState(false);
-  const path = `/api/athletes/${athleteId}/calendar.ics`;
+  // The token lets the calendar app fetch the feed without your login.
+  const path = `/api/athletes/${athleteId}/calendar.ics${token ? `?t=${token}` : ''}`;
 
   function subscribe() {
     const host = window.location.host;
@@ -40,13 +41,14 @@ export function CalendarSubscribe({ athleteId }: { athleteId: string }) {
         <button
           type="button"
           onClick={copy}
-          className="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          className="rounded-full bg-white/[0.08] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/[0.12]"
         >
           {copied ? 'Copied ✓' : 'Copy link'}
         </button>
       </div>
       <p className="text-xs text-slate-400">
-        Subscribes to your plan, new and changed workouts update automatically.
+        Subscribes to your plan, so new and changed workouts update automatically. Keep the link private: anyone with
+        it can see your plan.
       </p>
     </div>
   );

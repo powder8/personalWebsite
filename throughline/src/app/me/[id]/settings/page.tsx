@@ -14,6 +14,7 @@ import { getSupportingStrengthDays } from '@/server/strengthSeason';
 import { UnitsToggle } from '@/components/UnitsToggle';
 import { asUnits } from '@/lib/units';
 import { CalendarSubscribe } from '@/components/CalendarSubscribe';
+import { calendarToken } from '@/server/calendarToken';
 import { CycleTracking } from '@/components/CycleTracking';
 import { getCycle, computeCycle } from '@/server/cycle';
 import { WeeklyVolumeChart } from '@/components/WeeklyVolumeChart';
@@ -34,7 +35,7 @@ import { AboutYou } from '@/components/AboutYou';
 import { AvailabilityForm } from '@/components/AvailabilityForm';
 import { BottomNav } from '@/components/BottomNav';
 import { getDb } from '@/db';
-import { todayISO } from '@/server/console';
+import { athleteToday } from '@/server/athleteToday';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +49,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
   if (!portal) notFound();
 
   const db = await getDb();
-  const today = todayISO();
+  const today = (await athleteToday(id));
 
   const [
     insights,
@@ -280,7 +281,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
       </Card>
 
       <Card title="Put your plan in your calendar">
-        <CalendarSubscribe athleteId={athlete.id} />
+        <CalendarSubscribe athleteId={athlete.id} token={calendarToken(athlete.id)} />
       </Card>
 
       <BottomNav athleteId={athlete.id} />

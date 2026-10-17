@@ -7,9 +7,9 @@
  */
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
+import { athleteToday } from '@/server/athleteToday';
 import { guardAthleteWrite } from '@/server/apiAccess';
 import { ingestDeviceHealth } from '@/server/deviceHealth';
-import { todayISO } from '@/server/console';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -27,7 +27,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   const db = await getDb();
-  const result = await ingestDeviceHealth(db, id, body, todayISO());
+  const result = await ingestDeviceHealth(db, id, body, (await athleteToday(id)));
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json(result);
 }

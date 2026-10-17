@@ -43,13 +43,14 @@ import { ConnectStrava } from '@/components/ConnectStrava';
 import { getGoalTracker } from '@/server/goalTracker';
 import { BottomNav } from '@/components/BottomNav';
 import { PortalTabs, type PortalTab } from '@/components/PortalTabs';
+import { TimezoneSync } from '@/components/TimezoneSync';
 import { TAB_ICONS, type PortalTabId } from '@/components/portalTabIcons';
 import { getRecentCrossTraining } from '@/server/weeklyVolume';
 import { InjuryPanel } from '@/components/InjuryPanel';
 import { getActiveInjury } from '@/server/injury';
 import { getDb } from '@/db';
+import { athleteToday } from '@/server/athleteToday';
 import { ensureSeasonCoverage } from '@/server/seasonCoverage';
-import { todayISO } from '@/server/console';
 import { SESSION_TERRAIN } from '@/components/WeekStrip';
 
 export const dynamic = 'force-dynamic';
@@ -103,7 +104,7 @@ export default async function PortalPage({
 
   const db = await getDb();
   try {
-    await ensureSeasonCoverage(db, id, todayISO());
+    await ensureSeasonCoverage(db, id, (await athleteToday(id)));
   } catch {
     /* coverage is best-effort */
   }
@@ -284,6 +285,7 @@ export default async function PortalPage({
   if (needsGoal) {
     return (
       <div className="mx-auto max-w-2xl space-y-4 pb-20 sm:pb-4">
+        <TimezoneSync athleteId={athlete.id} stored={athlete.timezone} />
         <p className="px-1 pt-1 text-sm text-slate-400">Hi {firstName} 👋 · {today}</p>
 
         <div className="overflow-hidden rounded-3xl surface-hero p-6 text-white">
@@ -562,6 +564,7 @@ export default async function PortalPage({
           <span className="bg-gradient-to-r from-lime-200 via-lime-300 to-emerald-300 bg-clip-text text-transparent">{firstName}</span>
         </h1>
       </header>
+      <TimezoneSync athleteId={athlete.id} stored={athlete.timezone} />
       <PortalTabs tabs={tabs} initial={initialTab} />
     </div>
   );

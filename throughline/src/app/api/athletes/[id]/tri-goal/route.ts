@@ -5,8 +5,8 @@
  */
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
+import { athleteToday } from '@/server/athleteToday';
 import { setupAthleteTriGoal, type TriGoalInput } from '@/server/athleteTriGoal';
-import { todayISO } from '@/server/console';
 import { guardAthleteWrite } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
@@ -24,7 +24,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
   try {
     const db = await getDb();
-    const res = await setupAthleteTriGoal(db, id, todayISO(), body);
+    const res = await setupAthleteTriGoal(db, id, (await athleteToday(id)), body);
     return NextResponse.json({
       ok: true,
       weeksPerSport: res.weeksPerSport,
