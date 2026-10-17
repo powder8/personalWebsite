@@ -8,6 +8,11 @@ import { Card } from '@/components/ui';
 import { secPerKmToMinPerMile } from '@/engine/plan';
 import { ConnectStrava } from '@/components/ConnectStrava';
 import { ConnectWhoop } from '@/components/ConnectWhoop';
+import { ConnectGarmin } from '@/components/ConnectGarmin';
+import { DisconnectButton } from '@/components/DisconnectButton';
+import { DeleteAccount } from '@/components/DeleteAccount';
+import { getGarminStatus } from '@/server/garmin';
+import { deleteMyAccount } from './actions';
 import { getWhoopStatus } from '@/server/whoop';
 import { SupportingStrength } from '@/components/SupportingStrength';
 import { getSupportingStrengthDays } from '@/server/strengthSeason';
@@ -64,6 +69,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
     strengthDays,
     ftp,
     ftpProvenance,
+    garminStatus,
   ] = await Promise.all([
     getTrainingInsights(id),
     getCycle(db, id),
@@ -77,6 +83,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
     getSupportingStrengthDays(db, id),
     getAthleteFtp(db, id),
     getFtpProvenance(db, id),
+    getGarminStatus(db, id),
   ]);
 
   const hasAnchor = hasAnchorRaw != null;
@@ -153,7 +160,18 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
           firstActivityDay={strava.firstActivityDay}
           activityCount={strava.activityCount}
         />
+        {strava.connected && (
+          <div className="mt-3">
+            <DisconnectButton athleteId={athlete.id} provider="strava" label="Strava" />
+          </div>
+        )}
       </Card>
+
+      {garminStatus.configured && (
+        <Card title="Garmin Connect">
+          <ConnectGarmin athleteId={athlete.id} connected={garminStatus.connected} latestDay={garminStatus.latestDay} />
+        </Card>
+      )}
 
       <Card title="Whoop. HRV, sleep &amp; recovery">
         <ConnectWhoop
@@ -164,6 +182,11 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
           recoveryScore={whoopStatus.recoveryScore}
           hrv={whoopStatus.hrv}
         />
+        {whoopStatus.connected && (
+          <div className="mt-3">
+            <DisconnectButton athleteId={athlete.id} provider="whoop" label="Whoop" />
+          </div>
+        )}
       </Card>
 
       {/* ── CHECK IN ─────────────────────────────────────────────────────── */}
@@ -282,6 +305,12 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
 
       <Card title="Put your plan in your calendar">
         <CalendarSubscribe athleteId={athlete.id} token={calendarToken(athlete.id)} />
+      </Card>
+
+      {/* ── DELETE ─────────────────────────────────────────────────────── */}
+      <SectionHeader>Danger zone</SectionHeader>
+      <Card title="Delete your account" className="ring-rose-400/20">
+        <DeleteAccount action={deleteMyAccount.bind(null, athlete.id)} />
       </Card>
 
       <BottomNav athleteId={athlete.id} />

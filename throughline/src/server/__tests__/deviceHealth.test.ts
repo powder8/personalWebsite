@@ -9,7 +9,7 @@ import * as schema from '@/db/schema';
 import { athletes, activities, sleepRecords, hrvRecords, restingHrRecords, dailySummaries, rawEvents, connectedAccounts } from '@/db/schema';
 import { validateDevicePayload, toNormalizedBatch, isSameWorkout, MAX_DAYS } from '../deviceHealthLogic';
 import { ingestDeviceHealth } from '../deviceHealth';
-import { dropAlreadyRecorded, persistNormalizedBatch, supersedeDeviceWorkouts } from '../ingest';
+import { dropAlreadyRecorded, persistNormalizedBatch, supersedeLowerRanked } from '../ingest';
 
 const TODAY = '2026-09-19';
 
@@ -214,7 +214,7 @@ test('when Strava lands a session the device already pushed, the device copy yie
 
 test('supersede leaves unrelated device workouts alone', async () => {
   await db.insert(activities).values({ athleteId: A, provider: 'apple', sourceRef: 'healthkit:HK-3', sport: 'swim', startTime: new Date('2026-09-18T06:00:00Z'), durationSeconds: 1800 });
-  const n = await supersedeDeviceWorkouts(db, A, [{ sport: 'run', startTime: new Date('2026-09-18T06:00:00Z'), durationSeconds: 1800 }]);
+  const n = await supersedeLowerRanked(db, A, 'strava', [{ sport: 'run', startTime: new Date('2026-09-18T06:00:00Z'), durationSeconds: 1800 }]);
   assert.equal(n, 0);
   assert.equal((await db.select().from(activities).where(eq(activities.sourceRef, 'healthkit:HK-3'))).length, 1);
 });

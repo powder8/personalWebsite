@@ -1,6 +1,6 @@
 /**
  * Whoop token lifecycle + data sync. Mirrors the pattern from server/strava.ts:
- * tokens live in connected_accounts; ensureAccessToken refreshes when near expiry
+ * tokens live in connected_accounts; ensureWhoopAccessToken refreshes when near expiry
  * and persists the new tokens. Sync writes to the existing wearable tables
  * (hrv_records, resting_hr_records, sleep_records, daily_summaries) with
  * provider = 'whoop', plus workouts into activities (thin source: a session
@@ -87,7 +87,7 @@ export async function saveWhoopTokens(
     });
 }
 
-async function ensureAccessToken(db: DB, acct: WhoopAccount): Promise<string> {
+export async function ensureWhoopAccessToken(db: DB, acct: WhoopAccount): Promise<string> {
   const expMs = acct.tokenExpiresAt ? acct.tokenExpiresAt.getTime() : 0;
   if (acct.accessToken && expMs - Date.now() > TOKEN_SKEW_MS) {
     return acct.accessToken;
@@ -233,7 +233,7 @@ export async function syncWhoopData(
   const acct = await getWhoopAccount(db, athleteId);
   if (!acct) throw new Error('No Whoop account connected for this athlete.');
 
-  const token = await ensureAccessToken(db, acct);
+  const token = await ensureWhoopAccessToken(db, acct);
 
   const now = new Date();
   const start = new Date(now.getTime() - days * 86400_000);

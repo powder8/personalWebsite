@@ -1,12 +1,10 @@
 /**
- * Garmin provider (Garmin Connect Developer Program / Health & Activity API).
- *
- * STATUS: scaffold. The plumbing (verify → parse → normalize shape) is real and
- * wired; the marked spots need the live Garmin API once Developer Program access
- * is granted (see Phase 0.5 TODOs in README). Build against Garmin's EVALUATION
- * environment first — all endpoints/secrets come from env, never hard-coded.
+ * Garmin provider (Garmin Connect Developer Program: Health + Activity APIs).
+ * OAuth 2.0 PKCE per Garmin's spec; webhooks in ping or push mode; pure
+ * normalizers. Token storage, refresh, backfill, and deregistration live in
+ * server/garmin.ts. All endpoints and secrets come from env (garminEnv).
  */
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createHash, createHmac, timingSafeEqual } from 'crypto';
 import type {
   Provider,
   ProviderTokens,
@@ -15,48 +13,96 @@ import type {
 } from '../types';
 import { garminEnv } from './env';
 
+/**
+ * PKCE verifier for a given OAuth `state`, derived (HMAC) rather than stored:
+ * the callback re-derives it from the state it already verified, so there is
+ * no second cookie or table. 43 chars of base64url, inside PKCE's 43–128.
+ */
+export function pkceVerifier(state: string, secret: string): string {
+  return createHmac('sha256', secret).update(`garmin-pkce:${state}`).digest('base64url');
+}
+export function pkceChallenge(verifier: string): string {
+  return createHash('sha256').update(verifier).digest('base64url');
+}
+
+interface GarminTokenResponse {
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number; // seconds (24 h)
+  refresh_token_expires_in?: number; // seconds (~90 d)
+  scope?: string;
+}
+
+/** Garmin recommends treating tokens as expiring 10 minutes early. */
+const EXPIRY_SKEW_SEC = 600;
+
+function toTokens(j: GarminTokenResponse): ProviderTokens {
+  return {
+    providerUserId: '', // filled from /user/id by the caller
+    accessToken: j.access_token,
+    refreshToken: j.refresh_token,
+    expiresAt: j.expires_in ? new Date(Date.now() + (j.expires_in - EXPIRY_SKEW_SEC) * 1000) : undefined,
+    scopes: j.scope ? j.scope.split(' ') : undefined,
+  };
+}
+
+async function tokenRequest(body: Record<string, string>): Promise<ProviderTokens> {
+  const { tokenUrl, clientId, clientSecret } = garminEnv();
+  const res = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ ...body, client_id: clientId, client_secret: clientSecret }),
+  });
+  if (!res.ok) throw new Error(`Garmin token request failed (HTTP ${res.status}).`);
+  return toTokens((await res.json()) as GarminTokenResponse);
+}
+
 export const garmin: Provider = {
   id: 'garmin',
 
-  // --- OAuth (Garmin uses OAuth2 PKCE in the Health API) ---
+  // --- OAuth 2.0 PKCE (Garmin Connect Developer Program spec) ---
   getAuthorizationUrl(state: string): string {
-    const { authBaseUrl, clientId, redirectUri } = garminEnv();
+    const { authorizeUrl, clientId, redirectUri } = garminEnv();
+    const secret = process.env.AUTH_SECRET || 'throughline-dev-oauth-secret';
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: clientId,
       redirect_uri: redirectUri,
       state,
+      code_challenge: pkceChallenge(pkceVerifier(state, secret)),
+      code_challenge_method: 'S256',
     });
-    return `${authBaseUrl}/oauth-service/oauth/authorize?${params.toString()}`;
+    return `${authorizeUrl}?${params.toString()}`;
   },
 
-  async exchangeCode(_code: string): Promise<ProviderTokens> {
-    // TODO(garmin): POST to token endpoint with code + PKCE verifier, map the
-    // response to ProviderTokens. Requires Developer Program credentials.
-    throw new Error('garmin.exchangeCode: not yet implemented (awaiting Garmin Developer access)');
+  async exchangeCode(code: string, opts?: { codeVerifier?: string }): Promise<ProviderTokens> {
+    if (!opts?.codeVerifier) throw new Error('Garmin token exchange needs the PKCE verifier.');
+    const { redirectUri } = garminEnv();
+    return tokenRequest({ grant_type: 'authorization_code', code, code_verifier: opts.codeVerifier, redirect_uri: redirectUri });
   },
 
-  async refreshTokens(_refreshToken: string): Promise<ProviderTokens> {
-    // TODO(garmin): refresh grant.
-    throw new Error('garmin.refreshTokens: not yet implemented');
+  async refreshTokens(refreshToken: string): Promise<ProviderTokens> {
+    return tokenRequest({ grant_type: 'refresh_token', refresh_token: refreshToken });
   },
 
   // --- Webhooks ---
-  async verifyWebhook(req: Request, rawBody: string): Promise<boolean> {
+  // Garmin doesn't sign notifications, so the registered URL carries a shared
+  // secret (?key=…). Ping data is additionally fetched from Garmin with the
+  // user's own token, which authenticates the data itself. Fails closed.
+  async verifyWebhook(req: Request): Promise<boolean> {
     const secret = garminEnv().webhookSecret;
     if (!secret) return false;
-    // Garmin "ping" webhooks can be verified via a shared secret / signature
-    // header. Adjust the header name to match the program config.
-    const provided = req.headers.get('x-garmin-signature') ?? '';
-    const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
-    const a = Buffer.from(provided);
-    const b = Buffer.from(expected);
-    return a.length === b.length && timingSafeEqual(a, b);
+    const provided = new URL(req.url).searchParams.get('key') ?? '';
+    const a = createHash('sha256').update(provided).digest();
+    const b = createHash('sha256').update(secret).digest();
+    return timingSafeEqual(a, b);
   },
 
   parseWebhook(rawBody: string): InboundPayload[] {
-    // Garmin push webhooks batch records per type:
-    //   { "activities": [...], "dailies": [...], "sleeps": [...] }
+    // Garmin batches records per summary type:
+    //   { "dailies": [...], "activities": [...], "deregistrations": [...] }
+    // A PING record carries { userId, callbackURL } and no data; a PUSH record
+    // is the summary itself (with userId).
     const body = JSON.parse(rawBody) as Record<string, unknown>;
     const out: InboundPayload[] = [];
     for (const [eventType, records] of Object.entries(body)) {
@@ -65,8 +111,7 @@ export const garmin: Provider = {
         const r = record as Record<string, unknown>;
         out.push({
           eventType,
-          providerUserId:
-            (r.userId as string | undefined) ?? (r.userAccessToken as string | undefined),
+          providerUserId: (r.userId as string | undefined) ?? undefined,
           payload: record,
         });
       }
@@ -74,11 +119,9 @@ export const garmin: Provider = {
     return out;
   },
 
-  // --- Backfill ---
-  async requestBackfill(_tokens: ProviderTokens, _fromDays: number): Promise<void> {
-    // TODO(garmin): hit the backfill endpoints (activities/dailies/sleeps) for
-    // the historical window so baselines and load state are warm from day one.
-    throw new Error('garmin.requestBackfill: not yet implemented');
+  // --- Backfill (see server/garmin.ts: needs the athlete's live token) ---
+  async requestBackfill(): Promise<void> {
+    throw new Error('Use requestGarminBackfill in server/garmin.ts.');
   },
 
   // --- Normalization (pure: payload -> normalized rows) ---
@@ -90,8 +133,11 @@ export const garmin: Provider = {
           activities: [
             {
               sport: mapSport(p.activityType as string | undefined),
+              name: (p.activityName as string | undefined) ?? null,
               startTime: new Date(((p.startTimeInSeconds as number) ?? 0) * 1000),
               durationSeconds: (p.durationInSeconds as number) ?? 0,
+              elapsedSeconds: (p.durationInSeconds as number) ?? null,
+              elevationGainMeters: (p.totalElevationGainInMeters as number) ?? null,
               distanceMeters: (p.distanceInMeters as number) ?? null,
               avgHr: (p.averageHeartRateInBeatsPerMinute as number) ?? null,
               maxHr: (p.maxHeartRateInBeatsPerMinute as number) ?? null,
@@ -185,21 +231,14 @@ export const garmin: Provider = {
 
 // --- helpers ---
 
-function mapSport(garminType: string | undefined): 'run' | 'bike' | 'swim' | 'other' {
-  switch ((garminType ?? '').toUpperCase()) {
-    case 'RUNNING':
-    case 'TRAIL_RUNNING':
-    case 'TREADMILL_RUNNING':
-      return 'run';
-    case 'CYCLING':
-    case 'ROAD_BIKING':
-      return 'bike';
-    case 'LAP_SWIMMING':
-    case 'OPEN_WATER_SWIMMING':
-      return 'swim';
-    default:
-      return 'other';
-  }
+function mapSport(garminType: string | undefined): 'run' | 'bike' | 'swim' | 'strength' | 'cross_train' | 'other' {
+  const t = (garminType ?? '').toUpperCase();
+  if (/SWIM/.test(t)) return 'swim';
+  if (/RUN/.test(t)) return 'run'; // RUNNING, TRAIL_RUNNING, TREADMILL_RUNNING, ULTRA_RUN…
+  if (/CYCL|BIK|RIDE|SPIN/.test(t)) return 'bike'; // CYCLING, ROAD_BIKING, INDOOR_CYCLING, VIRTUAL_RIDE, MOUNTAIN_BIKING, GRAVEL_CYCLING…
+  if (/STRENGTH|HIIT|PILATES/.test(t)) return 'strength';
+  if (/WALK|HIK|ROW|ELLIPTICAL|STAIR|SKI|PADDL|CLIMB/.test(t)) return 'cross_train';
+  return 'other';
 }
 
 function garminSourceRef(id: unknown): string | null {

@@ -1,22 +1,25 @@
 /**
- * Begin the Garmin OAuth connect flow: redirect the athlete to Garmin's
- * authorization page. `state` should be a signed/opaque token tying the
- * callback back to the athlete + a CSRF nonce (wired up when the athlete
- * onboarding flow exists).
+ * Begin the Garmin OAuth 2.0 PKCE flow. `state` is a signed single-use nonce
+ * bound to the athlete in an httpOnly cookie (the callback trusts the cookie,
+ * not the query: CSRF-safe), and the PKCE verifier is derived from that state.
  */
 import { NextResponse } from 'next/server';
 import { getProvider } from '@/providers';
+import { garminConfigured } from '@/providers/garmin/env';
+import { guardAthleteWrite } from '@/server/apiAccess';
+import { issueOAuthState } from '@/server/oauthState';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const athleteId = url.searchParams.get('athleteId');
-  if (!athleteId) {
-    return NextResponse.json({ error: 'athleteId required' }, { status: 400 });
-  }
-  // TODO: replace with a signed state (athleteId + nonce) and store the nonce.
-  const state = athleteId;
-  const authUrl = getProvider('garmin').getAuthorizationUrl(state);
-  return NextResponse.redirect(authUrl);
+  const athleteId = new URL(req.url).searchParams.get('athleteId');
+  if (!athleteId) return NextResponse.json({ error: 'athleteId required' }, { status: 400 });
+  if (!garminConfigured()) return NextResponse.json({ error: 'Garmin is not configured yet.' }, { status: 503 });
+  const denied = await guardAthleteWrite(athleteId);
+  if (denied) return denied;
+
+  const { state, cookie } = issueOAuthState('garmin', athleteId);
+  const res = NextResponse.redirect(getProvider('garmin').getAuthorizationUrl(state));
+  res.cookies.set(cookie.name, cookie.value, cookie.options);
+  return res;
 }

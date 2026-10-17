@@ -19,10 +19,11 @@ export const metadata: Metadata = {
     'An AI endurance coach that rebuilds your plan around the sessions you do, how you recover, and where your fitness really is.',
 };
 
-export default async function RootPage() {
-  if (!authConfigured()) return <LandingPage />; // local dev without auth configured
+export default async function RootPage({ searchParams }: { searchParams: Promise<{ account?: string }> }) {
+  const deleted = (await searchParams).account === 'deleted';
+  if (!authConfigured()) return <LandingPage deleted={deleted} />; // local dev without auth configured
 
   const session = await auth();
-  if (!session?.user) return <LandingPage />;
+  if (!session?.user) return <LandingPage deleted={deleted} />;
   redirect(session.user.role === 'coach' ? '/coach' : '/me');
 }

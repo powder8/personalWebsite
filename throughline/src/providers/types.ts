@@ -56,8 +56,8 @@ export interface Provider {
   // --- OAuth ---
   /** URL to send the athlete to in order to authorize. */
   getAuthorizationUrl(state: string): string;
-  /** Exchange the OAuth callback code for tokens. */
-  exchangeCode(code: string): Promise<ProviderTokens>;
+  /** Exchange the OAuth callback code for tokens (PKCE providers pass the verifier). */
+  exchangeCode(code: string, opts?: { codeVerifier?: string }): Promise<ProviderTokens>;
   refreshTokens(refreshToken: string): Promise<ProviderTokens>;
 
   // --- Webhooks ---

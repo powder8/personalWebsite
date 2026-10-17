@@ -4,7 +4,7 @@
  * state. Shared by the async normalizer (Inngest) and the Strava pull sync, so
  * there is ONE place that knows how a batch lands in the DB.
  */
-import { and, eq, gte, inArray, lte, ne, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import type { DB } from '@/db';
 import {
   activities,
@@ -15,7 +15,7 @@ import {
 } from '@/db/schema';
 import type { NormalizedBatch, ProviderId } from '@/providers/types';
 import { getDefaultShoeId } from '@/server/shoes';
-import { isSameWorkout, isThinProvider, LOOKBACK_SEC, THIN_PROVIDERS, workoutEndMs, type WorkoutKey } from '@/server/workoutDedupLogic';
+import { isSameWorkout, LOOKBACK_SEC, providersAtOrAbove, providersBelow, workoutEndMs, type WorkoutKey } from '@/server/workoutDedupLogic';
 
 export async function persistNormalizedBatch(
   db: DB,
@@ -28,6 +28,12 @@ export async function persistNormalizedBatch(
   // source-of-truth across providers later (e.g. Garmin vs Strava vs Apple).
   const common = { athleteId, rawEventId, provider };
 
+  // Cross-source dedup: skip sessions a richer (or equal, earlier) source
+  // already holds, then retire poorer copies of what we keep.
+  const incomingActivities = batch.activities?.length
+    ? (await dropAlreadyRecorded(db, athleteId, provider, batch.activities)).kept
+    : [];
+  batch = { ...batch, activities: incomingActivities };
   if (batch.activities?.length) {
     // Auto-assign new runs to the athlete's active default shoe. On re-sync the
     // upsert `set` below omits shoe_id, so an athlete's per-activity override is
@@ -65,9 +71,7 @@ export async function persistNormalizedBatch(
           mapPolyline: sql`coalesce(excluded.map_polyline, ${activities.mapPolyline})`,
         },
       });
-    if (!isThinProvider(provider)) {
-      await supersedeDeviceWorkouts(db, athleteId, batch.activities);
-    }
+    await supersedeLowerRanked(db, athleteId, provider, batch.activities);
   }
   if (batch.dailySummaries?.length) {
     await db
@@ -120,15 +124,16 @@ function overlapWindow(keys: WorkoutKey[]): { from: Date; to: Date } {
 }
 
 /**
- * Cross-source dedup, richer-source side: when Strava/Garmin land an activity
- * that a thin source (HealthKit, Health Connect, Whoop) already holds, the thin
- * copy yields. The thin-side check (skip what another source already has) is
- * dropAlreadyRecorded; between them, order of arrival stops mattering.
+ * Richer-source side: when a source lands sessions, delete overlapping copies
+ * held by LOWER-ranked sources (a Garmin or Whoop copy of a Strava ride). The
+ * other side (skip what a richer source already has) is dropAlreadyRecorded;
+ * between them, order of arrival stops mattering.
  */
-export async function supersedeDeviceWorkouts(db: DB, athleteId: string, written: WorkoutKey[]): Promise<number> {
-  if (written.length === 0) return 0;
+export async function supersedeLowerRanked(db: DB, athleteId: string, provider: ProviderId, written: WorkoutKey[]): Promise<number> {
+  const lower = providersBelow(provider);
+  if (written.length === 0 || lower.length === 0) return 0;
   const { from, to } = overlapWindow(written);
-  const thinRows = await db
+  const rows = await db
     .select({
       id: activities.id,
       sport: activities.sport,
@@ -140,21 +145,21 @@ export async function supersedeDeviceWorkouts(db: DB, athleteId: string, written
     .where(
       and(
         eq(activities.athleteId, athleteId),
-        inArray(activities.provider, [...THIN_PROVIDERS]),
+        inArray(activities.provider, lower as ProviderId[]),
         gte(activities.startTime, from),
         lte(activities.startTime, to),
       ),
     );
-  const doomed = thinRows.filter((d) => written.some((w) => isSameWorkout(d, w))).map((d) => d.id);
+  const doomed = rows.filter((d) => written.some((w) => isSameWorkout(d, w))).map((d) => d.id);
   if (doomed.length === 0) return 0;
   await db.delete(activities).where(inArray(activities.id, doomed));
   return doomed.length;
 }
 
 /**
- * Thin-source side: drop incoming workouts that ANOTHER source already
- * recorded (the ride Strava has, the run the watch pushed). Re-syncs of the
- * source's own rows pass through and upsert on sourceRef.
+ * Incoming side: drop workouts that another source of equal or higher rank
+ * already recorded (the ride Strava has, the run the watch pushed). Re-syncs
+ * of the source's own rows pass through and upsert on sourceRef.
  */
 export async function dropAlreadyRecorded<T extends WorkoutKey>(
   db: DB,
@@ -162,7 +167,7 @@ export async function dropAlreadyRecorded<T extends WorkoutKey>(
   provider: ProviderId,
   list: T[],
 ): Promise<{ kept: T[]; deduped: number }> {
-  if (list.length === 0) return { kept: [], deduped: 0 };
+  if (list.length === 0 || providersAtOrAbove(provider).length === 0) return { kept: list, deduped: 0 };
   const { from, to } = overlapWindow(list);
   const existing = await db
     .select({
@@ -175,7 +180,7 @@ export async function dropAlreadyRecorded<T extends WorkoutKey>(
     .where(
       and(
         eq(activities.athleteId, athleteId),
-        ne(activities.provider, provider),
+        inArray(activities.provider, providersAtOrAbove(provider) as ProviderId[]),
         gte(activities.startTime, from),
         lte(activities.startTime, to),
       ),
