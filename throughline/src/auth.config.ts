@@ -111,6 +111,9 @@ export const authConfig = {
       // signed-in users are redirected to their own home.
       if (pathname === '/') return true;
       if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) return true;
+      // The iCal feed is fetched by calendar servers with no cookie; the route
+      // itself requires a signed token (or a session), see calendarToken.ts.
+      if (/^\/api\/athletes\/[^/]+\/calendar\.ics$/.test(pathname)) return true;
 
       const role = auth?.user?.role;
       const signedIn = !!auth?.user;

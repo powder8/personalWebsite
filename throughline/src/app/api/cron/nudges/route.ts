@@ -7,6 +7,7 @@
  * Pass ?dry=1 (with the secret) to preview who WOULD be nudged without sending.
  */
 import { NextResponse } from 'next/server';
+import { createHash, timingSafeEqual } from 'crypto';
 import { runNudges } from '@/server/nudges';
 import { runMonitor } from '@/server/monitor';
 
@@ -15,12 +16,18 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function GET(req: Request) {
+  // Fail CLOSED: this endpoint rewrites plans and emails athletes, so without a
+  // configured secret it must not run on a real deployment. (Local dev with no
+  // secret stays open so the cron can be exercised by hand.) Vercel Cron sends
+  // `Authorization: Bearer <CRON_SECRET>` automatically once the var is set.
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get('authorization');
-    const url = new URL(req.url);
-    const provided = auth?.replace(/^Bearer\s+/i, '') ?? url.searchParams.get('secret');
-    if (provided !== secret) {
+  if (!secret) {
+    if (process.env.VERCEL) {
+      return NextResponse.json({ error: 'CRON_SECRET is not configured.' }, { status: 503 });
+    }
+  } else {
+    const provided = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? '';
+    if (!safeEqual(provided, secret)) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
   }
@@ -38,4 +45,11 @@ export async function GET(req: Request) {
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 500 });
   }
+}
+
+/** Constant-time string compare (hash first so lengths always match). */
+function safeEqual(a: string, b: string): boolean {
+  const ha = createHash('sha256').update(a).digest();
+  const hb = createHash('sha256').update(b).digest();
+  return timingSafeEqual(ha, hb);
 }

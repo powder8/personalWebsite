@@ -288,6 +288,13 @@
       "when": 1792228066595,
       "tag": "0040_feedback_author_default",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1792228706853,
+      "tag": "0041_rate_limit_events",
+      "breakpoints": true
     }
   ]
 }

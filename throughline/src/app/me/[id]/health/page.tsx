@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getDb } from '@/db';
-import { todayISO } from '@/server/console';
+import { athleteToday } from '@/server/athleteToday';
 import { getHealthSnapshot } from '@/server/health';
 import { HealthView } from '@/components/HealthView';
 import { getFitnessProgress } from '@/server/fitnessProgress';
@@ -24,7 +24,7 @@ export const dynamic = 'force-dynamic';
 export default async function HealthPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const db = await getDb();
-  const today = todayISO();
+  const today = (await athleteToday(id));
   const [snapshot, fitnessProgress, healthTrends, [athlete]] = await Promise.all([
     getHealthSnapshot(db, id, today),
     getFitnessProgress(db, id, today),

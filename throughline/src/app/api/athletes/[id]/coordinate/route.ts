@@ -5,8 +5,8 @@
  */
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
+import { athleteToday } from '@/server/athleteToday';
 import { resplitDualSeason } from '@/server/dualSeason';
-import { todayISO } from '@/server/console';
 import { guardAthleteWrite } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
@@ -31,7 +31,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   try {
     const db = await getDb();
-    const res = await resplitDualSeason(db, id, todayISO(), {
+    const res = await resplitDualSeason(db, id, (await athleteToday(id)), {
       weeklyHours: Number(body.weeklyHours),
       priority,
       publish: true,

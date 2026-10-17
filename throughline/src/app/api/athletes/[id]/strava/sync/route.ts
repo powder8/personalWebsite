@@ -4,11 +4,11 @@
  */
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
+import { athleteToday } from '@/server/athleteToday';
 import { syncStravaActivities } from '@/server/strava';
 import { ensureAutoAnchor } from '@/server/anchor';
 import { ensureAutoFtp } from '@/server/autoFtp';
 import { judgeUnjudgedActivities } from '@/server/activityJudgment';
-import { todayISO } from '@/server/console';
 import { guardAthleteWrite } from '@/server/apiAccess';
 
 export const runtime = 'nodejs';
@@ -36,14 +36,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     // (unless a human already set it). Best-effort; never blocks the sync.
     if (result.done) {
       try {
-        await ensureAutoAnchor(db, id, { today: todayISO() });
+        await ensureAutoAnchor(db, id, { today: (await athleteToday(id)) });
       } catch {
         /* non-fatal */
       }
       // Same for the bike: re-estimate FTP from ride power when a new ride could
       // change it, and re-tune future rides. Respects an entered FTP.
       try {
-        result.ftp = await ensureAutoFtp(db, id, { today: todayISO() });
+        result.ftp = await ensureAutoFtp(db, id, { today: (await athleteToday(id)) });
       } catch {
         /* non-fatal */
       }

@@ -4,7 +4,7 @@ import 'server-only';
  * separate from the coach console (`getAthleteDetail`): the athlete sees a
  * focused "what do I do today / this week" surface, not the management tooling.
  *
- * "Today" comes from todayISO() — the real current date (APP_TODAY pins it for
+ * "Today" comes from todayForTimezone(athlete.timezone), the athlete's own date (APP_TODAY pins it for
  * demos/tests).
  */
 import { and, asc, eq, gte, lte, desc, sql, inArray } from 'drizzle-orm';
@@ -20,7 +20,7 @@ import {
   checkIns,
   activities,
 } from '@/db/schema';
-import { todayISO, type Band } from '@/server/console';
+import { todayForTimezone, type Band } from '@/server/console';
 import { getStravaAccount } from '@/server/strava';
 import { stravaConfigured } from '@/providers/strava/env';
 
@@ -103,10 +103,11 @@ function daysBetween(a: string, b: string): number {
 }
 
 export async function getAthletePortal(id: string): Promise<AthletePortal | null> {
-  const TODAY = todayISO();
   const db = await getDb();
   const [athlete] = await db.select().from(athletes).where(eq(athletes.id, id)).limit(1);
   if (!athlete) return null;
+  // The athlete's own calendar day (see todayForTimezone).
+  const TODAY = todayForTimezone(athlete.timezone);
 
   const [readiness] = await db
     .select()
