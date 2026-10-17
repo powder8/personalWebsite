@@ -8,6 +8,7 @@ import { auth } from '@/auth';
 import { authConfigured } from '@/auth.config';
 import { createFeedback, listFeedback } from '@/server/feedback';
 import { guardConsole } from '@/server/apiAccess';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -20,7 +21,7 @@ export async function GET() {
     const items = await listFeedback(db);
     return NextResponse.json({ ok: true, items });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 500 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Failed.') }, { status: 500 });
   }
 }
 
@@ -47,6 +48,6 @@ export async function POST(req: Request) {
     await createFeedback(db, { author, path: body.path, category: body.category, body: message });
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Failed.') }, { status: 422 });
   }
 }

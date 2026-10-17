@@ -124,3 +124,61 @@ test('bodyComps (a Withings scale via Garmin) → weight, body fat and BMI on th
 test('a bodyComps summary with no measurements stores nothing', () => {
   assert.deepEqual(garmin.normalize('bodyComps', { calendarDate: '2026-09-18' }), {});
 });
+
+// ---- OAuth2 PKCE + webhook auth ---------------------------------------------
+
+import { createHash } from 'node:crypto';
+import { pkceChallenge, pkceVerifier } from '../index';
+
+test('PKCE: verifier is valid (43+ url-safe chars), stable per state, unique across states', () => {
+  const v = pkceVerifier('state-1', 'secret');
+  assert.match(v, /^[A-Za-z0-9_-]{43,128}$/);
+  assert.equal(pkceVerifier('state-1', 'secret'), v);
+  assert.notEqual(pkceVerifier('state-2', 'secret'), v);
+  assert.notEqual(pkceVerifier('state-1', 'other-secret'), v, 'unguessable without the secret');
+  assert.equal(pkceChallenge(v), createHash('sha256').update(v).digest('base64url'), 'S256 per RFC 7636');
+});
+
+test('authorization URL follows Garmin spec: oauth2Confirm, S256 challenge, state, redirect', () => {
+  process.env.GARMIN_CLIENT_ID = 'cid';
+  process.env.GARMIN_REDIRECT_URI = 'https://example.test/api/auth/garmin/callback';
+  process.env.AUTH_SECRET = 'secret';
+  const u = new URL(garmin.getAuthorizationUrl('st'));
+  assert.equal(`${u.origin}${u.pathname}`, 'https://connect.garmin.com/oauth2Confirm');
+  assert.equal(u.searchParams.get('response_type'), 'code');
+  assert.equal(u.searchParams.get('client_id'), 'cid');
+  assert.equal(u.searchParams.get('state'), 'st');
+  assert.equal(u.searchParams.get('code_challenge_method'), 'S256');
+  assert.equal(u.searchParams.get('code_challenge'), pkceChallenge(pkceVerifier('st', 'secret')));
+  assert.equal(u.searchParams.get('redirect_uri'), 'https://example.test/api/auth/garmin/callback');
+});
+
+test('webhook auth: the URL key must match; no configured secret fails closed', async () => {
+  process.env.GARMIN_WEBHOOK_SECRET = 'hook-secret';
+  const req = (q: string) => new Request(`https://example.test/api/webhooks/garmin${q}`, { method: 'POST' });
+  assert.equal(await garmin.verifyWebhook(req('?key=hook-secret'), ''), true);
+  assert.equal(await garmin.verifyWebhook(req('?key=wrong'), ''), false);
+  assert.equal(await garmin.verifyWebhook(req(''), ''), false);
+  delete process.env.GARMIN_WEBHOOK_SECRET;
+  assert.equal(await garmin.verifyWebhook(req('?key=anything'), ''), false);
+});
+
+test('ping notifications and deregistrations parse with their user id', () => {
+  const items = garmin.parseWebhook(JSON.stringify({
+    dailies: [{ userId: 'u1', callbackURL: 'https://apis.garmin.com/wellness-api/rest/dailies?uploadStartTimeInSeconds=1&uploadEndTimeInSeconds=2' }],
+    deregistrations: [{ userId: 'u2' }],
+  }));
+  assert.deepEqual(items.map((i) => [i.eventType, i.providerUserId]), [['dailies', 'u1'], ['deregistrations', 'u2']]);
+  assert.equal((items[0].payload as { callbackURL: string }).callbackURL.startsWith('https://apis.garmin.com/'), true);
+});
+
+test('Garmin activity types map to the right sport', () => {
+  const sport = (t: string) => garmin.normalize('activities', { activityType: t, startTimeInSeconds: 0, durationInSeconds: 1800, summaryId: t }).activities![0].sport;
+  assert.equal(sport('VIRTUAL_RIDE'), 'bike');
+  assert.equal(sport('INDOOR_CYCLING'), 'bike');
+  assert.equal(sport('TRAIL_RUNNING'), 'run');
+  assert.equal(sport('OPEN_WATER_SWIMMING'), 'swim');
+  assert.equal(sport('STRENGTH_TRAINING'), 'strength');
+  assert.equal(sport('HIKING'), 'cross_train');
+  assert.equal(sport('YOGA'), 'other');
+});

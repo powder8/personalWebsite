@@ -23,7 +23,6 @@ import { getAthletePowerZones, getAthleteFtp, getAthleteWeightKg } from '@/db/po
 import { getAthleteSwimZones, getAthleteCss } from '@/db/swimConfig';
 import {
   buildTriPlan,
-  TRI_DISCIPLINES,
   DEFAULT_RIDER_MASS_KG,
   type Discipline,
   type TrainingZones,

@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { activities, shoes, athletes } from '@/db/schema';
-import { fmtPace, fmtDistance, distanceValue, distanceUnit, asUnits, type Units } from '@/lib/units';
+import { fmtPace, fmtDistance, asUnits, type Units } from '@/lib/units';
 import { Card } from '@/components/ui';
 import { RouteMap } from '@/components/RouteMap';
 import { RunDebriefCard } from '@/components/RunDebriefCard';

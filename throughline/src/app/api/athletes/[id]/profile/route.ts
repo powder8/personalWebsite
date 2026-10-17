@@ -9,6 +9,7 @@ import { eq } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { athletes } from '@/db/schema';
 import { guardAthleteWrite } from '@/server/apiAccess';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -50,7 +51,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     await db.update(athletes).set(set).where(eq(athletes.id, id));
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Failed.') }, { status: 422 });
   }
 }
 

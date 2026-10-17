@@ -14,9 +14,14 @@ const STEPS: { title: string; body: string }[] = [
   { title: 'Check where you stand', body: 'One screen shows whether you are on track, how your body is handling the load, and what to do today.' },
 ];
 
-export function LandingPage() {
+export function LandingPage({ deleted = false }: { deleted?: boolean }) {
   return (
     <div className="space-y-24 overflow-x-clip pb-16 pt-6 sm:space-y-32 sm:pt-12">
+      {deleted && (
+        <p role="status" className="rounded-2xl bg-white/[0.06] px-4 py-3 text-sm text-slate-600">
+          Your account and its data were deleted. Thanks for training with Throughline.
+        </p>
+      )}
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
         <div>

@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { mergeAthletes } from '@/server/mergeAthletes';
 import { guardAthleteWrite } from '@/server/apiAccess';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -31,6 +32,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const result = await mergeAthletes(db, id, body.intoAthleteId);
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Merge failed.' }, { status: 422 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Merge failed.') }, { status: 422 });
   }
 }

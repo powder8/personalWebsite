@@ -10,7 +10,6 @@ import {
   buildZones,
   estimateThresholdSecPerKm,
   midpoint,
-  predictRaceTimeSeconds,
   equivalentPerformances,
   ageFromDob,
   DEFAULT_GLOBAL_MODEL,

@@ -7,7 +7,6 @@ import {
   sessionsFromPlannedWeeks,
   estimateSessionMinutes,
   type TriScheduleSession,
-  type WeekSchedule,
 } from '../triScheduleLogic';
 import type { Discipline, PlannedDay, PlannedWeek } from '../types';
 

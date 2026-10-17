@@ -9,6 +9,7 @@
  */
 import NextAuth from 'next-auth';
 import { DrizzleAdapter } from '@auth/drizzle-adapter';
+import type { Adapter } from 'next-auth/adapters';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { neon } from '@neondatabase/serverless';
 import { eq } from 'drizzle-orm';
@@ -20,6 +21,25 @@ function authDb() {
   return drizzle(neon(process.env.DATABASE_URL!), { schema });
 }
 
+/**
+ * The Drizzle adapter, minus provider tokens. Google sign-in is identity only:
+ * we never call Google APIs, so its access/refresh/id tokens are dropped
+ * instead of stored (nothing to leak, nothing to encrypt).
+ */
+function tokenlessAdapter(database: ReturnType<typeof authDb>): Adapter {
+  const base = DrizzleAdapter(database, {
+    usersTable: users,
+    accountsTable: accounts,
+    sessionsTable: sessions,
+    verificationTokensTable: verificationTokens,
+  });
+  return {
+    ...base,
+    linkAccount: (account) =>
+      base.linkAccount!({ ...account, access_token: undefined, refresh_token: undefined, id_token: undefined, expires_at: undefined }),
+  };
+}
+
 // A dedicated synchronous Neon client for the adapter (the app's getDb() is
 // async/memoized; the adapter needs a plain drizzle instance). Only built when
 // auth is configured for this env.
@@ -27,14 +47,7 @@ const db = authConfigured() ? authDb() : undefined;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
-  adapter: db
-    ? DrizzleAdapter(db, {
-        usersTable: users,
-        accountsTable: accounts,
-        sessionsTable: sessions,
-        verificationTokensTable: verificationTokens,
-      })
-    : undefined,
+  adapter: db ? tokenlessAdapter(db) : undefined,
   callbacks: {
     ...authConfig.callbacks,
     /** At sign-in, enrich the token: grant coach role to known emails and link

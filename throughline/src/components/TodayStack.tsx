@@ -57,7 +57,7 @@ export function TodayStack({ sessions, units }: { sessions: PortalSession[]; uni
       </p>
 
       <div className="mt-3 space-y-2.5">
-        {ordered.map((s, i) => {
+        {ordered.map((s) => {
           const target = targetLabel(s, units);
           const brickHere = isBrick && s.discipline === 'run';
           return (

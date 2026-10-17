@@ -11,6 +11,7 @@ import { getDb } from '@/db';
 import { exchangeCode } from '@/providers/whoop';
 import { saveWhoopTokens, syncWhoopData } from '@/server/whoop';
 import { verifyOAuthState, oauthCookieName } from '@/server/oauthState';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -53,7 +54,7 @@ export async function GET(req: Request) {
     });
     return clear(NextResponse.redirect(`${base}/me/${athleteId}/settings?whoop=connected`));
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Whoop connection failed.';
+    const msg = publicErrorMessage(e, 'Whoop connection failed.');
     return clear(
       NextResponse.redirect(`${base}/me/${athleteId}/settings?whoop=error&msg=${encodeURIComponent(msg)}`),
     );

@@ -7,11 +7,13 @@
  */
 import { and, desc, eq, like, sql } from 'drizzle-orm';
 import type { DB } from '@/db';
+import { sealToken } from './tokenCrypto';
+import { openAccountTokens } from './connectedAccountTokens';
 import { connectedAccounts, rawEvents, activities } from '@/db/schema';
 import { strava, normalizeActivity, type StravaActivity } from '@/providers/strava';
 import { stravaEnv } from '@/providers/strava/env';
 import { payloadHash } from '@/lib/hash';
-import { supersedeDeviceWorkouts } from './ingest';
+import { supersedeLowerRanked } from './ingest';
 import {
   pickFtpCandidates,
   ftpFromWattsStream,
@@ -37,7 +39,8 @@ export async function getStravaAccount(db: DB, athleteId: string): Promise<Strav
     .from(connectedAccounts)
     .where(and(eq(connectedAccounts.athleteId, athleteId), eq(connectedAccounts.provider, 'strava')))
     .limit(1);
-  return acct ?? null;
+  if (!acct) return null;
+  return openAccountTokens(db, acct);
 }
 
 /** Upsert tokens from a completed OAuth exchange. */
@@ -53,8 +56,8 @@ export async function saveStravaTokens(
       athleteId,
       provider: 'strava',
       providerUserId: tokens.providerUserId,
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken ?? null,
+      accessToken: sealToken(tokens.accessToken),
+      refreshToken: sealToken(tokens.refreshToken ?? null),
       tokenExpiresAt: tokens.expiresAt ?? null,
       scopes: tokens.scopes ?? null,
       status: 'active',
@@ -65,8 +68,8 @@ export async function saveStravaTokens(
       target: [connectedAccounts.provider, connectedAccounts.providerUserId],
       set: {
         athleteId,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken ?? null,
+        accessToken: sealToken(tokens.accessToken),
+        refreshToken: sealToken(tokens.refreshToken ?? null),
         tokenExpiresAt: tokens.expiresAt ?? null,
         scopes: tokens.scopes ?? null,
         status: 'active',
@@ -77,7 +80,7 @@ export async function saveStravaTokens(
 }
 
 /** Return a valid access token, refreshing (and persisting) if near expiry. */
-async function ensureAccessToken(db: DB, acct: StravaAccount): Promise<string> {
+export async function ensureStravaAccessToken(db: DB, acct: StravaAccount): Promise<string> {
   const expMs = acct.tokenExpiresAt ? acct.tokenExpiresAt.getTime() : 0;
   if (acct.accessToken && expMs - Date.now() > TOKEN_SKEW_MS) {
     return acct.accessToken;
@@ -87,8 +90,8 @@ async function ensureAccessToken(db: DB, acct: StravaAccount): Promise<string> {
   await db
     .update(connectedAccounts)
     .set({
-      accessToken: refreshed.accessToken,
-      refreshToken: refreshed.refreshToken ?? acct.refreshToken,
+      accessToken: sealToken(refreshed.accessToken),
+      refreshToken: sealToken(refreshed.refreshToken ?? acct.refreshToken),
       tokenExpiresAt: refreshed.expiresAt ?? null,
       status: 'active',
       updatedAt: new Date(),
@@ -113,7 +116,7 @@ export async function fetchStravaRoute(db: DB, athleteId: string, routeId: strin
   if (!/^\d{4,}$/.test(routeId)) throw new Error('Invalid route id.');
   const acct = await getStravaAccount(db, athleteId);
   if (!acct || acct.status !== 'active') throw new Error('Connect your Strava account first.');
-  const token = await ensureAccessToken(db, acct);
+  const token = await ensureStravaAccessToken(db, acct);
   const { apiBaseUrl } = stravaEnv();
 
   const res = await fetch(`${apiBaseUrl}/routes/${routeId}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -144,7 +147,7 @@ export interface FtpEstimateResult {
 export async function estimateFtpFromStrava(db: DB, athleteId: string): Promise<FtpEstimateResult | null> {
   const acct = await getStravaAccount(db, athleteId);
   if (!acct || acct.status !== 'active') throw new Error('Connect your Strava account first.');
-  const token = await ensureAccessToken(db, acct);
+  const token = await ensureStravaAccessToken(db, acct);
   const { apiBaseUrl } = stravaEnv();
   const auth = { Authorization: `Bearer ${token}` };
 
@@ -267,7 +270,7 @@ async function ingestStravaPage(
   // Strava is the richer record: a device (HealthKit / Health Connect) copy of
   // the same session yields to it. Best-effort; never blocks the sync.
   try {
-    await supersedeDeviceWorkouts(db, athleteId, actValues);
+    await supersedeLowerRanked(db, athleteId, 'strava', actValues);
   } catch {
     /* non-fatal */
   }
@@ -298,7 +301,7 @@ export async function syncStravaActivities(
   const acct = await getStravaAccount(db, athleteId);
   if (!acct) throw new Error('No Strava account connected for this athlete.');
 
-  const token = await ensureAccessToken(db, acct);
+  const token = await ensureStravaAccessToken(db, acct);
   const after =
     afterOverride != null
       ? afterOverride
@@ -368,7 +371,7 @@ export async function fetchAndIngestActivityById(
 ): Promise<boolean> {
   const acct = await getStravaAccount(db, athleteId);
   if (!acct) throw new Error('No Strava account connected for this athlete.');
-  const token = await ensureAccessToken(db, acct);
+  const token = await ensureStravaAccessToken(db, acct);
   const { apiBaseUrl } = stravaEnv();
   const res = await fetch(`${apiBaseUrl}/activities/${activityId}`, {
     headers: { Authorization: `Bearer ${token}` },

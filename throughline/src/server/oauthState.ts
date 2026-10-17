@@ -10,7 +10,7 @@ import { issueState, verifyState } from './oauthStateLogic';
 // only matters on localhost where the flow isn't a real attack surface.
 const SECRET = process.env.AUTH_SECRET || 'throughline-dev-oauth-secret';
 
-export type OAuthProvider = 'whoop' | 'strava';
+export type OAuthProvider = 'whoop' | 'strava' | 'garmin';
 
 export function oauthCookieName(provider: OAuthProvider): string {
   return `tl_oauth_${provider}`;

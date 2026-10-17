@@ -2,8 +2,7 @@
  * PURE cross-source workout matching (no DB). One session often reaches us
  * twice: a watch ride lands via Strava AND Whoop auto-detects it; an Apple
  * Watch run arrives via HealthKit AND Strava. Each source has its own id, so
- * the unique sourceRef can't catch it. Rich sources (Strava, Garmin: splits,
- * route, power) win; THIN sources (phone health stores, Whoop) yield.
+ * the unique sourceRef can't catch it. The richer source wins (SOURCE_RANK).
  *
  * Two recordings are the same session when they are the same sport and their
  * time windows mostly overlap. You can't do two runs at once, so heavy
@@ -12,10 +11,29 @@
  * (Strava moving time vs a wearable's elapsed time).
  */
 
-/** Sources that only ever hold a thin copy of a session. */
-export const THIN_PROVIDERS = ['apple', 'health_connect', 'whoop'] as const;
-export type ThinProvider = (typeof THIN_PROVIDERS)[number];
-export const isThinProvider = (p: string): p is ThinProvider => (THIN_PROVIDERS as readonly string[]).includes(p);
+/**
+ * How rich each source's copy of a session is. When two sources hold the same
+ * session, the higher rank wins: Strava (splits, route, laps) over Garmin's
+ * activity summary over the thin wearable/phone copies. Equal ranks: the first
+ * to arrive stays. Sources not listed (manual imports) never take part.
+ */
+export const SOURCE_RANK: Record<string, number> = {
+  strava: 3,
+  garmin: 2,
+  whoop: 1,
+  apple: 1,
+  health_connect: 1,
+};
+export const sourceRank = (p: string): number | null => SOURCE_RANK[p] ?? null;
+/** Providers ranked strictly below / at-or-above `p`. */
+export const providersBelow = (p: string): string[] => {
+  const r = sourceRank(p);
+  return r == null ? [] : Object.keys(SOURCE_RANK).filter((k) => SOURCE_RANK[k] < r);
+};
+export const providersAtOrAbove = (p: string): string[] => {
+  const r = sourceRank(p);
+  return r == null ? [] : Object.keys(SOURCE_RANK).filter((k) => k !== p && SOURCE_RANK[k] >= r);
+};
 
 export interface WorkoutKey {
   /** Optional because insert rows may omit it (the column defaults to 'run'). */

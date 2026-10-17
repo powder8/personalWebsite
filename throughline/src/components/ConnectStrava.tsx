@@ -84,7 +84,8 @@ export function ConnectStrava({
       run({ full: true });
     } else if (readCursor() != null) {
       // Show a prompt — never auto-resume silently on every page load.
-      setResumePrompt(true);
+      // (Deferred a tick: the cursor lives in browser storage, read after mount.)
+      queueMicrotask(() => setResumePrompt(true));
       started.current = false; // allow buttons
     } else if (typeof window !== 'undefined' && !sessionStorage.getItem('tl_recentSync')) {
       sessionStorage.setItem('tl_recentSync', '1');

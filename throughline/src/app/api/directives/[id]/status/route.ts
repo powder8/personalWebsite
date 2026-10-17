@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { approveDirective, declineDirective, getDirectiveAthleteId } from '@/server/directives';
 import { guardAthleteConsole } from '@/server/apiAccess';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -31,6 +32,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     else return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 500 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Failed.') }, { status: 500 });
   }
 }

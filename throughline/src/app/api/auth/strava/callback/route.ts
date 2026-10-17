@@ -9,6 +9,7 @@ import { getDb } from '@/db';
 import { getProvider } from '@/providers';
 import { saveStravaTokens } from '@/server/strava';
 import { verifyOAuthState, oauthCookieName } from '@/server/oauthState';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -49,7 +50,7 @@ export async function GET(req: Request) {
     // time limit. The portal kicks off a chunked, resumable import instead.
     return clear(NextResponse.redirect(`${base}/me/${athleteId}?strava=connected&import=1`));
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Strava connection failed.';
+    const msg = publicErrorMessage(e, 'Strava connection failed.');
     return clear(NextResponse.redirect(`${base}/me/${athleteId}?strava=error&msg=${encodeURIComponent(msg)}`));
   }
 }

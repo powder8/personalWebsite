@@ -7,6 +7,7 @@ import { getDb } from '@/db';
 import { athleteToday } from '@/server/athleteToday';
 import { setupSeason, type SeasonSetupInput } from '@/server/season';
 import { guardAthleteWrite } from '@/server/apiAccess';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -46,7 +47,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const result = await setupSeason(db, id, input);
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'Season setup failed.';
+    const message = publicErrorMessage(e, 'Season setup failed.');
     return NextResponse.json({ error: message }, { status: 422 });
   }
 }

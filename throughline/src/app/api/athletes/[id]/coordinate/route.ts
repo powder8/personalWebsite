@@ -8,6 +8,7 @@ import { getDb } from '@/db';
 import { athleteToday } from '@/server/athleteToday';
 import { resplitDualSeason } from '@/server/dualSeason';
 import { guardAthleteWrite } from '@/server/apiAccess';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -38,6 +39,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     });
     return NextResponse.json({ ok: true, disciplines: res.disciplines, hours: res.hours, notes: res.notes });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Failed.') }, { status: 422 });
   }
 }

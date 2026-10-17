@@ -8,6 +8,7 @@ import { getDb } from '@/db';
 import { athleteToday } from '@/server/athleteToday';
 import { setupAthleteTriGoal, type TriGoalInput } from '@/server/athleteTriGoal';
 import { guardAthleteWrite } from '@/server/apiAccess';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -33,6 +34,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       note: res.feasibility?.note ?? null,
     });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Failed.') }, { status: 422 });
   }
 }

@@ -22,7 +22,6 @@
  *
  * One active discipline → it simply gets the whole budget. Pure and deterministic.
  */
-import type { Discipline } from './types';
 import { DEFAULT_FLOORS, DEFAULT_RETURN_ON_TIME, type DisciplineFloor, type ReturnOnTime } from './triAllocatorLogic';
 
 /** The disciplines this allocator coordinates (swimming stays in the tri path). */

@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { importUploadedFiles, type UploadedFile } from '@/server/sheetImport';
 import { guardConsole } from '@/server/apiAccess';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -39,6 +40,6 @@ export async function POST(req: Request) {
     const result = await importUploadedFiles(db, { name, email, files });
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Import failed.' }, { status: 422 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Import failed.') }, { status: 422 });
   }
 }

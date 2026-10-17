@@ -10,6 +10,7 @@ import { getDb } from '@/db';
 import { athleteToday } from '@/server/athleteToday';
 import { setAnchor, type AnchorInput } from '@/server/anchor';
 import { guardAthleteWrite } from '@/server/apiAccess';
+import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
 
@@ -29,6 +30,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const result = await setAnchor(db, id, body, { today: (await athleteToday(id)) });
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed.' }, { status: 422 });
+    return NextResponse.json({ error: publicErrorMessage(e, 'Failed.') }, { status: 422 });
   }
 }
