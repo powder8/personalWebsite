@@ -16,7 +16,7 @@ export function InsightsView({ insights }: { insights: TrainingInsights }) {
             {insights.suggestions.map((s, i) => (
               <li key={i} className="flex items-start gap-2">
                 <span
-                  className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                  className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${
                     s.basis === 'science' ? 'bg-violet-400/15 text-violet-300' : 'bg-emerald-400/15 text-emerald-300'
                   }`}
                 >
@@ -78,7 +78,7 @@ export function InsightsView({ insights }: { insights: TrainingInsights }) {
           </div>
           <div className="mt-4 overflow-hidden rounded border border-slate-100">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
+              <thead className="bg-slate-50 text-left text-[13px] text-slate-400">
                 <tr>
                   <th className="px-2 py-1 font-medium">Peak effort</th>
                   <th className="px-2 py-1 font-medium">Date</th>
@@ -137,7 +137,7 @@ export function InsightsView({ insights }: { insights: TrainingInsights }) {
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div>
-      <div className="text-xs uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="text-[13px] text-slate-400">{label}</div>
       <div className="font-medium tabular-nums text-slate-800">{value}</div>
       {sub && <div className="text-xs text-slate-400">{sub}</div>}
     </div>

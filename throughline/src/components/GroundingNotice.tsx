@@ -52,7 +52,7 @@ export function GroundingNotice({
     <div className={`mt-3 rounded-2xl ${tone.bg} p-3 ring-1 ring-inset ${tone.ring}`}>
       <div className="flex items-center gap-2">
         <span className={`inline-block h-2 w-2 rounded-full ${tone.dot}`} />
-        <span className={`text-[11px] font-semibold uppercase tracking-wide ${tone.label}`}>{grounding.headline}</span>
+        <span className={`text-xs font-medium ${tone.label}`}>{grounding.headline}</span>
       </div>
       <p className="mt-1 text-xs leading-relaxed text-slate-600">{grounding.note}</p>
       {grounding.offerRecentAnchor && offer && (

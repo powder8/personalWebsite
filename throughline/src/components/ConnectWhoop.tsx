@@ -73,7 +73,7 @@ export function ConnectWhoop({
       <div>
         <a
           href={`/api/whoop/connect?athleteId=${athleteId}`}
-          className="inline-flex items-center gap-2 rounded bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
+          className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#0a0a0b] transition hover:bg-slate-800"
         >
           Connect Whoop
         </a>

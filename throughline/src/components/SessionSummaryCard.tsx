@@ -15,7 +15,7 @@ export function SessionSummaryCard({ session, units, athleteId }: { session: Lat
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span aria-hidden className="text-base">{view.emoji}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-white/60">{view.title}</span>
+          <span className="text-xs font-medium text-white/60">{view.title}</span>
         </div>
         <span className="text-[11px] text-white/40">{view.whenLabel}</span>
       </div>
@@ -24,7 +24,7 @@ export function SessionSummaryCard({ session, units, athleteId }: { session: Lat
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {view.stats.map((s) => (
             <div key={s.label} className="rounded-xl bg-white/[0.03] px-3 py-2 ring-1 ring-inset ring-white/10">
-              <div className="text-[10px] font-medium uppercase tracking-wide text-white/40">{s.label}</div>
+              <div className="text-xs font-medium text-white/40">{s.label}</div>
               <div className="mt-0.5 text-sm font-semibold tabular-nums text-white/90">{s.value}</div>
             </div>
           ))}

@@ -53,7 +53,7 @@ export function EaseBackButton({ athleteId, directives }: { athleteId: string; d
       <button
         onClick={onClick}
         disabled={pending}
-        className="rounded-lg bg-lime-300 px-4 py-2 text-sm font-semibold text-[#0c1018] transition hover:bg-lime-200 disabled:opacity-50"
+        className="rounded-lg bg-lime-300 px-4 py-2 text-sm font-semibold text-[#0a0a0b] transition hover:bg-lime-200 disabled:opacity-50"
       >
         {pending ? 'Easing you back in...' : 'Ease me back in'}
       </button>

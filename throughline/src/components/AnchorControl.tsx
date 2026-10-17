@@ -117,7 +117,7 @@ export function AnchorControl({
 
       {suggestions.length > 0 && (
         <div className="space-y-1.5">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <div className="text-[13px] font-medium text-slate-500">
             Suggested from recent efforts
           </div>
           <ul className="space-y-1.5">
@@ -136,7 +136,7 @@ export function AnchorControl({
                     type="button"
                     disabled={busy}
                     onClick={() => post({ kind: 'race', distanceMeters: c.distanceMeters, timeSeconds: c.durationSeconds })}
-                    className="rounded bg-sky-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-sky-800 disabled:opacity-50"
+                    className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-[#0a0a0b] transition hover:bg-slate-800 disabled:opacity-50"
                   >
                     Use
                   </button>
@@ -197,7 +197,7 @@ export function AnchorControl({
             type="button"
             disabled={busy}
             onClick={submitManual}
-            className="rounded bg-sky-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
+            className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#0a0a0b] transition hover:bg-slate-800 disabled:opacity-50"
           >
             {busy ? 'Saving...' : 'Set anchor'}
           </button>

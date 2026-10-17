@@ -48,8 +48,8 @@ function RecoveryRing({ score, band }: { score: number; band: 'green' | 'yellow'
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-extrabold tabular-nums text-white">{score}</span>
-        <span className="text-[9px] font-medium uppercase tracking-wide text-slate-400">recovery</span>
+        <span className="text-2xl font-semibold tabular-nums text-white">{score}</span>
+        <span className="text-xs font-medium text-slate-400">recovery</span>
       </div>
     </div>
   );
@@ -70,9 +70,9 @@ function Metric({
 }) {
   return (
     <div className="rounded-2xl bg-white/5 p-3 ring-1 ring-inset ring-white/10">
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="text-xs font-medium text-slate-400">{label}</div>
       <div className="mt-1 flex items-baseline gap-1">
-        <span className={`text-xl font-bold tabular-nums ${TREND_COLOR[trend]}`}>{value}</span>
+        <span className={`text-xl font-semibold tabular-nums ${TREND_COLOR[trend]}`}>{value}</span>
         {unit && <span className="text-[11px] text-slate-400">{unit}</span>}
       </div>
       {sub && <div className="mt-0.5 text-[10px] text-slate-500">{sub}</div>}
@@ -138,7 +138,7 @@ export function RecoveryCard({
     today && day && day !== today ? `${label} · ${fmtDay(day)}` : label;
 
   return (
-    <div className="rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-5 shadow-lg">
+    <div className="rounded-3xl surface-hero p-5">
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold tracking-tight text-white">Recovery &amp; body</p>
         {snapshot.asOf && <span className="text-[11px] text-slate-500">as of {fmtDay(snapshot.asOf)}</span>}
@@ -205,7 +205,7 @@ export function RecoveryCard({
 
       {snapshot.hrvSeries.length >= 3 && (
         <div className="mt-4">
-          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">HRV · last {snapshot.hrvSeries.length} days</div>
+          <div className="text-xs font-medium text-slate-500">HRV · last {snapshot.hrvSeries.length} days</div>
           <Sparkline series={snapshot.hrvSeries} />
         </div>
       )}
@@ -247,7 +247,7 @@ function MoreMarkers({ snapshot }: { snapshot: RecoverySnapshot }) {
 
   return (
     <details className="group mt-4 border-t border-white/10 pt-3">
-      <summary className="flex cursor-pointer list-none items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-300">
+      <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-medium text-slate-400 hover:text-slate-300">
         <span>More markers</span>
         <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
           <path d="M6 9l6 6 6-6" />
@@ -256,7 +256,7 @@ function MoreMarkers({ snapshot }: { snapshot: RecoverySnapshot }) {
       <div className="mt-2 grid grid-cols-3 gap-2">
         {rows.map((r) => (
           <div key={r.label} className="rounded-xl bg-white/5 p-2.5 ring-1 ring-inset ring-white/10">
-            <div className="text-[9px] font-medium uppercase tracking-wide text-slate-500">{r.label}</div>
+            <div className="text-xs font-medium text-slate-500">{r.label}</div>
             <div className="mt-0.5 flex items-baseline gap-1">
               <span className="text-base font-bold tabular-nums text-slate-200">{r.value}</span>
               <span className="text-[10px] text-slate-500">{r.unit}</span>

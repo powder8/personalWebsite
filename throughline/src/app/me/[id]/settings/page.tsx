@@ -101,7 +101,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
           </svg>
           Back to training
         </Link>
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">· Settings</span>
+        <span className="text-[13px] font-medium text-slate-400">· Settings</span>
       </div>
 
       {/* ── ACCOUNT ──────────────────────────────────────────────────────── */}
@@ -289,5 +289,5 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
 }
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
-  return <h2 className="px-1 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{children}</h2>;
+  return <h2 className="px-1 pt-3 text-[13px] font-medium text-slate-400">{children}</h2>;
 }

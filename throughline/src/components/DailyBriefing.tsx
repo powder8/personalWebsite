@@ -8,9 +8,9 @@ export function DailyBriefing({ firstName, today, recovery, checkedIn, goalName,
 }) {
   const low = recovery.readiness?.band === 'easy' || recovery.pattern.kind === 'strained';
   const title = low ? 'Make room to recover.' : checkedIn ? 'Your day is ready.' : 'Start with you, then the plan.';
-  return <section className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-emerald-950/70 via-[#141b2e] to-[#10141f] p-5 sm:p-6" aria-labelledby="daily-heading">
-    <p className="text-xs font-medium uppercase tracking-widest text-emerald-200">Your daily compass · {today}</p>
-    <h1 id="daily-heading" className="mt-3 text-2xl font-bold tracking-tight text-white sm:text-3xl">{firstName}, {title.charAt(0).toLowerCase() + title.slice(1)}</h1>
+  return <section className="overflow-hidden rounded-3xl border border-white/10 surface-hero-positive p-5 sm:p-6" aria-labelledby="daily-heading">
+    <p className="text-[13px] font-mediumst text-emerald-200">Your daily compass · {today}</p>
+    <h1 id="daily-heading" className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">{firstName}, {title.charAt(0).toLowerCase() + title.slice(1)}</h1>
     <p className="mt-2 max-w-lg text-sm leading-relaxed text-slate-700">{low
       ? 'Protect the next few weeks, not just this workout. Check your recovery below and choose an easier day if you need one.'
       : recovery.readiness?.sentence ?? 'Check how your body is responding, see today’s work, and keep the long-term goal in view.'}</p>
@@ -33,7 +33,7 @@ export function DailyBriefing({ firstName, today, recovery, checkedIn, goalName,
     </div>
     {adherence != null && <p className="mt-3 text-xs text-slate-500">{Math.round(adherence)}% planned-work adherence over tracked weeks. Recovery days belong in the plan.</p>}
     <nav aria-label="Daily view" className="mt-4 flex flex-wrap gap-2 text-sm font-semibold">
-      <a href="#check-in" className="rounded-full bg-lime-300 px-4 py-2.5 text-[#10141f]">{checkedIn ? 'Update check-in' : 'How do you feel?'}</a>
+      <a href="#check-in" className="rounded-full bg-lime-300 px-4 py-2.5 text-[#121214]">{checkedIn ? 'Update check-in' : 'How do you feel?'}</a>
       <a href="#today" className="rounded-full bg-white/10 px-4 py-2.5 text-white">Today’s workout</a>
       <a href="#progress" className="rounded-full bg-white/10 px-4 py-2.5 text-white">Goal progress</a>
     </nav>

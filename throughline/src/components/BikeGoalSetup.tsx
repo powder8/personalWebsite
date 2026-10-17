@@ -172,7 +172,7 @@ export function BikeGoalSetup({
         </div>
         <a
           href={`/me/${athleteId}`}
-          className="inline-block rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-[#0c1018] transition hover:bg-lime-200"
+          className="inline-block rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-[#0a0a0b] transition hover:bg-lime-200"
         >
           Go to my plan →
         </a>
@@ -207,7 +207,7 @@ export function BikeGoalSetup({
       {/* Race goal, distance + climbing make a target time mean something. */}
       <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-inset ring-white/10">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Your race (optional)</div>
+          <div className="text-[13px] font-medium text-slate-400">Your race (optional)</div>
           <label className="cursor-pointer rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:bg-white/15">
             ⬆ Import GPX
             <input type="file" accept=".gpx,application/gpx+xml,text/xml" onChange={onGpx} className="sr-only" />
@@ -257,7 +257,7 @@ export function BikeGoalSetup({
 
       <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-inset ring-white/10">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Your cycling fitness</div>
+          <div className="text-[13px] font-medium text-slate-400">Your cycling fitness</div>
           <button
             type="button"
             onClick={onDetectFtp}
@@ -294,7 +294,7 @@ export function BikeGoalSetup({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-full bg-lime-300 px-5 py-2.5 text-sm font-semibold text-[#0c1018] transition hover:bg-lime-200 disabled:opacity-50"
+        className="rounded-full bg-lime-300 px-5 py-2.5 text-sm font-semibold text-[#0a0a0b] transition hover:bg-lime-200 disabled:opacity-50"
       >
         {pending ? 'Building your plan...' : 'Build my cycling plan'}
       </button>

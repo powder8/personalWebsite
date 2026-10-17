@@ -30,18 +30,18 @@ export default async function TriSetupPage({ params }: { params: Promise<{ id: s
           </svg>
           Back
         </Link>
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">· Triathlon setup</span>
+        <span className="text-[13px] font-medium text-slate-400">· Triathlon setup</span>
       </div>
 
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 text-white shadow-lg">
-        <h1 className="text-2xl font-bold tracking-tight">Let&apos;s build your triathlon, {firstName} 🏊 🚴 🏃</h1>
+      <div className="overflow-hidden rounded-3xl surface-hero p-6 text-white">
+        <h1 className="text-2xl font-semibold tracking-tight">Let&apos;s build your triathlon, {firstName} 🏊 🚴 🏃</h1>
         <p className="mt-1 text-sm text-white/80">
           Tell me your race, roughly where your fitness is in each sport, and how much you can train. I&apos;ll build a
           coordinated swim/bike/run plan, and give you an honest read on your target.
         </p>
       </div>
 
-      <div className="rounded-3xl bg-[#0f1420] p-6 ring-1 ring-inset ring-white/10">
+      <div className="rounded-3xl bg-[#111113] p-6 ring-1 ring-inset ring-white/10">
         <TriGoalSetup athleteId={id} defaultDob={athlete.dateOfBirth} defaultWeightKg={weightKg} />
       </div>
 

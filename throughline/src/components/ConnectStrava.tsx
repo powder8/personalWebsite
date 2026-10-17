@@ -194,7 +194,7 @@ export function ConnectStrava({
   if (!configured) {
     return (
       <p className="text-sm text-slate-500">
-        Strava sync isn't configured yet. Add an API app's keys to enable one-tap activity import.
+        Strava sync isn&apos;t configured yet. Add an API app&apos;s keys to enable one-tap activity import.
       </p>
     );
   }
@@ -263,7 +263,7 @@ export function ConnectStrava({
             <button
               type="button"
               onClick={() => run({ resume: true })}
-              className="rounded bg-sky-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-sky-600"
+              className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-[#0a0a0b] transition hover:bg-slate-800"
             >
               Resume import
             </button>
@@ -284,7 +284,7 @@ export function ConnectStrava({
             type="button"
             onClick={() => run({ full: true })}
             disabled={running}
-            className="rounded bg-sky-700 px-3 py-1 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
+            className="rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-[#0a0a0b] transition hover:bg-slate-800 disabled:opacity-50"
           >
             {running ? 'Importing...' : 'Import Strava history'}
           </button>

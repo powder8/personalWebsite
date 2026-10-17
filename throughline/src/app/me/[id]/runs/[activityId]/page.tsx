@@ -109,9 +109,9 @@ export default async function RunDetailPage({
       </Link>
 
       {/* Header stats */}
-      <div className="rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 text-white shadow-lg">
+      <div className="rounded-3xl surface-hero p-6 text-white">
         <p className="text-sm text-slate-400">{day}{shoeName ? ` · ${shoeName}` : ''}</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight">{run.name ?? 'Run'}</h1>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">{run.name ?? 'Run'}</h1>
         <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
           <Stat label="Distance" value={miles != null ? fmtDistance(miles * MI, units, 2) : "-"} />
           <Stat label="Time" value={run.durationSeconds != null ? fmtDur(run.durationSeconds) : '-'} />
@@ -170,7 +170,7 @@ export default async function RunDetailPage({
             )}
           </div>
           <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wide text-slate-400">
+            <thead className="text-left text-[13px] text-slate-400">
               <tr>
                 <th className="w-8 py-1 font-medium">#</th>
                 <th className="py-1 font-medium">Type</th>
@@ -219,7 +219,7 @@ export default async function RunDetailPage({
             <div className="flex flex-wrap gap-x-6 gap-y-2">
               {intervalResult.workRestRatioTime != null && (
                 <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Work:rest</div>
+                  <div className="text-xs font-medium text-slate-400">Work:rest</div>
                   <div className="text-sm font-bold text-slate-200">
                     1:{(1 / intervalResult.workRestRatioTime).toFixed(1)}
                     <span className="ml-1 text-xs font-normal text-slate-500">by time</span>
@@ -228,7 +228,7 @@ export default async function RunDetailPage({
               )}
               {intervalResult.paceFadePct != null && (
                 <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Consistency</div>
+                  <div className="text-xs font-medium text-slate-400">Consistency</div>
                   <div className={`text-sm font-bold ${Math.abs(intervalResult.paceFadePct) <= 3 ? 'text-lime-300' : intervalResult.paceFadePct > 0 ? 'text-amber-300' : 'text-lime-300'}`}>
                     {intervalResult.paceFadePct > 0
                       ? `+${intervalResult.paceFadePct}% fade`
@@ -240,7 +240,7 @@ export default async function RunDetailPage({
               )}
               {intervalResult.recoveryType && (
                 <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Recovery</div>
+                  <div className="text-xs font-medium text-slate-400">Recovery</div>
                   <div className="text-sm font-bold capitalize text-slate-200">{intervalResult.recoveryType}</div>
                 </div>
               )}
@@ -262,7 +262,7 @@ export default async function RunDetailPage({
       {!intervalResult && laps.length >= 2 && (
         <Card title={`Laps · ${laps.length}`}>
           <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wide text-slate-400">
+            <thead className="text-left text-[13px] text-slate-400">
               <tr>
                 <th className="w-8 py-1 font-medium">#</th>
                 <th className="py-1 font-medium">Dist</th>
@@ -302,7 +302,7 @@ export default async function RunDetailPage({
       <Card title={splits.length ? 'Mile splits' : 'Splits'}>
         {splits.length ? (
           <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wide text-slate-400">
+            <thead className="text-left text-[13px] text-slate-400">
               <tr>
                 <th className="w-10 py-1 font-medium">Mi</th>
                 <th className="py-1 font-medium">Pace</th>
@@ -350,7 +350,7 @@ export default async function RunDetailPage({
 function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <div>
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="text-xs font-medium text-slate-400">{label}</div>
       <div className={`text-lg font-bold tabular-nums tracking-tight ${accent ? 'text-lime-300' : ''}`}>{value}</div>
     </div>
   );
@@ -359,7 +359,7 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 function LapStat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <div>
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="text-xs font-medium text-slate-400">{label}</div>
       <div className={`text-base font-bold tabular-nums ${accent ? 'text-lime-300' : 'text-slate-200'}`}>{value}</div>
     </div>
   );

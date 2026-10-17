@@ -48,7 +48,7 @@ export const metadata: Metadata = {
 // lets the dark shell extend under the notch/home bar; safe-area padding is
 // applied where content sits at the edges.
 export const viewport: Viewport = {
-  themeColor: "#0c1018",
+  themeColor: "#0a0a0b",
   viewportFit: "cover",
   width: "device-width",
   initialScale: 1,
@@ -78,16 +78,22 @@ export default async function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
+      <body className="min-h-full flex flex-col bg-background text-slate-900">
         <ServiceWorkerRegistration />
-        <header className="border-b border-slate-200 bg-card">
-          <div className="mx-auto flex max-w-5xl items-center gap-3 px-5 py-3">
-            <Link href="/" className="font-semibold tracking-tight text-slate-900">
+        <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#0a0a0b]/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+          <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-5">
+            <Link href="/" className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-white">
+              {/* The app icon's rising line, as a mark. */}
+              <span aria-hidden className="flex h-7 w-7 items-center justify-center rounded-lg bg-lime-300">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="#0a0a0b" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 17l5-5 4 3 9-9" />
+                </svg>
+              </span>
               Throughline
             </Link>
             {!signedOut && (
-              <span className="hidden text-xs font-medium uppercase tracking-wide text-slate-400 sm:inline">
-                {isAdmin ? 'Admin' : isConsole ? 'Coach Console' : 'Athlete'}
+              <span className="hidden rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] font-medium text-slate-400 sm:inline">
+                {isAdmin ? 'Admin' : isConsole ? 'Coach' : 'Athlete'}
               </span>
             )}
             {/* min-w-0 + overflow-x-auto: on a phone a long console nav scrolls
@@ -96,19 +102,19 @@ export default async function RootLayout({
             <nav className="ml-auto flex min-w-0 items-center gap-4 overflow-x-auto whitespace-nowrap text-sm">
               {signedOut ? null : isConsole ? (
                 <>
-                  <Link href="/coach" className="text-slate-600 hover:text-slate-900">
+                  <Link href="/coach" className="text-slate-400 transition hover:text-white">
                     Roster
                   </Link>
-                  <Link href="/coach/analytics" className="text-slate-600 hover:text-slate-900">
+                  <Link href="/coach/analytics" className="text-slate-400 transition hover:text-white">
                     Analytics
                   </Link>
                   {/* Site-wide tools are admin-only. */}
                   {isAdmin && (
                     <>
-                      <Link href="/import" className="text-slate-600 hover:text-slate-900">
+                      <Link href="/import" className="text-slate-400 transition hover:text-white">
                         Import
                       </Link>
-                      <Link href="/escalations" className="flex items-center gap-1 text-slate-600 hover:text-slate-900">
+                      <Link href="/escalations" className="flex items-center gap-1 text-slate-400 transition hover:text-white">
                         Escalations
                         {openEscalations > 0 && (
                           <span className="rounded-full bg-rose-600 px-1.5 text-[10px] font-semibold text-white">
@@ -116,7 +122,7 @@ export default async function RootLayout({
                           </span>
                         )}
                       </Link>
-                      <Link href="/feedback" className="flex items-center gap-1 text-slate-600 hover:text-slate-900">
+                      <Link href="/feedback" className="flex items-center gap-1 text-slate-400 transition hover:text-white">
                         Feedback
                         {openFeedback > 0 && (
                           <span className="rounded-full bg-sky-600 px-1.5 text-[10px] font-semibold text-white">
@@ -129,13 +135,13 @@ export default async function RootLayout({
                 </>
               ) : (
                 <>
-                  <Link href="/me" className="text-slate-600 hover:text-slate-900">
+                  <Link href="/me" className="text-slate-400 transition hover:text-white">
                     My training
                   </Link>
-                  <Link href="/me/health" className="text-slate-600 hover:text-slate-900">
+                  <Link href="/me/health" className="text-slate-400 transition hover:text-white">
                     Health
                   </Link>
-                  <Link href="/me/settings" className="text-slate-600 hover:text-slate-900">
+                  <Link href="/me/settings" className="text-slate-400 transition hover:text-white">
                     Settings
                   </Link>
                 </>
@@ -150,14 +156,14 @@ export default async function RootLayout({
                     className="flex items-center gap-2"
                   >
                     <span className="hidden text-xs text-slate-400 sm:inline">{session.user.email}</span>
-                    <button type="submit" className="text-slate-500 hover:text-slate-900">
+                    <button type="submit" className="text-slate-500 transition hover:text-white">
                       Sign out
                     </button>
                   </form>
                 ) : (
                   <Link
                     href="/signin"
-                    className="rounded-full bg-lime-300 px-4 py-1.5 font-semibold text-[#0c1018] hover:bg-lime-200"
+                    className="rounded-full bg-white px-4 py-1.5 font-semibold text-[#0a0a0b] transition hover:bg-slate-800"
                   >
                     Sign in
                   </Link>

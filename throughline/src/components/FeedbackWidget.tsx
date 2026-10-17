@@ -41,12 +41,12 @@ export function FeedbackWidget() {
     }
   }
 
-  const field = 'mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm';
+  const field = 'mt-0.5 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm';
 
   return (
     <div className="fixed bottom-20 right-4 z-50 sm:bottom-4">
       {open ? (
-        <div className="w-80 rounded-lg border border-slate-200 bg-card p-4 shadow-lg">
+        <div className="w-80 rounded-3xl bg-card p-5 shadow-2xl ring-1 ring-inset ring-white/10">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-semibold text-slate-800">Feedback</span>
             <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-700">
@@ -81,7 +81,7 @@ export function FeedbackWidget() {
               <button
                 type="submit"
                 disabled={pending}
-                className="w-full rounded bg-sky-700 px-3 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
+                className="w-full rounded-full bg-white px-3 py-2.5 text-sm font-semibold text-[#0a0a0b] transition hover:bg-slate-800 disabled:opacity-50"
               >
                 {pending ? 'Sending...' : 'Send feedback'}
               </button>
@@ -90,11 +90,16 @@ export function FeedbackWidget() {
           )}
         </div>
       ) : (
+        // A quiet round button: always reachable, never louder than the content.
         <button
           onClick={() => setOpen(true)}
-          className="rounded-full bg-sky-700 px-4 py-2 text-sm font-medium text-white shadow-lg hover:bg-sky-800"
+          aria-label="Send feedback"
+          title="Send feedback"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-[#1b1b1e]/90 text-slate-400 shadow-lg ring-1 ring-inset ring-white/10 backdrop-blur transition hover:text-white"
         >
-          💬 Feedback
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+          </svg>
         </button>
       )}
     </div>

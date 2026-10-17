@@ -96,7 +96,7 @@ export function CheckInForm({ athleteId, day, initial }: { athleteId: string; da
         </label>
       </details>
       <button type="submit" disabled={pending || !Object.values(answers).some((v) => typeof v === 'number')}
-        className="min-h-11 rounded-xl bg-lime-300 px-5 py-2 text-sm font-semibold text-[#10141f] hover:bg-lime-200 disabled:opacity-50">
+        className="min-h-11 rounded-xl bg-lime-300 px-5 py-2 text-sm font-semibold text-[#121214] hover:bg-lime-200 disabled:opacity-50">
         {pending ? 'Updating your day…' : initial ? 'Update my check-in' : 'Check in & update my day'}
       </button>
       <p role="status" className="text-sm text-emerald-300">{message}</p>

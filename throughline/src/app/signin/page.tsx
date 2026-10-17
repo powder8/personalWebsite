@@ -35,12 +35,18 @@ export default async function SignInPage({
   const emailEnabled = !!process.env.AUTH_RESEND_KEY;
 
   return (
-    <div className="mx-auto max-w-md py-16">
-      <h1 className="text-center text-2xl font-semibold text-slate-900">Sign in to Throughline</h1>
-      <p className="mt-1 text-center text-sm text-slate-500">Coaches and athletes.</p>
+    <div className="mx-auto max-w-sm py-12 sm:py-20">
+      <div className="rounded-[2rem] bg-card p-7 ring-1 ring-inset ring-white/[0.06] sm:p-9">
+      <span aria-hidden className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-lime-300">
+        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="#0a0a0b" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 17l5-5 4 3 9-9" />
+        </svg>
+      </span>
+      <h1 className="mt-6 text-center text-[1.75rem] font-semibold tracking-tight text-white">Welcome to Throughline</h1>
+      <p className="mt-2 text-center text-[15px] text-slate-500">Sign in or create an account to see your plan.</p>
 
       {error && (
-        <p className="mt-4 rounded bg-rose-400/10 px-3 py-2 text-center text-sm text-rose-300 ring-1 ring-inset ring-rose-400/30">
+        <p className="mt-6 rounded-2xl bg-rose-400/10 px-4 py-3 text-center text-sm text-rose-300 ring-1 ring-inset ring-rose-400/25">
           {error === 'AccessDenied' ? 'That account isn’t recognized yet.' : 'Sign-in failed, please try again.'}
         </p>
       )}
@@ -55,7 +61,7 @@ export default async function SignInPage({
           >
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-card px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-white px-4 text-[15px] font-semibold text-[#0a0a0b] transition hover:bg-slate-800"
             >
               <GoogleMark /> Continue with Google
             </button>
@@ -64,7 +70,7 @@ export default async function SignInPage({
 
         {googleEnabled && emailEnabled && (
           <div className="flex items-center gap-3 text-xs text-slate-400">
-            <span className="h-px flex-1 bg-slate-200" /> or <span className="h-px flex-1 bg-slate-200" />
+            <span className="h-px flex-1 bg-white/[0.08]" /> or <span className="h-px flex-1 bg-white/[0.08]" />
           </div>
         )}
 
@@ -77,25 +83,30 @@ export default async function SignInPage({
             }}
             className="space-y-2"
           >
-            <label className="block text-sm text-slate-600">
+            <label className="block px-1 text-sm text-slate-500">
               Email
               <input
                 name="email"
                 type="email"
                 required
                 placeholder="you@example.com"
-                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="mt-1.5 block h-12 w-full rounded-full border border-white/10 bg-white/[0.04] px-5 text-[15px]"
               />
             </label>
             <button
               type="submit"
-              className="w-full rounded-lg bg-sky-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-sky-800"
+              className="h-12 w-full rounded-full bg-white/[0.08] px-4 text-[15px] font-semibold text-white transition hover:bg-white/[0.12]"
             >
               Email me a sign-in link
             </button>
           </form>
         )}
       </div>
+      </div>
+      <p className="mt-6 text-center text-xs text-slate-500">
+        By continuing you agree to how we handle your data in the{' '}
+        <a href="/privacy" className="underline hover:text-white">privacy policy</a>.
+      </p>
     </div>
   );
 }

@@ -41,9 +41,21 @@ const SPORT_EMOJI: Record<string, string> = {
 };
 
 const TONE: Record<NextStep['tone'], string> = {
-  action: 'from-indigo-600/30 via-[#10141f] to-[#0c0f17] ring-indigo-400/30',
-  positive: 'from-emerald-600/25 via-[#10141f] to-[#0c0f17] ring-emerald-400/30',
-  neutral: 'from-slate-600/20 via-[#10141f] to-[#0c0f17] ring-slate-400/20',
+  action: 'surface-hero',
+  positive: 'surface-hero-positive',
+  neutral: 'surface-hero',
+};
+
+/** Short label above the headline, so the headline itself can be just the session. */
+const EYEBROW: Partial<Record<NextStep['kind'], string>> = {
+  today: 'Today',
+  eased_today: 'Today, eased',
+  done_today: 'Done for today',
+  rest_today: 'Today',
+  ease_back: 'Welcome back',
+  setup_fitness: 'Next step',
+  set_goal: 'Next step',
+  goal_done: 'Goal complete',
 };
 
 export function NextStepBanner({
@@ -66,13 +78,20 @@ export function NextStepBanner({
   units?: Units;
 }) {
   return (
-    <div className={`rounded-3xl bg-gradient-to-br p-5 shadow-lg ring-1 ring-inset ${TONE[step.tone]}`}>
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Your next step</div>
-      <h2 className="mt-1 flex items-center gap-2 text-xl font-extrabold tracking-tight text-white">
-        <span aria-hidden>{step.emoji}</span>
-        <span>{step.headline}</span>
-      </h2>
-      <p className="mt-1.5 text-sm leading-relaxed text-white/80">{step.detail}</p>
+    <div className={`rounded-3xl p-6 ${TONE[step.tone]}`}>
+      <div className="flex items-start gap-4">
+        <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/[0.06] text-xl">
+          {step.emoji}
+        </span>
+        <div className="min-w-0">
+          <div className="text-sm text-slate-400">{EYEBROW[step.kind] ?? 'Next step'}</div>
+          {/* "Today: Easy 5 mi" → the eyebrow already says Today. */}
+          <h2 className="mt-0.5 text-[1.75rem] font-semibold leading-tight tracking-tight text-white sm:text-3xl">
+            {step.headline.replace(/^Today:\s*/, '')}
+          </h2>
+        </div>
+      </div>
+      <p className="mt-3 text-[15px] leading-relaxed text-slate-600">{step.detail}</p>
 
       {loggedToday && loggedToday.items.length > 0 && (
         <p className="mt-1.5 text-sm font-semibold text-lime-200">
@@ -96,7 +115,7 @@ export function NextStepBanner({
           return session.terrain ? <p className="mt-2 text-xs text-slate-400">📍 {session.terrain}</p> : null;
         }
         return (
-          <div className="mt-3 rounded-2xl bg-white/5 p-3.5 ring-1 ring-inset ring-white/10">
+          <div className="mt-4 rounded-2xl bg-black/25 p-4">
             {session.adjustments.length > 0 && (
               <div className="inline-block rounded bg-amber-300/20 px-1.5 py-0.5 text-[11px] font-medium text-amber-200">
                 {session.adjustments.join('; ')}
@@ -132,7 +151,7 @@ export function NextStepBanner({
         {step.cta.type === 'scroll' && (
           <a
             href={step.cta.href}
-            className="inline-block rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-[#0c1018] transition hover:bg-lime-200"
+            className="inline-flex h-11 items-center rounded-full bg-lime-300 px-5 text-sm font-semibold text-[#0a0a0b] transition hover:bg-lime-200"
           >
             {step.cta.label}
           </a>
@@ -140,7 +159,7 @@ export function NextStepBanner({
         {step.cta.type === 'view_run' && latestActivityId && (
           <Link
             href={`/me/${athleteId}/runs/${latestActivityId}`}
-            className="inline-block text-sm font-semibold text-sky-300 hover:underline"
+            className="inline-flex h-10 items-center rounded-full bg-white/[0.08] px-4 text-sm font-semibold text-white transition hover:bg-white/[0.12]"
           >
             {step.cta.label} →
           </Link>

@@ -138,7 +138,7 @@ export function ShoesPanel({
             </label>
           </div>
           <div className="flex items-center gap-3">
-            <button type="submit" disabled={pending} className="rounded bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50">
+            <button type="submit" disabled={pending} className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#0a0a0b] transition hover:bg-slate-800 disabled:opacity-50">
               {pending ? 'Saving...' : 'Add shoes'}
             </button>
             {shoes.length > 0 && (
@@ -157,7 +157,7 @@ export function ShoesPanel({
       {/* Per-run reassignment */}
       {shoes.length > 0 && recentRuns.length > 0 && (
         <div className="border-t border-slate-100 pt-3">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Reassign recent runs</div>
+          <div className="mb-2 text-[13px] font-medium text-slate-500">Reassign recent runs</div>
           <ul className="space-y-1.5">
             {recentRuns.map((r) => (
               <li key={r.id} className="flex items-center justify-between gap-2 text-sm">

@@ -43,7 +43,7 @@ function PercentileMeter({ pct }: { pct: number }) {
           aria-hidden
         />
       </div>
-      <div className="mt-1 flex justify-between text-[9px] font-medium uppercase tracking-wide text-slate-500">
+      <div className="mt-1 flex justify-between text-xs font-medium text-slate-500">
         <span>Below average</span>
         <span>Median</span>
         <span>Elite</span>
@@ -67,9 +67,9 @@ function StatTile({
 }) {
   return (
     <div className="rounded-2xl bg-white/5 p-3 ring-1 ring-inset ring-white/10">
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="text-xs font-medium text-slate-400">{label}</div>
       <div className="mt-1 flex items-baseline gap-1">
-        <span className={`text-xl font-bold tabular-nums ${valueClass}`}>{value}</span>
+        <span className={`text-xl font-semibold tabular-nums ${valueClass}`}>{value}</span>
         {unit && <span className="text-[11px] text-slate-400">{unit}</span>}
       </div>
       {sub && <div className="mt-0.5 text-[10px] text-slate-500">{sub}</div>}
@@ -79,7 +79,7 @@ function StatTile({
 
 function GradientCard({ children, title, aside }: { children: React.ReactNode; title: string; aside?: string }) {
   return (
-    <section className="rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-5 shadow-lg">
+    <section className="rounded-3xl surface-hero p-5">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-bold tracking-tight text-white">{title}</h2>
         {aside && <span className="text-[11px] text-slate-500">{aside}</span>}

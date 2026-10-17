@@ -127,7 +127,7 @@ export function FtpUpdate({
         <button
           onClick={save}
           disabled={pending || ftp === String(currentFtp)}
-          className="rounded-full bg-orange-500 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50"
+          className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-[#0a0a0b] transition hover:bg-slate-800 disabled:opacity-50"
         >
           {pending ? 'Saving…' : 'Update FTP'}
         </button>

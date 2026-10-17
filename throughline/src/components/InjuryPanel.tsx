@@ -70,7 +70,7 @@ function ActiveInjury({
 
   return (
     <div className="rounded-3xl bg-amber-400/10 p-5 shadow-lg ring-1 ring-inset ring-amber-400/25">
-      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-amber-300/90">
+      <div className="flex items-center gap-2 text-xs font-medium text-amber-300/90">
         <span aria-hidden>🩹</span>
         {injury.status === 'returning' ? 'Easing back' : paused ? 'Running paused' : 'Training eased'}
       </div>
@@ -103,7 +103,7 @@ function ActiveInjury({
               type="button"
               disabled={pending}
               onClick={() => act({ action: 'resume', injuryId: injury.id })}
-              className="rounded-full bg-lime-300 px-3.5 py-1.5 text-xs font-semibold text-[#0c1018] hover:bg-lime-200 disabled:opacity-50"
+              className="rounded-full bg-lime-300 px-3.5 py-1.5 text-xs font-semibold text-[#0a0a0b] hover:bg-lime-200 disabled:opacity-50"
             >
               Ready, ease me back in
             </button>
@@ -167,7 +167,7 @@ function ReportEntry({ pending, act }: { pending: boolean; act: (body: Record<st
   return (
     <div className="rounded-3xl bg-amber-400/10 p-5 shadow-lg ring-1 ring-inset ring-amber-400/25">
       <div className="flex items-center justify-between">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-300/90">Report an injury</div>
+        <div className="text-xs font-medium text-amber-300/90">Report an injury</div>
         <button type="button" onClick={() => setOpen(false)} className="text-xs text-slate-400 hover:text-slate-200">
           Cancel
         </button>
@@ -181,7 +181,7 @@ function ReportEntry({ pending, act }: { pending: boolean; act: (body: Record<st
             type="button"
             onClick={() => setBodyPart(p)}
             className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${
-              bodyPart === p ? 'bg-amber-300 text-[#0c1018] ring-amber-300' : 'bg-white/5 text-white/80 ring-white/15 hover:bg-white/10'
+              bodyPart === p ? 'bg-amber-300 text-[#0a0a0b] ring-amber-300' : 'bg-white/5 text-white/80 ring-white/15 hover:bg-white/10'
             }`}
           >
             {p}
@@ -218,7 +218,7 @@ function ReportEntry({ pending, act }: { pending: boolean; act: (body: Record<st
           type="button"
           disabled={pending || !part}
           onClick={() => act({ action: 'report', bodyPart: part, canContinue: false, note, checkBackDays: 7 })}
-          className="flex-1 rounded-xl bg-amber-300 px-3 py-2.5 text-sm font-semibold text-[#0c1018] hover:bg-amber-200 disabled:opacity-40"
+          className="flex-1 rounded-xl bg-amber-300 px-3 py-2.5 text-sm font-semibold text-[#0a0a0b] hover:bg-amber-200 disabled:opacity-40"
         >
           No, pause my running
         </button>

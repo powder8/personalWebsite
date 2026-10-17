@@ -105,7 +105,7 @@ export function PortalTabs({ tabs, initial }: { tabs: PortalTab[]; initial: Port
       <div
         role="tablist"
         aria-label="Your training"
-        className="sticky top-[env(safe-area-inset-top,0px)] z-30 -mx-1 hidden gap-1 rounded-2xl border border-white/10 bg-[#0c1018]/90 p-1 backdrop-blur sm:flex"
+        className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px)+0.75rem)] z-30 hidden gap-1 rounded-full bg-[#141416]/90 p-1 ring-1 ring-inset ring-white/[0.06] backdrop-blur-xl sm:flex"
       >
         {tabs.map((t) => (
           <button
@@ -116,8 +116,8 @@ export function PortalTabs({ tabs, initial }: { tabs: PortalTab[]; initial: Port
             aria-selected={active === t.id}
             aria-controls={`panel-${t.id}`}
             onClick={() => select(t.id, { scrollTop: true })}
-            className={`relative flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition ${
-              active === t.id ? 'bg-lime-300 text-[#0c1018]' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            className={`relative flex-1 rounded-full px-3 py-2 text-sm font-medium transition ${
+              active === t.id ? 'bg-white text-[#0a0a0b] shadow-sm' : 'text-slate-400 hover:text-white'
             }`}
           >
             {t.label}
@@ -136,7 +136,7 @@ export function PortalTabs({ tabs, initial }: { tabs: PortalTab[]; initial: Port
           aria-labelledby={`tab-${t.id}`}
           data-tab-panel={t.id}
           hidden={active !== t.id}
-          className="space-y-4"
+          className="animate-fade-up space-y-4"
         >
           {t.panel}
         </section>
@@ -144,7 +144,7 @@ export function PortalTabs({ tabs, initial }: { tabs: PortalTab[]; initial: Port
 
       <nav
         aria-label="Sections"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-card/95 backdrop-blur sm:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.06] bg-[#0a0a0b]/85 backdrop-blur-xl sm:hidden"
       >
         <div className="mx-auto grid max-w-2xl pb-[env(safe-area-inset-bottom)]" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
           {tabs.map((t) => (
@@ -153,12 +153,15 @@ export function PortalTabs({ tabs, initial }: { tabs: PortalTab[]; initial: Port
               type="button"
               aria-current={active === t.id ? 'page' : undefined}
               onClick={() => select(t.id, { scrollTop: true })}
-              className={`relative flex flex-col items-center gap-0.5 py-2 ${active === t.id ? 'text-lime-300' : 'text-slate-400'}`}
+              className={`relative flex flex-col items-center gap-1 pb-1.5 pt-2.5 transition ${active === t.id ? 'text-white' : 'text-slate-500'}`}
             >
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d={t.icon} />
-              </svg>
-              <span className="text-[10px] font-semibold">{t.label}</span>
+              {/* Active tab: icon sits in a soft pill (Material 3 / iOS 18 style). */}
+              <span className={`flex h-7 w-12 items-center justify-center rounded-full transition ${active === t.id ? 'bg-white/[0.12]' : ''}`}>
+                <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth={active === t.id ? 2.1 : 1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d={t.icon} />
+                </svg>
+              </span>
+              <span className="text-[11px] font-medium">{t.label}</span>
               {t.attention && active !== t.id && <span className="absolute right-[30%] top-1.5 h-1.5 w-1.5 rounded-full bg-lime-300" />}
             </button>
           ))}

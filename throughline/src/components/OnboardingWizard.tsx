@@ -60,15 +60,15 @@ export function OnboardingWizard({
       </div>
 
       {step === 'welcome' && (
-        <div className="rounded-3xl bg-gradient-to-br from-indigo-600/30 via-[#10141f] to-[#0c0f17] p-7 text-center shadow-lg ring-1 ring-inset ring-indigo-400/30">
-          <h1 className="text-2xl font-extrabold tracking-tight text-white">Welcome, {firstName} 👋</h1>
+        <div className="rounded-3xl surface-hero p-7 text-center">
+          <h1 className="text-2xl font-semibold tracking-tight text-white">Welcome, {firstName} 👋</h1>
           <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-700">
             Throughline is your automatic running coach. Tell us a little about where you are and what you’re chasing,
             and we’ll build, and keep adapting, a real day-by-day plan to get you there.
           </p>
           <button
             onClick={() => setStep('connect')}
-            className="mt-6 rounded-full bg-lime-300 px-6 py-2.5 text-sm font-semibold text-[#0c1018] transition hover:bg-lime-200"
+            className="mt-6 rounded-full bg-lime-300 px-6 py-2.5 text-sm font-semibold text-[#0a0a0b] transition hover:bg-lime-200"
           >
             Let’s go
           </button>
@@ -76,8 +76,8 @@ export function OnboardingWizard({
       )}
 
       {step === 'connect' && (
-        <div className="rounded-3xl bg-[#11151f] p-7 shadow-lg ring-1 ring-inset ring-slate-700/50">
-          <h2 className="text-xl font-bold tracking-tight text-white">Connect your runs</h2>
+        <div className="rounded-3xl bg-[#121214] p-7 shadow-lg ring-1 ring-inset ring-slate-700/50">
+          <h2 className="text-xl font-semibold tracking-tight text-white">Connect your runs</h2>
           <p className="mt-2 text-sm leading-relaxed text-slate-700">
             Linking Strava is the best start, we’ll import your history and read your current fitness automatically, so
             your paces are right from day one. You can always do this later.
@@ -112,8 +112,8 @@ export function OnboardingWizard({
       )}
 
       {step === 'plan' && (
-        <div className="rounded-3xl bg-[#11151f] p-7 shadow-lg ring-1 ring-inset ring-slate-700/50">
-          <h2 className="text-xl font-bold tracking-tight text-white">Your fitness & goal</h2>
+        <div className="rounded-3xl bg-[#121214] p-7 shadow-lg ring-1 ring-inset ring-slate-700/50">
+          <h2 className="text-xl font-semibold tracking-tight text-white">Your fitness & goal</h2>
           <p className="mt-1 mb-4 text-sm text-slate-700">
             {hasAnchor
               ? 'Got your fitness from your runs. Now pick a goal and we’ll build the plan.'
@@ -121,14 +121,14 @@ export function OnboardingWizard({
           </p>
           {/* Quick "about you", drives age-grading + whether cycle tracking shows */}
           <div className="mb-4">
-            <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">Sex (for pacing & tracking)</div>
+            <div className="mb-1 text-xs font-medium text-slate-500">Sex (for pacing & tracking)</div>
             <div className="flex gap-2">
               {(['female', 'male', 'other'] as const).map((s) => (
                 <button
                   key={s}
                   onClick={() => pickSex(s)}
                   className={`rounded-full px-3 py-1.5 text-sm font-medium ring-1 ring-inset transition ${
-                    sex === s ? 'bg-lime-300 text-[#0c1018] ring-lime-300' : 'bg-slate-800 text-slate-300 ring-slate-600 hover:bg-slate-700'
+                    sex === s ? 'bg-lime-300 text-[#0a0a0b] ring-lime-300' : 'bg-slate-800 text-slate-300 ring-slate-600 hover:bg-slate-700'
                   }`}
                 >
                   {s[0].toUpperCase() + s.slice(1)}

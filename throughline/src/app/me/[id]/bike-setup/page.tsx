@@ -30,18 +30,18 @@ export default async function BikeSetupPage({ params }: { params: Promise<{ id: 
           </svg>
           Back
         </Link>
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">· Cycling setup</span>
+        <span className="text-[13px] font-medium text-slate-400">· Cycling setup</span>
       </div>
 
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#141b2e] via-[#10141f] to-indigo-950 p-6 text-white shadow-lg">
-        <h1 className="text-2xl font-bold tracking-tight">Let&apos;s build your cycling plan, {firstName} 🚴</h1>
+      <div className="overflow-hidden rounded-3xl surface-hero p-6 text-white">
+        <h1 className="text-2xl font-semibold tracking-tight">Let&apos;s build your cycling plan, {firstName} 🚴</h1>
         <p className="mt-1 text-sm text-white/80">
           Tell me your FTP, your goal, and how much you can ride. I&apos;ll build a periodized power plan that ramps to
           your event, the same engine behind our triathlon coaching, focused on the bike.
         </p>
       </div>
 
-      <div className="rounded-3xl bg-[#0f1420] p-6 ring-1 ring-inset ring-white/10">
+      <div className="rounded-3xl bg-[#111113] p-6 ring-1 ring-inset ring-white/10">
         <BikeGoalSetup athleteId={id} defaultDob={athlete.dateOfBirth} defaultWeightKg={weightKg} defaultFtp={ftp} />
       </div>
 
