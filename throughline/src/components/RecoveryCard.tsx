@@ -157,7 +157,7 @@ export function RecoveryCard({
           {readiness?.sentence && (
             <p className="mt-0.5 text-sm leading-snug text-white/80">{readiness.sentence}</p>
           )}
-          {!readiness && <p className="mt-1 text-sm text-slate-600">No current readiness assessment. Check in below; you do not need a wearable to get started.</p>}
+          {!readiness && <p className="mt-1 text-sm text-slate-600">No readiness read yet. Add today’s check-in to start one. You do not need a wearable.</p>}
           {readiness && !readiness.sufficientData && <p className="mt-1 text-xs text-slate-500">Based on your check-in. Wearable baselines are unavailable or still forming.</p>}
           {snapshot.n > 0 && snapshot.n < 14 && (
             <p className="mt-1 text-[11px] text-slate-500">

@@ -51,7 +51,7 @@ export function GoalTrackerHero({ tracker, athleteId, progress, units = 'mi' }: 
       {progress ? <div className="mt-4"><TrajectorySparkline progress={progress} /></div> :
         <p className="mt-3 text-sm text-slate-500">Log a few weeks of training to build a meaningful trend.</p>}
       {tracker.execNote && <p className="mt-3 text-sm text-slate-600">{tracker.execNote}</p>}
-      <a href={`/me/${athleteId}#training`} className="mt-4 inline-block py-2 text-sm font-semibold text-lime-200 underline">Review this week’s planned vs actual</a>
+      <a href={`/me/${athleteId}?tab=training`} className="mt-4 inline-block py-2 text-sm font-semibold text-lime-200 underline">Review this week’s planned vs actual</a>
     </section>
   );
   const t = TONE[tracker.tone];

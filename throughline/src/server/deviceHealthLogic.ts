@@ -258,32 +258,4 @@ export function toNormalizedBatch(payload: DevicePayload, today: string): Device
   };
 }
 
-// ---------------------------------------------------------------------------
-// Cross-source workout dedup
-// ---------------------------------------------------------------------------
-
-export interface WorkoutKey {
-  /** Optional because insert rows may omit it (the column defaults to 'run'). */
-  sport?: string | null;
-  startTime: Date;
-  durationSeconds?: number | null;
-}
-
-/** Two recordings of the same session start within this many seconds of each other… */
-export const DUP_START_WINDOW_SEC = 5 * 60;
-/** …and have durations within this fraction (or 2 min, whichever is larger). */
-export const DUP_DURATION_TOLERANCE = 0.15;
-
-/**
- * Whether a device workout is the SAME session as an activity we already hold
- * from another source (an Apple Watch run that also reached us via Strava).
- * Same sport, starts within the window, durations roughly equal. Strava is the
- * richer record (splits, route), so the device copy is the one that yields.
- */
-export function isSameWorkout(a: WorkoutKey, b: WorkoutKey): boolean {
-  if ((a.sport ?? 'run') !== (b.sport ?? 'run')) return false;
-  if (Math.abs(a.startTime.getTime() - b.startTime.getTime()) > DUP_START_WINDOW_SEC * 1000) return false;
-  if (a.durationSeconds == null || b.durationSeconds == null) return true;
-  const tol = Math.max(120, Math.max(a.durationSeconds, b.durationSeconds) * DUP_DURATION_TOLERANCE);
-  return Math.abs(a.durationSeconds - b.durationSeconds) <= tol;
-}
+export { isSameWorkout, type WorkoutKey } from './workoutDedupLogic';

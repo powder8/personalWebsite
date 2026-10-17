@@ -16,7 +16,8 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
   try {
     const db = await getDb();
-    const result = await syncWhoopData(db, athleteId, 14);
+    // 30 days: enough to backfill recent workouts Whoop auto-detected.
+    const result = await syncWhoopData(db, athleteId, 30);
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     const error = e instanceof Error ? e.message : 'Sync failed.';

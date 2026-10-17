@@ -6,8 +6,9 @@
  * Event types (v2):
  *   recovery.updated / recovery.deleted
  *   sleep.updated    / sleep.deleted
- * The `id` field is a UUID (v2). We don't need it — on any recovery/sleep event
- * we re-pull the last few days for that user, which is idempotent.
+ *   workout.updated  / workout.deleted
+ * The `id` field is a UUID (v2). On an update we re-pull the last few days for
+ * that user (idempotent); on workout.deleted we drop that one Whoop workout.
  *
  * Signature verification (v2): WHOOP sends two headers —
  *   X-WHOOP-Signature            = base64(HMAC-SHA256(timestamp + rawBody, clientSecret))
@@ -18,7 +19,7 @@ import { NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { getDb } from '@/db';
 import { whoopEnv } from '@/providers/whoop/env';
-import { athleteIdForWhoopUser, syncWhoopData } from '@/server/whoop';
+import { athleteIdForWhoopUser, deleteWhoopWorkout, syncWhoopData } from '@/server/whoop';
 
 export const runtime = 'nodejs';
 
@@ -79,9 +80,10 @@ export async function POST(req: Request) {
   }
 
   const { type, user_id } = event;
-  // We only act on data that lands in our tables; delete events and other
-  // types are acknowledged without a re-pull.
-  if (type !== 'recovery.updated' && type !== 'sleep.updated') {
+  // We only act on data that lands in our tables; other types are acknowledged
+  // without a re-pull.
+  const handled = ['recovery.updated', 'sleep.updated', 'workout.updated', 'workout.deleted'];
+  if (!handled.includes(type)) {
     return NextResponse.json({ ok: true, skipped: type });
   }
 
@@ -91,6 +93,10 @@ export async function POST(req: Request) {
     if (!athleteId) {
       // Not a registered athlete — acknowledge so Whoop doesn't retry.
       return NextResponse.json({ ok: true, skipped: 'unknown_user' });
+    }
+    if (type === 'workout.deleted') {
+      await deleteWhoopWorkout(db, athleteId, String(event.id));
+      return NextResponse.json({ ok: true });
     }
     // Re-pull the last 3 days to capture the freshly-computed record.
     await syncWhoopData(db, athleteId, 3);

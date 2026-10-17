@@ -3,11 +3,13 @@
  * tokens live in connected_accounts; ensureAccessToken refreshes when near expiry
  * and persists the new tokens. Sync writes to the existing wearable tables
  * (hrv_records, resting_hr_records, sleep_records, daily_summaries) with
- * provider = 'whoop'.
+ * provider = 'whoop', plus workouts into activities (thin source: a session
+ * another provider already recorded is skipped, see workoutDedupLogic).
  */
 import { and, eq, sql } from 'drizzle-orm';
 import type { DB } from '@/db';
 import {
+  activities,
   connectedAccounts,
   hrvRecords,
   restingHrRecords,
@@ -18,9 +20,13 @@ import {
   refreshTokens,
   fetchRecoveries,
   fetchSleepRecords,
+  fetchWorkouts,
   type WhoopRecovery,
   type WhoopSleep,
+  type WhoopWorkout,
 } from '@/providers/whoop';
+import { normalizeWhoopWorkout } from '@/providers/whoop/workouts';
+import { dropAlreadyRecorded, persistNormalizedBatch } from './ingest';
 
 const TOKEN_SKEW_MS = 5 * 60 * 1000;
 
@@ -207,6 +213,9 @@ export interface WhoopSyncResult {
   days: number;
   recoveries: number;
   sleepRecordsSynced: number;
+  /** Workouts only Whoop saw (added), and ones another source already had (skipped). */
+  workoutsAdded: number;
+  workoutsDeduped: number;
 }
 
 /**
@@ -228,9 +237,15 @@ export async function syncWhoopData(
   const startISO = start.toISOString();
   const endISO = now.toISOString();
 
-  const [recoveries, sleepList] = await Promise.all([
+  const [recoveries, sleepList, workouts] = await Promise.all([
     fetchRecoveries(token, startISO, endISO),
     fetchSleepRecords(token, startISO, endISO),
+    // Workouts need the read:workout scope; an account connected before it was
+    // granted gets a 401/403 here. Don't let that cost the recovery sync.
+    fetchWorkouts(token, startISO, endISO).catch((e) => {
+      console.warn('[whoop] workouts fetch failed:', e instanceof Error ? e.message : e);
+      return [] as WhoopWorkout[];
+    }),
   ]);
 
   // Index sleep records by their UUID so we can join them to recovery records
@@ -265,7 +280,26 @@ export async function syncWhoopData(
     syncedRecoveries++;
   }
 
-  return { days, recoveries: syncedRecoveries, sleepRecordsSynced: syncedSleep };
+  // Workouts: add what only Whoop saw (bike commutes, walks, hikes); a session
+  // Strava/Garmin or a phone already recorded is skipped as a duplicate.
+  const rows = workouts.map(normalizeWhoopWorkout).filter((r): r is NonNullable<typeof r> => r != null);
+  const { kept, deduped } = await dropAlreadyRecorded(db, athleteId, 'whoop', rows);
+  if (kept.length) await persistNormalizedBatch(db, athleteId, null, { activities: kept }, 'whoop');
+
+  return {
+    days,
+    recoveries: syncedRecoveries,
+    sleepRecordsSynced: syncedSleep,
+    workoutsAdded: kept.length,
+    workoutsDeduped: deduped,
+  };
+}
+
+/** Whoop deleted a workout: drop our copy (only ever the Whoop-sourced row). */
+export async function deleteWhoopWorkout(db: DB, athleteId: string, workoutId: string): Promise<void> {
+  await db
+    .delete(activities)
+    .where(and(eq(activities.athleteId, athleteId), eq(activities.sourceRef, `whoop:${workoutId}`)));
 }
 
 // ---------------------------------------------------------------------------

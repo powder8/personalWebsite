@@ -9,22 +9,12 @@
  * Idempotent on the payload hash; per-athlete rate-limited by counting raw
  * events in Postgres (durable across serverless instances).
  */
-import { and, eq, gt, gte, lte, ne, sql } from 'drizzle-orm';
+import { and, eq, gt, sql } from 'drizzle-orm';
 import type { DB } from '@/db';
-import { activities, connectedAccounts, rawEvents } from '@/db/schema';
+import { connectedAccounts, rawEvents } from '@/db/schema';
 import { payloadHash } from '@/lib/hash';
-import { persistNormalizedBatch } from './ingest';
-import {
-  isSameWorkout,
-  PROVIDER_FOR_SOURCE,
-  toNormalizedBatch,
-  validateDevicePayload,
-  DUP_START_WINDOW_SEC,
-  type DeviceProvider,
-} from './deviceHealthLogic';
-import type { NormalizedBatch } from '@/providers/types';
-
-type DeviceActivities = NonNullable<NormalizedBatch['activities']>;
+import { dropAlreadyRecorded, persistNormalizedBatch } from './ingest';
+import { PROVIDER_FOR_SOURCE, toNormalizedBatch, validateDevicePayload, type DeviceProvider } from './deviceHealthLogic';
 
 export const EVENT_TYPE = 'device_health';
 
@@ -47,34 +37,6 @@ async function recentEventCount(db: DB, athleteId: string, provider: DeviceProvi
     .from(rawEvents)
     .where(and(eq(rawEvents.athleteId, athleteId), eq(rawEvents.provider, provider), gt(rawEvents.receivedAt, since)));
   return row?.n ?? 0;
-}
-
-/**
- * Drop device workouts that another source already recorded (the watch run
- * that Strava also has). Returns the survivors and how many yielded.
- */
-async function dedupAgainstOtherSources(
-  db: DB,
-  athleteId: string,
-  provider: DeviceProvider,
-  list: DeviceActivities,
-): Promise<{ kept: DeviceActivities; deduped: number }> {
-  if (list.length === 0) return { kept: [], deduped: 0 };
-  const times = list.map((a) => a.startTime.getTime());
-  const pad = DUP_START_WINDOW_SEC * 1000;
-  const existing = await db
-    .select({ sport: activities.sport, startTime: activities.startTime, durationSeconds: activities.durationSeconds })
-    .from(activities)
-    .where(
-      and(
-        eq(activities.athleteId, athleteId),
-        ne(activities.provider, provider),
-        gte(activities.startTime, new Date(Math.min(...times) - pad)),
-        lte(activities.startTime, new Date(Math.max(...times) + pad)),
-      ),
-    );
-  const kept = list.filter((a) => !existing.some((e) => isSameWorkout(a, e)));
-  return { kept, deduped: list.length - kept.length };
 }
 
 /** Mark the device store as a connected source (so the UI can show it and last-sync). */
@@ -130,7 +92,7 @@ export async function ingestDeviceHealth(
   if (!rawRow) return { ok: true, duplicate: true, counts: empty, skipped: [] };
 
   const { batch, skipped, counts } = toNormalizedBatch(v.payload, today);
-  const { kept, deduped } = await dedupAgainstOtherSources(db, athleteId, provider, batch.activities ?? []);
+  const { kept, deduped } = await dropAlreadyRecorded(db, athleteId, provider, batch.activities ?? []);
   await persistNormalizedBatch(db, athleteId, rawRow.id, { ...batch, activities: kept }, provider);
   await touchConnection(db, athleteId, provider);
 
