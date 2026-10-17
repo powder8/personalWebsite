@@ -86,25 +86,31 @@ export function NextStepBanner({
         </p>
       )}
 
-      {/* The specific workout, inline, reps, paces, recoveries. */}
-      {session && (session.segments.length > 0 || session.description) && (
-        <div className="mt-3 rounded-2xl bg-white/5 p-3.5 ring-1 ring-inset ring-white/10">
-          {session.paceLabel && (
-            <div className="text-sm font-semibold tabular-nums text-white/85">{session.paceLabel}</div>
-          )}
-          {session.adjustments.length > 0 && (
-            <div className="mt-1 inline-block rounded bg-amber-300/20 px-1.5 py-0.5 text-[11px] font-medium text-amber-200">
-              {session.adjustments.join('; ')}
-            </div>
-          )}
-          {session.segments.length > 0 ? (
-            <SegmentList segments={session.segments} onDark units={units} />
-          ) : (
-            session.description && <p className="mt-1 text-sm leading-relaxed text-white/85">{session.description}</p>
-          )}
-          {session.terrain && <p className="mt-2 text-xs text-slate-400">📍 {session.terrain}</p>}
-        </div>
-      )}
+      {/* The specific workout, inline: reps, paces, recoveries. The headline and
+          detail already carry the volume and target, so the box only appears
+          when it adds something (structure, an adjustment, a real note). */}
+      {session && (() => {
+        const note = session.description && !restatesTarget(session.description, session.paceLabel) ? session.description : null;
+        const hasBox = session.segments.length > 0 || session.adjustments.length > 0 || !!note;
+        if (!hasBox) {
+          return session.terrain ? <p className="mt-2 text-xs text-slate-400">📍 {session.terrain}</p> : null;
+        }
+        return (
+          <div className="mt-3 rounded-2xl bg-white/5 p-3.5 ring-1 ring-inset ring-white/10">
+            {session.adjustments.length > 0 && (
+              <div className="inline-block rounded bg-amber-300/20 px-1.5 py-0.5 text-[11px] font-medium text-amber-200">
+                {session.adjustments.join('; ')}
+              </div>
+            )}
+            {session.segments.length > 0 ? (
+              <SegmentList segments={session.segments} onDark units={units} />
+            ) : (
+              note && <p className="mt-1 text-sm leading-relaxed text-white/85">{note}</p>
+            )}
+            {session.terrain && <p className="mt-2 text-xs text-slate-400">📍 {session.terrain}</p>}
+          </div>
+        );
+      })()}
 
       {step.readinessNote && (
         <div
@@ -142,4 +148,15 @@ export function NextStepBanner({
       </div>
     </div>
   );
+}
+
+/**
+ * A plan-generated description like "Easy run, 2.5 mi @ 9:23–10:47/mi" just
+ * restates the headline and target. True when it repeats a pace or watt figure
+ * from the target label, so the banner doesn't say the same pace three times.
+ */
+function restatesTarget(description: string, target: string | null): boolean {
+  if (!target) return false;
+  const tokens = target.match(/\d+:\d\d|\d+(?=-\d+ W)/g) ?? [];
+  return tokens.some((t) => description.includes(t));
 }

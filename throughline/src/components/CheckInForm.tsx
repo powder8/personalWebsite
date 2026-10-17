@@ -18,7 +18,7 @@ export function CheckInForm({ athleteId, day, initial }: { athleteId: string; da
   const fields = [
     { key: 'energy', label: 'Energy', low: 'Drained', high: 'Full of energy' },
     { key: 'soreness', label: 'Muscle soreness', low: 'None', high: 'Very sore' },
-    { key: 'sleepQuality', label: 'How restorative was your sleep?', low: 'Poor', high: 'Restorative' },
+    { key: 'sleepQuality', label: 'Sleep quality', low: 'Poor', high: 'Restorative' },
     { key: 'lifeStress', label: 'Life stress', low: 'Calm', high: 'Overwhelming' },
   ] as const;
 
@@ -41,19 +41,47 @@ export function CheckInForm({ athleteId, day, initial }: { athleteId: string; da
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <p className="text-sm text-slate-600">Your body has a vote. Add what you know; unanswered signals stay unknown.</p>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {fields.map((field) => (
-          <label key={field.key} className="block rounded-2xl bg-white/5 p-3">
-            <span className="text-sm font-medium text-slate-900">{field.label}</span>
-            <select value={answers[field.key] ?? ''} disabled={pending}
-              onChange={(e) => setAnswers({ ...answers, [field.key]: e.target.value === '' ? null : Number(e.target.value) })}
-              className="mt-2 block min-h-11 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm">
-              <option value="">Not answered</option>
-              {Array.from({ length: 11 }, (_, n) => <option key={n} value={n}>{n}{n === 0 ? ` · ${field.low}` : n === 10 ? ` · ${field.high}` : ''}</option>)}
-            </select>
-            <span className="mt-1 block text-xs text-slate-500">0 {field.low.toLowerCase()} · 10 {field.high.toLowerCase()}</span>
-          </label>
-        ))}
+      {/* A slider per signal: one thumb-drag on a phone instead of four
+          dropdowns. Unanswered stays unanswered (dimmed thumb, no value) until
+          the athlete touches it; "Clear" puts it back. */}
+      <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+        {fields.map((field) => {
+          const v = answers[field.key] ?? null;
+          const set = (n: number | null) => setAnswers({ ...answers, [field.key]: n });
+          return (
+            <div key={field.key} className="rounded-2xl bg-white/5 px-3 py-2.5">
+              <div className="flex items-baseline justify-between gap-2">
+                <label htmlFor={`ci-${field.key}`} className="text-sm font-medium text-slate-900">{field.label}</label>
+                {v == null ? (
+                  <span className="whitespace-nowrap text-xs text-slate-500">Not answered</span>
+                ) : (
+                  <span className="flex items-baseline gap-2">
+                    <span className="text-sm font-semibold tabular-nums text-lime-200">{v}/10</span>
+                    <button type="button" onClick={() => set(null)} disabled={pending} className="text-xs text-slate-500 underline">Clear</button>
+                  </span>
+                )}
+              </div>
+              <input
+                id={`ci-${field.key}`}
+                type="range"
+                min={0}
+                max={10}
+                step={1}
+                value={v ?? 5}
+                disabled={pending}
+                aria-valuetext={v == null ? 'Not answered' : `${v} of 10`}
+                onChange={(e) => set(Number(e.target.value))}
+                // A tap on the untouched midpoint fires no change event; count it.
+                onClick={(e) => v == null && set(Number(e.currentTarget.value))}
+                className={`mt-2 h-8 w-full cursor-pointer accent-lime-300 ${v == null ? 'opacity-40' : ''}`}
+              />
+              <div className="flex justify-between text-[11px] text-slate-500">
+                <span>{field.low}</span>
+                <span>{field.high}</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
       <details>
         <summary className="cursor-pointer py-2 text-sm text-slate-600">Add yesterday’s effort or a note</summary>

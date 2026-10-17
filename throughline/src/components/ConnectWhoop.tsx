@@ -7,6 +7,8 @@ interface SyncResult {
   days?: number;
   recoveries?: number;
   sleepRecordsSynced?: number;
+  workoutsAdded?: number;
+  workoutsDeduped?: number;
   error?: string;
 }
 
@@ -38,7 +40,14 @@ export function ConnectWhoop({
       const res = await fetch(`/api/athletes/${athleteId}/whoop/sync`, { method: 'POST' });
       const j: SyncResult = await res.json().catch(() => ({ ok: false, error: 'Bad response.' }));
       if (j.ok) {
-        setMsg(`Synced, ${j.recoveries ?? 0} recovery days updated.`);
+        const added = j.workoutsAdded ?? 0;
+        const dup = j.workoutsDeduped ?? 0;
+        setMsg(
+          `Synced ${j.recoveries ?? 0} recovery days` +
+            (added || dup ? `, ${added} new workout${added === 1 ? '' : 's'}` : '') +
+            (dup ? ` (${dup} already recorded elsewhere)` : '') +
+            '.',
+        );
         setTimeout(() => window.location.reload(), 800);
       } else {
         setMsg(j.error ?? 'Sync failed.');
@@ -69,8 +78,8 @@ export function ConnectWhoop({
           Connect Whoop
         </a>
         <p className="mt-2 text-xs text-slate-400">
-          Syncs HRV, resting heart rate, sleep stages, and recovery score so your coaching adapts to
-          how your body is responding to training.
+          Syncs HRV, resting heart rate, sleep stages, and recovery score, plus workouts only Whoop
+          caught (bike commutes, walks, hikes) so they count toward your training load.
         </p>
       </div>
     );

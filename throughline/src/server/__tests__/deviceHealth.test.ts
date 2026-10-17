@@ -9,7 +9,7 @@ import * as schema from '@/db/schema';
 import { athletes, activities, sleepRecords, hrvRecords, restingHrRecords, dailySummaries, rawEvents, connectedAccounts } from '@/db/schema';
 import { validateDevicePayload, toNormalizedBatch, isSameWorkout, MAX_DAYS } from '../deviceHealthLogic';
 import { ingestDeviceHealth } from '../deviceHealth';
-import { persistNormalizedBatch, supersedeDeviceWorkouts } from '../ingest';
+import { dropAlreadyRecorded, persistNormalizedBatch, supersedeDeviceWorkouts } from '../ingest';
 
 const TODAY = '2026-09-19';
 
@@ -112,12 +112,13 @@ test('workouts become activities with a source-prefixed ref and derived pace', (
 
 const key = (sport: string, iso: string, dur: number | null) => ({ sport, startTime: new Date(iso), durationSeconds: dur });
 
-test('same sport, same start (within 5 min), similar duration → same workout', () => {
+test('same sport with heavily overlapping windows → same workout', () => {
   assert.equal(isSameWorkout(key('run', '2026-09-18T07:00:00Z', 1800), key('run', '2026-09-18T07:02:30Z', 1860)), true);
   assert.equal(isSameWorkout(key('run', '2026-09-18T07:00:00Z', 1800), key('bike', '2026-09-18T07:00:00Z', 1800)), false, 'different sport');
-  assert.equal(isSameWorkout(key('run', '2026-09-18T07:00:00Z', 1800), key('run', '2026-09-18T07:06:00Z', 1800)), false, 'too far apart');
-  assert.equal(isSameWorkout(key('run', '2026-09-18T07:00:00Z', 1800), key('run', '2026-09-18T07:00:00Z', 3600)), false, 'a different length session');
+  assert.equal(isSameWorkout(key('run', '2026-09-18T07:00:00Z', 1800), key('run', '2026-09-18T07:31:00Z', 1800)), false, 'back-to-back, no overlap');
+  assert.equal(isSameWorkout(key('run', '2026-09-18T07:00:00Z', 1800), key('run', '2026-09-18T07:00:00Z', 3600)), true, 'one source caught only part of it');
   assert.equal(isSameWorkout(key('run', '2026-09-18T07:00:00Z', null), key('run', '2026-09-18T07:00:00Z', 3600)), true, 'unknown duration trusts the start');
+  assert.equal(isSameWorkout(key('other', '2026-09-18T07:05:00Z', 1500), key('bike', '2026-09-18T07:00:00Z', 1800)), true, "a generic 'other' matches any sport");
 });
 
 // ---- storage: idempotency, rate limit, both dedup directions ---------------
@@ -216,4 +217,52 @@ test('supersede leaves unrelated device workouts alone', async () => {
   const n = await supersedeDeviceWorkouts(db, A, [{ sport: 'run', startTime: new Date('2026-09-18T06:00:00Z'), durationSeconds: 1800 }]);
   assert.equal(n, 0);
   assert.equal((await db.select().from(activities).where(eq(activities.sourceRef, 'healthkit:HK-3'))).length, 1);
+});
+
+// ---- multi-workout re-push (regression) + Whoop as a thin source -----------
+
+test('re-pushing several workouts keeps each one its OWN values', async () => {
+  const two = (bump: number) => ({
+    source: 'healthkit' as const,
+    days: [{ day: '2026-09-10', steps: 100 + bump }], // differs → not a duplicate payload
+    workouts: [
+      { sourceRef: 'R-A', start: '2026-09-10T06:00:00Z', sport: 'run' as const, durationSeconds: 1500 + bump, distanceMeters: 5000 },
+      { sourceRef: 'R-B', start: '2026-09-10T18:00:00Z', sport: 'swim' as const, durationSeconds: 2400, distanceMeters: 1800 },
+    ],
+  });
+  await ingestDeviceHealth(db, A, two(0), TODAY);
+  await ingestDeviceHealth(db, A, two(60), TODAY);
+  const rows = await db.select().from(activities).where(eq(activities.athleteId, A));
+  const a = rows.find((r) => r.sourceRef === 'healthkit:R-A')!;
+  const b = rows.find((r) => r.sourceRef === 'healthkit:R-B')!;
+  assert.equal(a.durationSeconds, 1560, 'R-A took its update');
+  assert.equal(b.sport, 'swim', 'R-B was not overwritten with R-A');
+  assert.equal(b.durationSeconds, 2400);
+  assert.equal(b.distanceMeters, 1800);
+});
+
+test('a Whoop-detected commute that Strava also has is skipped; one only Whoop saw is kept', async () => {
+  // Strava ride: 18.3 min moving inside a 22 min window (stops at lights).
+  await db.insert(activities).values({
+    athleteId: A, provider: 'strava', sourceRef: 'strava:commute', sport: 'bike',
+    startTime: new Date('2026-10-16T12:10:00Z'), durationSeconds: 1100, elapsedSeconds: 1320,
+  });
+  const whoopRows = [
+    // Whoop's window for the same ride: starts a minute early, ends a minute late.
+    { sourceRef: 'whoop:w1', sport: 'bike' as const, startTime: new Date('2026-10-16T12:09:00Z'), durationSeconds: 1440, elapsedSeconds: 1440, trainingLoad: null },
+    // The evening commute nobody else recorded.
+    { sourceRef: 'whoop:w2', sport: 'bike' as const, startTime: new Date('2026-10-16T22:30:00Z'), durationSeconds: 1380, elapsedSeconds: 1380, trainingLoad: null },
+  ];
+  const { kept, deduped } = await dropAlreadyRecorded(db, A, 'whoop', whoopRows);
+  assert.equal(deduped, 1);
+  assert.deepEqual(kept.map((k) => k.sourceRef), ['whoop:w2']);
+  await persistNormalizedBatch(db, A, null, { activities: kept }, 'whoop');
+
+  // Later, the evening ride shows up on Strava too → the Whoop copy yields.
+  await persistNormalizedBatch(db, A, null, {
+    activities: [{ sourceRef: 'strava:evening', sport: 'bike', startTime: new Date('2026-10-16T22:31:00Z'), durationSeconds: 1200, elapsedSeconds: 1350, trainingLoad: null }],
+  }, 'strava');
+  const refs = (await db.select().from(activities).where(eq(activities.athleteId, A))).map((r) => r.sourceRef);
+  assert.ok(refs.includes('strava:evening'));
+  assert.ok(!refs.includes('whoop:w2'), 'Whoop copy superseded');
 });

@@ -4,7 +4,7 @@
  * state. Shared by the async normalizer (Inngest) and the Strava pull sync, so
  * there is ONE place that knows how a batch lands in the DB.
  */
-import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte, ne, sql } from 'drizzle-orm';
 import type { DB } from '@/db';
 import {
   activities,
@@ -15,10 +15,7 @@ import {
 } from '@/db/schema';
 import type { NormalizedBatch, ProviderId } from '@/providers/types';
 import { getDefaultShoeId } from '@/server/shoes';
-import { isSameWorkout, DUP_START_WINDOW_SEC, type WorkoutKey } from '@/server/deviceHealthLogic';
-
-/** Sources whose workouts are pushed from the phone's health store (thin records). */
-const DEVICE_PROVIDERS: ProviderId[] = ['apple', 'health_connect'];
+import { isSameWorkout, isThinProvider, LOOKBACK_SEC, THIN_PROVIDERS, workoutEndMs, type WorkoutKey } from '@/server/workoutDedupLogic';
 
 export async function persistNormalizedBatch(
   db: DB,
@@ -31,8 +28,6 @@ export async function persistNormalizedBatch(
   // source-of-truth across providers later (e.g. Garmin vs Strava vs Apple).
   const common = { athleteId, rawEventId, provider };
 
-  // Both callers emit a single-activity batch per raw event, so the upsert `set`
-  // below safely references batch.activities[0].
   if (batch.activities?.length) {
     // Auto-assign new runs to the athlete's active default shoe. On re-sync the
     // upsert `set` below omits shoe_id, so an athlete's per-activity override is
@@ -49,26 +44,28 @@ export async function persistNormalizedBatch(
       )
       .onConflictDoUpdate({
         target: activities.sourceRef,
+        // Per-row from EXCLUDED: a batch can carry many activities (a device or
+        // Whoop push), so each conflicting row must take its OWN incoming values.
         set: {
-          name: batch.activities[0].name,
-          distanceMeters: batch.activities[0].distanceMeters,
-          durationSeconds: batch.activities[0].durationSeconds,
-          elapsedSeconds: batch.activities[0].elapsedSeconds,
-          surface: batch.activities[0].surface,
-          avgHr: batch.activities[0].avgHr,
-          maxHr: batch.activities[0].maxHr,
-          avgPaceSecPerKm: batch.activities[0].avgPaceSecPerKm,
-          cadence: batch.activities[0].cadence,
-          sport: batch.activities[0].sport,
-          elevationGainMeters: batch.activities[0].elevationGainMeters,
-          workoutType: batch.activities[0].workoutType,
+          name: sql`excluded.name`,
+          distanceMeters: sql`excluded.distance_meters`,
+          durationSeconds: sql`excluded.duration_seconds`,
+          elapsedSeconds: sql`excluded.elapsed_seconds`,
+          surface: sql`excluded.surface`,
+          avgHr: sql`excluded.avg_hr`,
+          maxHr: sql`excluded.max_hr`,
+          avgPaceSecPerKm: sql`excluded.avg_pace_sec_per_km`,
+          cadence: sql`excluded.cadence`,
+          sport: sql`excluded.sport`,
+          elevationGainMeters: sql`excluded.elevation_gain_meters`,
+          workoutType: sql`excluded.workout_type`,
           // Splits/route only come from DETAIL fetches (webhook); list-based
           // re-syncs send null — never let them wipe data we already captured.
           splits: sql`coalesce(excluded.splits, ${activities.splits})`,
           mapPolyline: sql`coalesce(excluded.map_polyline, ${activities.mapPolyline})`,
         },
       });
-    if (!DEVICE_PROVIDERS.includes(provider)) {
+    if (!isThinProvider(provider)) {
       await supersedeDeviceWorkouts(db, athleteId, batch.activities);
     }
   }
@@ -115,37 +112,74 @@ export async function persistNormalizedBatch(
   }
 }
 
+/** Activities in the window that could overlap any of `keys` (pure filtering happens after). */
+function overlapWindow(keys: WorkoutKey[]): { from: Date; to: Date } {
+  const starts = keys.map((k) => k.startTime.getTime());
+  const ends = keys.map((k) => workoutEndMs(k) ?? k.startTime.getTime());
+  return { from: new Date(Math.min(...starts) - LOOKBACK_SEC * 1000), to: new Date(Math.max(...ends)) };
+}
+
 /**
  * Cross-source dedup, richer-source side: when Strava/Garmin land an activity
- * that a device (HealthKit / Health Connect) already pushed, the device copy
- * yields — it has no splits, route, or power. Scoped to the time range just
- * written. The device-side check (skip a push that another source already
- * holds) lives in deviceHealth.ts; between them, order of arrival stops
- * mattering.
+ * that a thin source (HealthKit, Health Connect, Whoop) already holds, the thin
+ * copy yields. The thin-side check (skip what another source already has) is
+ * dropAlreadyRecorded; between them, order of arrival stops mattering.
  */
-export async function supersedeDeviceWorkouts(
-  db: DB,
-  athleteId: string,
-  written: WorkoutKey[],
-): Promise<number> {
+export async function supersedeDeviceWorkouts(db: DB, athleteId: string, written: WorkoutKey[]): Promise<number> {
   if (written.length === 0) return 0;
-  const times = written.map((w) => w.startTime.getTime());
-  const pad = DUP_START_WINDOW_SEC * 1000;
-  const deviceRows = await db
-    .select({ id: activities.id, sport: activities.sport, startTime: activities.startTime, durationSeconds: activities.durationSeconds })
+  const { from, to } = overlapWindow(written);
+  const thinRows = await db
+    .select({
+      id: activities.id,
+      sport: activities.sport,
+      startTime: activities.startTime,
+      durationSeconds: activities.durationSeconds,
+      elapsedSeconds: activities.elapsedSeconds,
+    })
     .from(activities)
     .where(
       and(
         eq(activities.athleteId, athleteId),
-        inArray(activities.provider, DEVICE_PROVIDERS),
-        gte(activities.startTime, new Date(Math.min(...times) - pad)),
-        lte(activities.startTime, new Date(Math.max(...times) + pad)),
+        inArray(activities.provider, [...THIN_PROVIDERS]),
+        gte(activities.startTime, from),
+        lte(activities.startTime, to),
       ),
     );
-  const doomed = deviceRows
-    .filter((d) => written.some((w) => isSameWorkout(d, w)))
-    .map((d) => d.id);
+  const doomed = thinRows.filter((d) => written.some((w) => isSameWorkout(d, w))).map((d) => d.id);
   if (doomed.length === 0) return 0;
   await db.delete(activities).where(inArray(activities.id, doomed));
   return doomed.length;
+}
+
+/**
+ * Thin-source side: drop incoming workouts that ANOTHER source already
+ * recorded (the ride Strava has, the run the watch pushed). Re-syncs of the
+ * source's own rows pass through and upsert on sourceRef.
+ */
+export async function dropAlreadyRecorded<T extends WorkoutKey>(
+  db: DB,
+  athleteId: string,
+  provider: ProviderId,
+  list: T[],
+): Promise<{ kept: T[]; deduped: number }> {
+  if (list.length === 0) return { kept: [], deduped: 0 };
+  const { from, to } = overlapWindow(list);
+  const existing = await db
+    .select({
+      sport: activities.sport,
+      startTime: activities.startTime,
+      durationSeconds: activities.durationSeconds,
+      elapsedSeconds: activities.elapsedSeconds,
+    })
+    .from(activities)
+    .where(
+      and(
+        eq(activities.athleteId, athleteId),
+        ne(activities.provider, provider),
+        gte(activities.startTime, from),
+        lte(activities.startTime, to),
+      ),
+    );
+  const kept = list.filter((a) => !existing.some((e) => isSameWorkout(a, e)));
+  return { kept, deduped: list.length - kept.length };
 }

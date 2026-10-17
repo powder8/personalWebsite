@@ -86,11 +86,14 @@ export default async function RootLayout({
               Throughline
             </Link>
             {!signedOut && (
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              <span className="hidden text-xs font-medium uppercase tracking-wide text-slate-400 sm:inline">
                 {isAdmin ? 'Admin' : isConsole ? 'Coach Console' : 'Athlete'}
               </span>
             )}
-            <nav className="ml-auto flex items-center gap-4 text-sm">
+            {/* min-w-0 + overflow-x-auto: on a phone a long console nav scrolls
+                inside the header instead of widening the whole page (which
+                pushed the fixed bottom nav off-screen). */}
+            <nav className="ml-auto flex min-w-0 items-center gap-4 overflow-x-auto whitespace-nowrap text-sm">
               {signedOut ? null : isConsole ? (
                 <>
                   <Link href="/coach" className="text-slate-600 hover:text-slate-900">

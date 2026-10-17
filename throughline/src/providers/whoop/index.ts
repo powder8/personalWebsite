@@ -96,6 +96,9 @@ export async function refreshTokens(refreshToken: string): Promise<WhoopTokens> 
   return { ...tokens, providerUserId: '' };
 }
 
+import type { WhoopWorkout } from './workouts';
+export type { WhoopWorkout } from './workouts';
+
 // ---------------------------------------------------------------------------
 // API types
 // ---------------------------------------------------------------------------
@@ -224,4 +227,9 @@ export async function fetchSleepRecords(
   // v2: sleep lives under /activity/sleep (v1 was /sleep).
   const all = await fetchAll<WhoopSleep>(token, '/activity/sleep', { start: startISO, end: endISO });
   return all.filter((s) => !s.nap);
+}
+
+/** Fetch workouts (logged and auto-detected) for a date range. */
+export async function fetchWorkouts(token: string, startISO: string, endISO: string): Promise<WhoopWorkout[]> {
+  return fetchAll<WhoopWorkout>(token, '/activity/workout', { start: startISO, end: endISO });
 }

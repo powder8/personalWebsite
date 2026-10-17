@@ -42,6 +42,8 @@ import { getAthleteDisciplines } from '@/server/disciplines';
 import { ConnectStrava } from '@/components/ConnectStrava';
 import { getGoalTracker } from '@/server/goalTracker';
 import { BottomNav } from '@/components/BottomNav';
+import { PortalTabs, type PortalTab } from '@/components/PortalTabs';
+import { TAB_ICONS, type PortalTabId } from '@/components/portalTabIcons';
 import { getRecentCrossTraining } from '@/server/weeklyVolume';
 import { InjuryPanel } from '@/components/InjuryPanel';
 import { getActiveInjury } from '@/server/injury';
@@ -93,10 +95,10 @@ export default async function PortalPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ import?: string }>;
+  searchParams: Promise<{ import?: string; tab?: string }>;
 }) {
   const { id } = await params;
-  const { import: importFlag } = await searchParams;
+  const { import: importFlag, tab: tabParam } = await searchParams;
   const autoImportStrava = importFlag === '1';
 
   const db = await getDb();
@@ -337,52 +339,21 @@ export default async function PortalPage({
     );
   }
 
-  // ── TRAINING STAGE — live goal. Order answers the athlete's questions:
-  // where do I stand → what do I do today → how is my body handling it →
-  // how has training gone → ask the coach.
-  return (
-    <div className="mx-auto max-w-2xl space-y-4 pb-20 sm:pb-4">
-      <header className="px-1 pt-2">
-        <p className="text-sm text-slate-400">{today}</p>
-        <h1 className="mt-1 text-2xl font-bold text-white">Your training, {firstName}</h1>
-        <nav aria-label="Your training" className="mt-4 flex flex-wrap gap-2 text-sm">
-          <a href="#progress" className="rounded-full bg-white/10 px-4 py-2">Where I stand</a>
-          <a href="#today" className="rounded-full bg-lime-300 px-4 py-2 font-semibold text-slate-950">Today’s focus</a>
-          <a href="#training" className="rounded-full bg-white/10 px-4 py-2">My week</a>
-        </nav>
-      </header>
+  // ── TRAINING STAGE — live goal. Tabs instead of one long scroll; each tab
+  // answers one question. Today (default) is the daily visit: what to do now
+  // and anything that changes it.
+  const dateLabel = new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
 
-      <div id="progress" className="scroll-mt-6" />
-      {/* ── WHERE YOU STAND ─────────────────────────────────────────────── */}
-      {/* Where you stand. A triathlete's combined tracker supersedes the rest.
-          Otherwise run and bike goals coexist: both trackers stack, under one
-          coordinating header so the two commitments read as a single view. */}
-      {triGoalTracker ? (
-        <TriGoalTrackerHero tracker={triGoalTracker} progress={goalProgress} />
-      ) : (
-        <>
-          {goalTracker && bikeGoalTracker && (
-            <p className="px-1 text-xs font-medium uppercase tracking-wide text-slate-400">
-              Two goals in play · run + bike
-            </p>
-          )}
-          {goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} progress={goalProgress} units={units} />}
-          {bikeGoalTracker && <BikeGoalTrackerHero tracker={bikeGoalTracker} athleteId={athlete.id} progress={goalProgress} units={units} />}
-          {goalTracker && bikeGoalTracker && (
-            <CoordinatedBudget athleteId={athlete.id} currentBudget={athlete.weeklyHoursBudget ?? null} />
-          )}
-        </>
-      )}
-
-      <SectionHeader>Today’s focus</SectionHeader>
-      <div id="today" className="scroll-mt-6" />
-
-      {/* ── TODAY ────────────────────────────────────────────────────────
-          The most important thing on a daily visit: what to do right now,
-          and anything that changes it (how recovered you are, an injury). */}
-      {/* Today, the one thing to do now, with the specific workout. A
-          triathlete with several sessions today gets the stacked multi-sport
-          view; everyone else gets the single-focal next-step banner. */}
+  const todayPanel = (
+    <>
+      {/* The one thing to do now, with the specific workout. A triathlete with
+          several sessions today gets the stacked multi-sport view. */}
+      <div id="today" className="scroll-mt-20" />
       {showTodayStack ? (
         <TodayStack sessions={remainingSessions} units={units} />
       ) : (
@@ -405,29 +376,97 @@ export default async function PortalPage({
         </div>
       )}
 
-      {/* An ACTIVE injury changes what today is, so it sits with today's session
-          (prominent status + the resume check), not down in the body section. */}
+      {/* An ACTIVE injury changes what today is, so it sits with the session. */}
       {injury && <InjuryPanel athleteId={athlete.id} injury={injury} />}
 
-      <section id="recovery" className="scroll-mt-6 space-y-3" aria-label="Recovery and body">
-        <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} pattern={recovery.pattern} focus={recovery.focus} history={recovery.history} today={today} />
-        <div id="check-in" className="scroll-mt-6 rounded-3xl border border-white/10 bg-card p-5">
-          <details open={!checkedInToday}>
-            <summary className="cursor-pointer py-1 text-base font-semibold text-white">{checkedInToday ? 'Today’s check-in · saved' : 'How are you feeling today?'}</summary>
-            <div className="mt-4"><CheckInForm athleteId={id} day={today} initial={todayCheckIn} /></div>
-          </details>
-          <RecoveryAdjustment athleteId={id} day={today} active={recoveryAdjustments} />
-        </div>
-      </section>
+      {/* The daily check-in is a daily action, so it lives on Today: open until
+          it's done, then a one-line "saved" that can be reopened. */}
+      <div id="check-in" className="scroll-mt-20 rounded-3xl border border-white/10 bg-card p-5">
+        <details open={!checkedInToday}>
+          <summary className="cursor-pointer py-1 text-base font-semibold text-white">
+            {checkedInToday ? 'Today’s check-in · saved ✓' : 'How are you feeling today?'}
+          </summary>
+          <div className="mt-4"><CheckInForm athleteId={id} day={today} initial={todayCheckIn} /></div>
+        </details>
+        <RecoveryAdjustment athleteId={id} day={today} active={recoveryAdjustments} />
+      </div>
 
-      {/* ── YOUR TRAINING ────────────────────────────────────────────────── */}
-      <details className="rounded-3xl border border-white/10 bg-card p-5">
-        <summary className="cursor-pointer font-semibold text-white">Recent training &amp; feedback</summary>
-        <div className="mt-4 space-y-4">
+      {/* Where the goal stands, in one line; the full read is on Progress. */}
+      {(triGoalTracker || goalTracker || bikeGoalTracker) && (
+        <a
+          href={`/me/${athlete.id}?tab=progress`}
+          className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-card px-4 py-3 text-sm transition hover:bg-white/[0.04]"
+        >
+          <span className="min-w-0 text-slate-400">
+            <span className="font-semibold text-white">{goalRace.name}</span>
+            {goalRace.daysAway != null && goalRace.daysAway >= 0 && <> · {goalRace.daysAway} days to go</>}
+          </span>
+          <span aria-hidden className="shrink-0 font-semibold text-lime-300">Progress →</span>
+        </a>
+      )}
+    </>
+  );
 
-      {/* ONE coach's debrief, of the LATEST session across sports. A ride
-          yesterday is evaluated as a ride; the run from last week doesn't get
-          to lead just because it's a run. */}
+  const progressPanel = (
+    <>
+      <div id="progress" className="scroll-mt-20" />
+      {/* A triathlete's combined tracker supersedes the rest. Otherwise run and
+          bike goals coexist under one coordinating header. */}
+      {triGoalTracker ? (
+        <TriGoalTrackerHero tracker={triGoalTracker} progress={goalProgress} />
+      ) : (
+        <>
+          {goalTracker && bikeGoalTracker && (
+            <p className="px-1 text-xs font-medium uppercase tracking-wide text-slate-400">Two goals in play · run + bike</p>
+          )}
+          {goalTracker && <GoalTrackerHero tracker={goalTracker} athleteId={athlete.id} progress={goalProgress} units={units} />}
+          {bikeGoalTracker && <BikeGoalTrackerHero tracker={bikeGoalTracker} athleteId={athlete.id} progress={goalProgress} units={units} />}
+          {goalTracker && bikeGoalTracker && (
+            <CoordinatedBudget athleteId={athlete.id} currentBudget={athlete.weeklyHoursBudget ?? null} />
+          )}
+        </>
+      )}
+
+      {consistency?.show && <ConsistencyStrip stats={consistency} multiSport={disciplines.count > 1} />}
+
+      {/* Change goal / target time; the tracker's CTA lands here. A cyclist edits
+          on bike-setup, a triathlete edits the whole plan. */}
+      <div id="goal-setup" className="scroll-mt-20" />
+      <GoalEditor
+        athleteId={athlete.id}
+        goalName={goalRace.name ?? ''}
+        goalDate={goalRace.date ?? ''}
+        hasAnchor={hasAnchor}
+        units={units}
+        isTriathlon={!!triGoalTracker || !!goalTracker?.triathlonHint}
+        hasRunGoal={!triGoalTracker && !goalTracker?.triathlonHint && !!goalTracker}
+        hasBikeGoal={!!bikeGoalTracker}
+        addTargetTimeHint={goalRace.name !== 'Build fitness' && !!goalTracker?.cta}
+      />
+
+      <Link
+        href={`/me/${athlete.id}/insights`}
+        className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-card px-4 py-3 text-sm transition hover:bg-white/[0.04]"
+      >
+        <span className="text-slate-400">What has driven your fitness, from your own history</span>
+        <span aria-hidden className="shrink-0 font-semibold text-lime-300">Patterns →</span>
+      </Link>
+    </>
+  );
+
+  const trainingPanel = (
+    <>
+      <div id="training" className="scroll-mt-20" />
+      <Card title="Planned vs actual" action={strava.connected ? <SyncButton athleteId={athlete.id} /> : undefined}>
+        {calendar.weeks.length > 0 ? (
+          <TrainingCalendar weeks={calendar.weeks} today={today} athleteId={athlete.id} units={units} planHasNoWork={calendar.planHasNoWork} restReason={calendar.restReason} />
+        ) : (
+          <p className="text-sm text-slate-500">No published plan yet. Set a goal and your calendar fills in.</p>
+        )}
+      </Card>
+
+      {/* ONE coach's debrief, of the LATEST session across sports. */}
+      <div id="latest" className="scroll-mt-20" />
       {otherIsNewer && latestOther && sessionDebrief ? (
         <Link href={`/me/${athlete.id}/rides/${latestOther.activityId}`} className="block transition hover:opacity-95">
           <RunDebriefCard
@@ -464,66 +503,62 @@ export default async function PortalPage({
         </Card>
       )}
 
-      {consistency?.show && <ConsistencyStrip stats={consistency} multiSport={disciplines.count > 1} />}
-
-        </div>
+      <div id="sports" className="scroll-mt-20" />
+      <details className="rounded-2xl border border-white/10 bg-card p-4">
+        <summary className="cursor-pointer py-1 font-semibold text-white">Sports &amp; training setup</summary>
+        <div className="mt-3"><YourSports athleteId={athlete.id} disciplines={disciplines} hasTriGoal={!!triGoalTracker} /></div>
       </details>
+    </>
+  );
 
-      {/* ── YOUR BODY ────────────────────────────────────────────────────── */}
-
-
-      {/* Not hurt: just the quiet "report it" link. (An active injury is shown
-          up top with today's session, because it changes what today is.) */}
+  const bodyPanel = (
+    <>
+      <div id="recovery" className="scroll-mt-20" />
+      <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} pattern={recovery.pattern} focus={recovery.focus} history={recovery.history} today={today} />
+      <Link
+        href={`/me/${athlete.id}/health`}
+        className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-card px-4 py-3 text-sm transition hover:bg-white/[0.04]"
+      >
+        <span className="text-slate-400">Resting HR, HRV, sleep, weight and steps over 12 weeks</span>
+        <span aria-hidden className="shrink-0 font-semibold text-lime-300">Health →</span>
+      </Link>
+      {/* Not hurt: the quiet "report it" link. (An active injury shows on Today.) */}
       {!injury && <InjuryPanel athleteId={athlete.id} injury={injury} />}
+    </>
+  );
 
-      <div id="training" className="scroll-mt-4" />
-      <Card title="Planned vs actual" action={strava.connected ? <SyncButton athleteId={athlete.id} /> : undefined}>
-        {calendar.weeks.length > 0 ? (
-          <TrainingCalendar weeks={calendar.weeks} today={today} athleteId={athlete.id} units={units} planHasNoWork={calendar.planHasNoWork} restReason={calendar.restReason} />
-        ) : (
-          <p className="text-sm text-slate-500">
-            No published plan yet, set a goal above and your calendar fills in.
-          </p>
-        )}
-      </Card>
-
-      {/* ── SETUP & TOOLS ─────────────────────────────────────────────────
-          Slow-changing controls belong below the daily read. */}
-      {/* Your sports, always-present path to add a discipline (nav target #sports). */}
-      <div id="sports" className="scroll-mt-4" />
-      <details className="rounded-2xl border border-white/10 p-4"><summary className="cursor-pointer py-2 font-semibold">Sports &amp; training setup</summary><div className="mt-3"><YourSports athleteId={athlete.id} disciplines={disciplines} hasTriGoal={!!triGoalTracker} /></div></details>
-
-      {/* Change goal / target time, collapsed; the tracker's CTA lands here.
-          Discipline-aware: a cyclist edits on bike-setup, a triathlete edits the
-          whole plan — never forced through the run-only editor. */}
-      <div id="goal-setup" className="scroll-mt-4" />
-      <GoalEditor
-        athleteId={athlete.id}
-        goalName={goalRace.name ?? ''}
-        goalDate={goalRace.date ?? ''}
-        hasAnchor={hasAnchor}
-        units={units}
-        // A tri (real or a run-only goal that's really a tri) supersedes the
-        // single-sport editors; otherwise each live tracker gates its own editor.
-        isTriathlon={!!triGoalTracker || !!goalTracker?.triathlonHint}
-        hasRunGoal={!triGoalTracker && !goalTracker?.triathlonHint && !!goalTracker}
-        hasBikeGoal={!!bikeGoalTracker}
-        addTargetTimeHint={goalRace.name !== 'Build fitness' && !!goalTracker?.cta}
-      />
-
-
-      {/* ── ASK YOUR COACH ───────────────────────────────────────────────── */}
-      <SectionHeader>Ask your coach</SectionHeader>
-      <div id="chat" className="scroll-mt-4" />
+  const coachPanel = (
+    <>
+      <div id="chat" className="scroll-mt-20" />
       <Card title="Your coach, on demand">
         <TrainingChat athleteId={athlete.id} configured={chatConfigured()} />
       </Card>
+    </>
+  );
 
-      <BottomNav athleteId={athlete.id} />
+  const tabs: PortalTab[] = [
+    { id: 'today', label: 'Today', icon: TAB_ICONS.today, panel: todayPanel },
+    { id: 'progress', label: 'Progress', icon: TAB_ICONS.progress, panel: progressPanel },
+    { id: 'training', label: 'Training', icon: TAB_ICONS.training, panel: trainingPanel },
+    {
+      id: 'body',
+      label: 'Body',
+      icon: TAB_ICONS.body,
+      // Low readiness is worth a look even on a day you open Today first.
+      attention: recovery.readiness?.band === 'easy',
+      panel: bodyPanel,
+    },
+    { id: 'coach', label: 'Coach', icon: TAB_ICONS.coach, panel: coachPanel },
+  ];
+  const initialTab: PortalTabId = tabs.some((t) => t.id === tabParam) ? (tabParam as PortalTabId) : 'today';
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-4 pb-24 sm:pb-4">
+      <header className="px-1 pt-1">
+        <p className="text-sm text-slate-400">{dateLabel}</p>
+        <h1 className="mt-0.5 text-2xl font-bold text-white">Hi {firstName}</h1>
+      </header>
+      <PortalTabs tabs={tabs} initial={initialTab} />
     </div>
   );
-}
-
-function SectionHeader({ children }: { children: React.ReactNode }) {
-  return <h2 className="px-1 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{children}</h2>;
 }
