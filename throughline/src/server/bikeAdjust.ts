@@ -58,7 +58,7 @@ export async function setAthleteFtp(
   db: DB,
   athleteId: string,
   ftpWatts: number,
-  opts: { today: string; source?: 'auto' | 'manual' },
+  opts: { today: string; source?: 'auto' | 'manual'; extra?: Partial<AthletePowerConfig> },
 ): Promise<{ ftpWatts: number; updatedSessions: number }> {
   if (!(ftpWatts > 0)) throw new Error('FTP must be a positive number of watts.');
   const [athlete] = await db.select().from(athletes).where(eq(athletes.id, athleteId)).limit(1);
@@ -70,6 +70,11 @@ export async function setAthleteFtp(
   // hand-entered FTP is the intended anchor now.
   delete cfg.ftpTest;
   cfg.anchorSource = opts.source ?? 'manual';
+  if (cfg.anchorSource === 'manual') {
+    cfg.ftpBasis = 'manual';
+    delete cfg.ftpEstimate;
+  }
+  Object.assign(cfg, opts.extra ?? {});
   await setAthletePowerConfig(db, athleteId, cfg);
 
   const zones = await getAthletePowerZones(db, athleteId);

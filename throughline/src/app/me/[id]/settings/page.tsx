@@ -24,6 +24,7 @@ import { GoalSetup } from '@/components/GoalSetup';
 import { getAthleteVdot } from '@/db/paceConfig';
 import { getAthleteFtp } from '@/db/powerConfig';
 import { FtpUpdate } from '@/components/FtpUpdate';
+import { getFtpProvenance } from '@/server/autoFtp';
 import { getSeasonTimeline } from '@/server/blocks';
 import { getRacePlan } from '@/server/racePlan';
 import { RacePlanCard } from '@/components/RacePlanCard';
@@ -61,6 +62,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
     whoopStatus,
     strengthDays,
     ftp,
+    ftpProvenance,
   ] = await Promise.all([
     getTrainingInsights(id),
     getCycle(db, id),
@@ -73,6 +75,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
     getWhoopStatus(db, id),
     getSupportingStrengthDays(db, id),
     getAthleteFtp(db, id),
+    getFtpProvenance(db, id),
   ]);
 
   const hasAnchor = hasAnchorRaw != null;
@@ -266,7 +269,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
           plan tracks the athlete's numbers between full setups. Only for cyclists. */}
       {ftp != null && (
         <Card title="Cycling fitness (FTP)">
-          <FtpUpdate athleteId={athlete.id} currentFtp={ftp} />
+          <FtpUpdate athleteId={athlete.id} currentFtp={ftp} provenance={ftpProvenance} />
         </Card>
       )}
 

@@ -91,10 +91,10 @@ export async function setupAthleteTriGoal(
   //     manual number cleanly supersedes it. ---
   const bikeWeightKg = input.bike.weightKg && input.bike.weightKg > 0 ? input.bike.weightKg : undefined;
   if (input.bike.ftpWatts != null && input.bike.ftpWatts > 0) {
-    await setAthletePowerConfig(db, athleteId, { ftpWatts: Math.round(input.bike.ftpWatts), weightKg: bikeWeightKg, anchorSource: 'manual' });
+    await setAthletePowerConfig(db, athleteId, { ftpWatts: Math.round(input.bike.ftpWatts), weightKg: bikeWeightKg, anchorSource: 'manual', ftpBasis: 'manual' });
   } else {
     const mass = bikeWeightKg ?? DEFAULT_RIDER_MASS_KG;
-    await setAthletePowerConfig(db, athleteId, { ftpWatts: Math.round(STARTER_BIKE_WPERKG * mass), weightKg: bikeWeightKg, anchorSource: 'auto' });
+    await setAthletePowerConfig(db, athleteId, { ftpWatts: Math.round(STARTER_BIKE_WPERKG * mass), weightKg: bikeWeightKg, anchorSource: 'auto', ftpBasis: 'starter' });
   }
 
   // --- Swim anchor (CSS) — OPTIONAL for a phased triathlon. If the athlete

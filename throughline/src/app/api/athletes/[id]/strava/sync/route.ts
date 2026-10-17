@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { syncStravaActivities } from '@/server/strava';
 import { ensureAutoAnchor } from '@/server/anchor';
+import { ensureAutoFtp } from '@/server/autoFtp';
 import { judgeUnjudgedActivities } from '@/server/activityJudgment';
 import { todayISO } from '@/server/console';
 import { guardAthleteWrite } from '@/server/apiAccess';
@@ -25,7 +26,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const afterOverride = afterParam ? parseInt(afterParam, 10) : undefined;
   try {
     const db = await getDb();
-    const result = await syncStravaActivities(db, id, {
+    const result: Awaited<ReturnType<typeof syncStravaActivities>> & { ftp?: Awaited<ReturnType<typeof ensureAutoFtp>> } = await syncStravaActivities(db, id, {
       fallbackDays: full ? 3650 : 365,
       full,
       afterOverride,
@@ -36,6 +37,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     if (result.done) {
       try {
         await ensureAutoAnchor(db, id, { today: todayISO() });
+      } catch {
+        /* non-fatal */
+      }
+      // Same for the bike: re-estimate FTP from ride power when a new ride could
+      // change it, and re-tune future rides. Respects an entered FTP.
+      try {
+        result.ftp = await ensureAutoFtp(db, id, { today: todayISO() });
       } catch {
         /* non-fatal */
       }

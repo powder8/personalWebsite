@@ -44,6 +44,9 @@ export async function setupAthleteBikeGoal(
 
   await setAthletePowerConfig(db, athleteId, {
     ftpWatts: Math.round(input.ftpWatts),
+    // Typed in by the athlete: auto-FTP respects it (see ftpAnchorLogic).
+    anchorSource: 'manual',
+    ftpBasis: 'manual',
     weightKg: input.weightKg && input.weightKg > 0 ? input.weightKg : undefined,
     targetFtpWatts: input.targetFtpWatts && input.targetFtpWatts > 0 ? Math.round(input.targetFtpWatts) : undefined,
     goalElevationGainMeters:
