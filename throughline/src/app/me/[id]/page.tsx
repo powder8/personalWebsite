@@ -368,7 +368,7 @@ export default async function PortalPage({
           several sessions today gets the stacked multi-sport view. */}
       <div id="today" className="scroll-mt-20" />
       {/* When the body is the reason today looks different, say so first. */}
-      {body && (body.tone === 'alert' || body.tone === 'caution') && <BodyStatusCard view={body} athleteId={athlete.id} compact />}
+      {body && (body.tone === 'alert' || body.tone === 'caution') && <BodyStatusCard view={body} athleteId={athlete.id} compact restToday={isRestToday && !ranToday} />}
       {showTodayStack ? (
         <TodayStack sessions={remainingSessions} units={units} />
       ) : (
@@ -391,7 +391,7 @@ export default async function PortalPage({
         </div>
       )}
 
-      {body && body.tone !== 'alert' && body.tone !== 'caution' && <BodyStatusCard view={body} athleteId={athlete.id} compact />}
+      {body && body.tone !== 'alert' && body.tone !== 'caution' && <BodyStatusCard view={body} athleteId={athlete.id} compact restToday={isRestToday && !ranToday} />}
 
       {/* An ACTIVE injury changes what today is, so it sits with the session. */}
       {injury && <InjuryPanel athleteId={athlete.id} injury={injury} />}
@@ -531,7 +531,7 @@ export default async function PortalPage({
   const bodyPanel = (
     <>
       <div id="recovery" className="scroll-mt-20" />
-      {body && <BodyStatusCard view={body} athleteId={athlete.id} />}
+      {body && <BodyStatusCard view={body} athleteId={athlete.id} restToday={isRestToday && !ranToday} />}
       {body && <BodySignals view={body} />}
       {pushDevices === 0 && (
         <Card title="Hear about it early">

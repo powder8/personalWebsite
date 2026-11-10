@@ -182,3 +182,26 @@ test('Garmin activity types map to the right sport', () => {
   assert.equal(sport('HIKING'), 'cross_train');
   assert.equal(sport('YOGA'), 'other');
 });
+
+// ---- general health summaries that feed the body-status engine -----------------
+
+test('sleep carries overnight breathing rate, SpO2 and the sleep score', () => {
+  const b = garmin.normalize('sleeps', {
+    calendarDate: '2026-11-09', durationInSeconds: 27000, deepSleepDurationInSeconds: 5400,
+    timeOffsetSleepRespiration: { 0: 14.2, 60: 14.8, 120: 15.0, 180: 0 },
+    timeOffsetSleepSpo2: { 0: 96, 60: 95, 120: 97 },
+    overallSleepScore: { value: 81 },
+  });
+  assert.equal(b.sleepRecords![0].sleepScore, 81);
+  assert.equal(b.dailySummaries![0].day, '2026-11-09');
+  assert.equal(b.dailySummaries![0].respiratoryRate, 14.7, 'zero samples ignored');
+  assert.equal(b.dailySummaries![0].spo2Pct, 96);
+});
+
+test('pulse ox, skin temperature and Body Battery summaries land on their day', () => {
+  assert.equal(garmin.normalize('pulseox', { calendarDate: '2026-11-09', timeOffsetSpo2Values: { 0: 94, 60: 96 } }).dailySummaries![0].spo2Pct, 95);
+  assert.deepEqual(garmin.normalize('pulseox', { calendarDate: '2026-11-09', onDemand: true, timeOffsetSpo2Values: { 0: 99 } }), {}, 'spot checks are skipped');
+  assert.equal(garmin.normalize('skinTemp', { calendarDate: '2026-11-09', avgDeviationCelsius: 0.6 }).dailySummaries![0].skinTempC, 0.6);
+  const bb = garmin.normalize('stressDetails', { calendarDate: '2026-11-09', timeOffsetBodyBatteryValues: { 0: 22, 60: 71, 120: 48 } }).dailySummaries![0];
+  assert.deepEqual([bb.bodyBatteryLow, bb.bodyBatteryHigh], [22, 71]);
+});

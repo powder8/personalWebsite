@@ -388,3 +388,110 @@ test('calibration: fatigue that only moves HRV and resting HR is still caught wi
   }
   assert.ok(caught / N >= 0.7, `${caught}/${N} caught within 8 days`);
 });
+
+// ---- recovering: fast signals back, HRV lagging (the owner's own case) ---------
+
+const LINGERING: Shift[] = [
+  { from: 45, to: 65, hrv: -0.25, rhr: 6, resp: 1.2, temp: 0.5, sleep: -0.3 }, // ill
+  { from: 66, to: 86, hrv: -0.25 }, // everything back except HRV
+];
+
+test('recovering: when the illness markers are back and only HRV lags, the plan eases back in instead of waiting', () => {
+  const s = athlete(105, LINGERING);
+  const loads = steadyLoad(105);
+  let e: EpisodeState | null = null;
+  let today = dayAt(60);
+  for (let i = 46; i <= 60; i++) e = reconcileEpisode(e, assessBody(s, loads, dayAt(i)), dayAt(i));
+  assert.equal(e!.status, 'suspected');
+  assert.equal(assessBody(s, loads, today).episode!.phase, 'acute');
+
+  // A few days after the fast signals normalise: recovering → staged return starts by itself.
+  let a = assessBody(s, loads, today);
+  for (let i = 61; i <= 70; i++) {
+    today = dayAt(i);
+    a = assessBody(s, loads, today);
+    e = reconcileEpisode(e, a, today);
+  }
+  assert.equal(e!.status, 'returning');
+  assert.ok(e!.clearedOn! >= dayAt(67) && e!.clearedOn! <= dayAt(70), `return started ${e!.clearedOn}`);
+  assert.ok(a.offNow.includes('hrv'), 'HRV is still clearly off');
+
+  const first = prescribe({ ...e!, clearedOn: today }, a, today);
+  assert.equal(first.headline, 'You are recovering. Time to ease back in.');
+  assert.match(first.body, /back in your normal range/);
+  assert.match(first.body, /HRV is still off, which is common for a week or two after an illness/);
+  assert.deepEqual(first.actions.map((x) => [x.type, x.factor]), [['recovery_day', 0.5], ['recovery_day', 0.75], ['recovery_day', 0.9]], 'easy-only at every stage while HRV lags');
+  assert.ok(first.today.length >= 3 && /half the planned time/.test(first.today[0]), first.today.join(' | '));
+  assert.match(first.next!, /steps up to about 75% volume/);
+  assert.equal(first.question, 'How are your symptoms today?');
+});
+
+test('recovering: low HRV alone is never a relapse, and hard sessions wait for it', () => {
+  const s = athlete(105, LINGERING);
+  const loads = steadyLoad(105);
+  let e: EpisodeState | null = null;
+  let relapses = 0;
+  let handled: string | null = null;
+  const seen: string[] = [];
+  for (let i = 46; i <= 104; i++) {
+    const a = assessBody(s, loads, dayAt(i));
+    const open: EpisodeState | null = e && e.status !== 'resolved' ? e : null;
+    const next: EpisodeState | null = reconcileEpisode(open, a, dayAt(i), { handledThrough: handled });
+    if (open?.status === 'returning' && next?.status === 'suspected') relapses++;
+    if (next?.status === 'resolved') handled = next.resolvedOn;
+    e = next;
+    const p = prescribe(e && e.status !== 'resolved' ? e : null, a, dayAt(i));
+    if (i >= 78 && i <= 82 && e?.status === 'returning') {
+      // Late in the return with HRV still off: volume is back, intensity is not.
+      assert.equal(p.forceEasy, true);
+      assert.ok(p.actions.every((x) => x.type === 'recovery_day'), 'no normal (hard) sessions yet');
+      assert.match(p.next!, /Hard sessions return when your HRV is above \d+ ms/);
+    }
+    seen.push(p.status);
+  }
+  assert.equal(relapses, 0);
+  // After the return, a still-low HRV is named, not ignored and not re-diagnosed as illness.
+  assert.ok(seen.slice(-25).includes('watch'));
+  assert.ok(!seen.slice(-20).includes('illness_suspected'), 'the tail of the same illness is not reopened');
+  assert.ok(['ready', 'primed', 'watch'].includes(seen[seen.length - 1]));
+});
+
+test('recovering: a real relapse (illness markers off again) goes back to holding', () => {
+  const s = athlete(90, [LINGERING[0], { from: 66, to: 74, hrv: -0.25 }, { from: 75, to: 89, hrv: -0.25, rhr: 6, resp: 1.2, temp: 0.5 }]);
+  const loads = steadyLoad(90);
+  let e: EpisodeState | null = null;
+  const statuses: string[] = [];
+  for (let i = 46; i <= 80; i++) {
+    e = reconcileEpisode(e && e.status !== 'resolved' ? e : null, assessBody(s, loads, dayAt(i)), dayAt(i));
+    statuses.push(e?.status ?? '-');
+  }
+  assert.ok(statuses.includes('returning'), 'it did start the return');
+  assert.equal(e!.status, 'suspected', 'and went back to holding when the markers rose again');
+});
+
+test('a cold the athlete reported eases back in after a few days of recovering signals; a fever waits for them', () => {
+  const s = athlete(80, LINGERING);
+  const loads = steadyLoad(80);
+  const a = assessBody(s, loads, dayAt(72));
+  assert.equal(a.episode?.phase ?? 'recovering', 'recovering');
+  const base: EpisodeState = { kind: 'illness', status: 'confirmed', startedOn: dayAt(45), lastOffDay: dayAt(71), report: 'mild', reportedOn: dayAt(71), dismissedOn: null, reraised: false, clearedOn: null, returnDays: null, resolvedOn: null, peakScore: 6 };
+  if (a.episode) {
+    assert.equal(reconcileEpisode(base, a, dayAt(72))!.status, 'confirmed', 'said "a cold" yesterday: hold a few days');
+    assert.equal(reconcileEpisode({ ...base, reportedOn: dayAt(68) }, a, dayAt(72))!.status, 'returning');
+    const fever = reconcileEpisode({ ...base, report: 'systemic', reportedOn: dayAt(60) }, a, dayAt(72))!;
+    assert.equal(fever.status, 'confirmed', 'a fever never auto-resumes while any signal is off');
+    assert.match(prescribe(fever, a, dayAt(72)).body, /signals are improving/);
+  }
+});
+
+test('every holding state tells the athlete what to do today', () => {
+  const s = athlete(66, [ILLNESS]);
+  const a = assessBody(s, steadyLoad(66), dayAt(50));
+  const e = reconcileEpisode(null, a, dayAt(50));
+  for (const action of ['sick_mild', 'sick_systemic', 'tired'] as const) {
+    const p = prescribe(applyAthleteAction(e, action, a, dayAt(50)), a, dayAt(50));
+    assert.ok(p.today.length >= 2, `${action}: ${p.today.length} steps`);
+    assert.ok(p.next, `${action}: has a next step`);
+  }
+  assert.ok(prescribe(e, a, dayAt(50)).today.length >= 2);
+});

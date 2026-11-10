@@ -78,9 +78,15 @@ export interface BodyStatusView {
   question: string | null;
   asks: Prescription['asks'];
   advice: string[];
+  /** Do this today: short imperative steps. */
+  today: string[];
+  /** What moves the athlete to the next step. */
+  next: string | null;
   forceEasy: boolean;
   /** The specific readings behind the call, in plain language. */
   evidence: string[];
+  /** During an episode: each affected signal, and whether it is back in range. */
+  markers: { key: VitalKey; label: string; state: 'back' | 'improving' | 'off'; text: string }[];
   dataDay: string | null;
   stale: boolean;
   vitals: VitalView[];
@@ -201,6 +207,8 @@ interface Loaded {
   mode: 'assisted' | 'autonomous';
   assessment: BodyAssessment;
   open: EpisodeRow | null;
+  /** The latest day an episode was resolved (so its lagging tail isn't reopened). */
+  handledThrough: string | null;
 }
 
 async function load(db: DB, athleteId: string, today: string): Promise<Loaded | null> {
@@ -233,7 +241,7 @@ async function load(db: DB, athleteId: string, today: string): Promise<Loaded | 
     subjective,
     daysSinceEpisodeEnd: open ? 0 : lastEnded ? diffDays(today, lastEnded) : null,
   });
-  return { mode: athlete.mode, assessment, open };
+  return { mode: athlete.mode, assessment, open, handledThrough: lastEnded };
 }
 
 async function saveEpisode(db: DB, athleteId: string, row: EpisodeRow | null, next: EpisodeState | null): Promise<EpisodeRow | null> {
@@ -284,6 +292,41 @@ function evidenceFor(a: BodyAssessment, inEpisode: boolean): string[] {
   return rows.sort((x, y) => y.bad - x.bad).map((r) => r.text);
 }
 
+/** Per-signal recovery checklist for an active episode. */
+function markersFor(a: BodyAssessment): BodyStatusView['markers'] {
+  const e = a.episode;
+  if (!e) return [];
+  const out: BodyStatusView['markers'] = [];
+  const fmt = (k: VitalKey, v: number) => `${v.toFixed(VITALS[k].decimals)}${VITALS[k].unit === 'bpm' || VITALS[k].unit === 'ms' || VITALS[k].unit === 'h' ? ` ${VITALS[k].unit}` : VITALS[k].unit}`;
+  // Judge and show the last three nights together, the same window the engine uses,
+  // so one noisy night can't contradict the verdict printed next to it.
+  const latestOf = (k: VitalKey) => {
+    const rs = a.days.slice(-3).map((d) => d.vitals[k]).filter((r): r is NonNullable<typeof r> => !!r && r.usual != null);
+    if (rs.length === 0) return null;
+    const last = rs[rs.length - 1];
+    return { ...last, value: rs.reduce((sum, r) => sum + r.value, 0) / rs.length, nights: rs.length };
+  };
+  const avg = (n: number) => (n > 1 ? ` (${n}-night average)` : '');
+  for (const k of e.recovered) {
+    const r = latestOf(k);
+    if (!r) continue;
+    out.push({ key: k, label: VITALS[k].label, state: 'back', text: `${fmt(k, r.value)}${avg(r.nights)}, back in your range (${r.lo!.toFixed(VITALS[k].decimals)}–${r.hi!.toFixed(VITALS[k].decimals)})` });
+  }
+  for (const k of e.stillOff) {
+    const r = latestOf(k);
+    if (!r) continue;
+    const side = VITALS[k].bad === 'low' ? 'below' : 'above';
+    const improving = e.improving.includes(k);
+    out.push({
+      key: k,
+      label: VITALS[k].label,
+      state: improving ? 'improving' : 'off',
+      text: `${fmt(k, r.value)}${avg(r.nights)}, still ${side} your range (${r.lo!.toFixed(VITALS[k].decimals)}–${r.hi!.toFixed(VITALS[k].decimals)})${improving ? ', and improving' : ''}`,
+    });
+  }
+  return out;
+}
+
 function buildView(a: BodyAssessment, p: Prescription, row: EpisodeRow | null, today: string, progressionActive: boolean, planChanged: boolean): BodyStatusView {
   const open = row && row.status !== 'resolved' ? row : null;
   const vitals: VitalView[] = VITAL_KEYS.map((k): VitalView => {
@@ -325,8 +368,12 @@ function buildView(a: BodyAssessment, p: Prescription, row: EpisodeRow | null, t
     question: p.question,
     asks: progressionActive ? p.asks.filter((x) => x.action !== 'progress') : p.asks,
     advice: p.advice,
+    today: p.today,
+    next: p.next,
     forceEasy: p.forceEasy,
-    evidence: evidenceFor(a, !!a.episode),
+    // Once recovery is under way the checklist replaces the raw evidence list.
+    evidence: a.episode?.phase === 'recovering' ? [] : evidenceFor(a, !!a.episode),
+    markers: markersFor(a),
     dataDay: a.dataDay,
     stale: a.stale,
     vitals,
@@ -390,7 +437,7 @@ export async function evaluateBodyStatus(db: DB, athleteId: string, today: strin
   if (!loaded) return null;
   const { assessment, mode } = loaded;
   const prev = loaded.open ? toState(loaded.open) : null;
-  const next = reconcileEpisode(prev, assessment, today);
+  const next = reconcileEpisode(prev, assessment, today, { handledThrough: loaded.handledThrough });
   const p = prescribe(next, assessment, today);
 
   let row = loaded.open;

@@ -97,7 +97,7 @@ export async function fetchGarminUserId(accessToken: string): Promise<string> {
  * asynchronous: Garmin answers 202 and later delivers the history through the
  * normal ping/push webhook. Windows are limited, so history goes in chunks.
  */
-export const GARMIN_BACKFILL_TYPES = ['activities', 'dailies', 'sleeps', 'hrv', 'userMetrics', 'bodyComps'] as const;
+export const GARMIN_BACKFILL_TYPES = ['activities', 'dailies', 'sleeps', 'hrv', 'userMetrics', 'bodyComps', 'pulseOx', 'skinTemp', 'stressDetails'] as const;
 const BACKFILL_CHUNK_DAYS = 90;
 
 export async function requestGarminBackfill(

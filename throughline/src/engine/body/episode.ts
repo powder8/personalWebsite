@@ -16,6 +16,7 @@
  */
 import { addDays, diffDays } from '../dates';
 import type { BodyAssessment, EpisodeKind } from './assess';
+import type { VitalKey } from './vitals';
 
 export type EpisodeStatus = 'suspected' | 'confirmed' | 'dismissed' | 'returning' | 'resolved';
 /** What the athlete told us: a cold (above the neck), systemic illness, or just worn down. */
@@ -40,6 +41,11 @@ export interface EpisodeState {
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
+/** The two signals that gate hard training: HRV and resting HR, when clearly off right now. */
+export function coreOff(a: BodyAssessment): VitalKey[] {
+  return a.offNow.filter((k) => k === 'hrv' || k === 'resting_hr');
+}
+
 /** How long the staged return lasts, scaled to how long the athlete was down. */
 export function returnDaysFor(kind: EpisodeKind, report: AthleteReport | null, downDays: number): number {
   if (kind === 'illness') {
@@ -60,13 +66,23 @@ function startReturn(e: EpisodeState, today: string, downUntil: string): Episode
 const KIND_RANK: Record<EpisodeKind, number> = { strain: 0, under_recovered: 1, overreaching: 2, illness: 3 };
 
 /** Advance an episode from today's assessment. Returns null when there is nothing open. */
-export function reconcileEpisode(prev: EpisodeState | null, a: BodyAssessment, today: string): EpisodeState | null {
+export function reconcileEpisode(
+  prev: EpisodeState | null,
+  a: BodyAssessment,
+  today: string,
+  opts: { handledThrough?: string | null } = {},
+): EpisodeState | null {
   const det = a.episode;
-  const open = prev && prev.status !== 'resolved' ? prev : null;
+  let open = prev && prev.status !== 'resolved' ? prev : null;
 
   if (!open) {
     if (!det) return null;
-    return {
+    // We already walked the athlete back from this one; a slow signal that
+    // still lags is watched, not treated as a fresh illness.
+    if (opts.handledThrough && det.startedOn <= opts.handledThrough && det.phase !== 'acute') return null;
+    // First sight of it. It then runs through the same rules as an existing
+    // episode, so one first seen already recovering starts the return today.
+    open = {
       kind: det.kind,
       status: 'suspected',
       startedOn: det.startedOn,
@@ -95,6 +111,9 @@ export function reconcileEpisode(prev: EpisodeState | null, a: BodyAssessment, t
 
   switch (open.status) {
     case 'suspected':
+      // The illness markers are back in range and only slow signals (HRV,
+      // sleep) lag: start easing back in instead of waiting on them.
+      if (det?.phase === 'recovering' && open.kind === 'illness') return startReturn(seen, today, today);
       if (det) return seen;
       // The detector leaves an episode only after a sustained return to range.
       if (!a.stale && a.clearStreak >= 1) return startReturn(seen, today, seen.lastOffDay);
@@ -103,8 +122,11 @@ export function reconcileEpisode(prev: EpisodeState | null, a: BodyAssessment, t
       return seen;
 
     case 'confirmed': {
-      if (det) return seen;
       const sinceReport = open.reportedOn ? diffDays(today, open.reportedOn) : 99;
+      // A cold with recovering signals eases back in after a few days. A
+      // systemic illness waits for the athlete to say the fever is gone.
+      if (det?.phase === 'recovering' && open.report === 'mild' && sinceReport >= 3) return startReturn(seen, today, today);
+      if (det) return seen;
       // Signals are back in range and it has been a few days: begin the return
       // rather than resting forever if the athlete never taps "I'm better".
       if (a.clearStreak >= 3 && sinceReport >= 3) return startReturn(seen, today, today);
@@ -122,15 +144,18 @@ export function reconcileEpisode(prev: EpisodeState | null, a: BodyAssessment, t
     }
 
     case 'returning': {
-      // The athlete's word counts: after "I'm better" the signals get a few days
-      // to catch up before we call it a relapse. Stage 1 is easy anyway.
+      // Relapse means the illness markers are off AGAIN. Low HRV alone is the
+      // normal tail of recovery. The athlete's "I'm better" also gets a few
+      // days for the signals to catch up.
       const sinceCleared = open.clearedOn ? diffDays(today, open.clearedOn) : 0;
-      if (det && sinceCleared >= 3) {
-        // Relapse: go back to holding, keeping what the athlete told us.
+      if (det?.phase === 'acute' && sinceCleared >= 3) {
         return { ...seen, status: open.report ? 'confirmed' : 'suspected', reportedOn: open.report ? today : null, clearedOn: null, returnDays: null };
       }
       const end = addDays(open.clearedOn ?? today, (open.returnDays ?? 0) - 1);
-      return today > end ? { ...seen, status: 'resolved', resolvedOn: today } : seen;
+      if (today <= end) return seen;
+      // Window over but HRV or resting HR still lags: hold the last (easy) stage up to a week longer.
+      if (coreOff(a).length > 0 && diffDays(today, end) <= 7) return seen;
+      return { ...seen, status: 'resolved', resolvedOn: today };
     }
     default:
       return seen;
@@ -231,6 +256,10 @@ export interface Prescription {
   question: string | null;
   asks: AskOption[];
   advice: string[];
+  /** Do this today: short imperative steps. */
+  today: string[];
+  /** What moves the athlete to the next step. */
+  next: string | null;
   /** Today must not be a hard day, whatever the day score says. */
   forceEasy: boolean;
 }
@@ -242,11 +271,15 @@ const ILL_ASKS: AskOption[] = [
   { action: 'fine', label: 'No, I feel fine' },
 ];
 
+const VITAL_NAMES: Record<string, string> = { hrv: 'HRV', resting_hr: 'resting heart rate', respiratory_rate: 'breathing rate', skin_temp: 'skin temperature', spo2: 'blood oxygen', sleep: 'sleep' };
 const pct = (f: number) => `${Math.round((1 - f) * 100)}%`;
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
 export function prescribe(e: EpisodeState | null, a: BodyAssessment, today: string): Prescription {
-  const base = { planNote: null, actions: [] as PlanAction[], question: null, asks: [] as AskOption[], advice: [] as string[], forceEasy: false };
+  const base = { planNote: null, actions: [] as PlanAction[], question: null, asks: [] as AskOption[], advice: [] as string[], today: [] as string[], next: null as string | null, forceEasy: false };
+  const hrvLo = a.latest?.vitals.hrv?.lo;
+  const hrvGate = hrvLo != null ? `above ${Math.round(hrvLo)} ms` : 'back in your normal range';
+  const TALK = 'Keep the effort easy: you should be able to talk in full sentences the whole time.';
   const open = e && e.status !== 'resolved' ? e : null;
   const act = (key: string, type: PlanAction['type'], from: number, to: number, label: string, factor?: number, safety = false): PlanAction => ({
     key,
@@ -264,44 +297,94 @@ export function prescribe(e: EpisodeState | null, a: BodyAssessment, today: stri
     const dayNo = diffDays(today, start) + 1;
     const p1 = Math.ceil(total / 3);
     const p2 = Math.ceil((2 * total) / 3);
-    const stages: { from: number; to: number; type: PlanAction['type']; factor: number; label: string }[] = [
-      { from: 0, to: p1 - 1, type: 'recovery_day', factor: 0.5, label: 'Return, stage 1 of 3: short and easy' },
-      { from: p1, to: p2 - 1, type: 'recovery_day', factor: 0.75, label: 'Return, stage 2 of 3: easy, building volume' },
-      { from: p2, to: total - 1, type: 'reduce_volume', factor: 0.9, label: 'Return, stage 3 of 3: normal sessions at 90%' },
+    // HRV or resting HR still off: volume may come back, intensity waits.
+    const slow = coreOff(a);
+    const lagging = slow.length > 0;
+    const stages: { from: number; to: number; type: PlanAction['type']; factor: number; label: string; key: string }[] = [
+      { from: 0, to: p1 - 1, type: 'recovery_day', factor: 0.5, label: 'Return, stage 1 of 3: short and easy', key: 'return-0' },
+      { from: p1, to: p2 - 1, type: 'recovery_day', factor: 0.75, label: 'Return, stage 2 of 3: easy, building volume', key: 'return-1' },
+      lagging
+        ? { from: p2, to: total - 1, type: 'recovery_day', factor: 0.9, label: 'Return, stage 3 of 3: near-full volume, easy effort until your HRV recovers', key: 'return-2-easy' }
+        : { from: p2, to: total - 1, type: 'reduce_volume', factor: 0.9, label: 'Return, stage 3 of 3: normal sessions at 90%', key: 'return-2' },
     ];
     const actions = stages
-      .filter((s) => s.to >= s.from && addDays(start, s.to) >= today)
-      .map<PlanAction>((s, i) => ({
-        key: `return-${i}-${s.factor}`,
-        type: s.type,
-        factor: s.factor,
-        from: addDays(start, s.from) < today ? today : addDays(start, s.from),
-        to: addDays(start, s.to),
-        label: s.label,
+      .filter((st) => st.to >= st.from && addDays(start, st.to) >= today)
+      .map<PlanAction>((st) => ({
+        key: st.key,
+        type: st.type,
+        factor: st.factor,
+        from: addDays(start, st.from) < today ? today : addDays(start, st.from),
+        to: addDays(start, st.to),
+        label: st.label,
         safety: true,
       }));
+    const past = dayNo > total;
+    // Past the window with a signal still lagging: keep it easy a little longer.
+    if (past && lagging) actions.push(act('return-hold', 'recovery_day', 0, 2, 'Easy effort until your HRV recovers', 0.9, true));
     const stage = dayNo <= p1 ? 1 : dayNo <= p2 ? 2 : 3;
+    const stageEnd = stage === 1 ? p1 : stage === 2 ? p2 : total;
+    const left = Math.max(0, stageEnd - dayNo + 1);
+    const inDays = left <= 1 ? 'Tomorrow' : `In ${left} days`;
+
+    const recovered = (a.episode?.recovered ?? []).filter((k) => !a.offNow.includes(k));
+    const stillOff = a.offNow;
+    const names = (ks: string[]) => {
+      const n = ks.map((k) => VITAL_NAMES[k] ?? k);
+      return n.length <= 1 ? n.join('') : `${n.slice(0, -1).join(', ')} and ${n[n.length - 1]}`;
+    };
+    const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+    // Only slow signals lagging is the normal tail of recovery; fast ones still off is not.
+    const onlySlow = stillOff.every((k) => k === 'hrv' || k === 'sleep');
+    const signals =
+      (recovered.length ? ` ${cap(names(recovered))} ${recovered.length > 1 ? 'are' : 'is'} back in your normal range.` : '') +
+      (stillOff.length === 0
+        ? recovered.length === 0
+          ? ' Your signals are back in your normal range.'
+          : ''
+        : onlySlow
+          ? ` ${cap(names(stillOff))} ${stillOff.length > 1 ? 'are' : 'is'} still off, which is common for a week or two after an illness.`
+          : ` ${cap(names(stillOff))} ${stillOff.length > 1 ? 'are' : 'is'} still outside your normal range, so keep these days truly easy.`);
+
     return {
       ...base,
       status: 'returning',
       tone: 'caution',
-      headline: 'Building back up in stages',
-      body:
-        `Day ${Math.min(dayNo, total)} of ${total} of your return. Your body needs time to rebuild after fighting something, so the plan steps back up in three stages instead of all at once.` +
-        (a.episode ? ' Your signals are still outside your normal range, so keep these first days truly easy.' : ''),
+      headline: stage === 1 ? 'You are recovering. Time to ease back in.' : stage === 2 ? 'Building back up' : past ? 'Nearly there: volume is back, intensity waits' : 'Nearly back to normal',
+      body: `Day ${Math.min(dayNo, total)} of ${total} of your return.${signals}`,
       planNote:
         stage === 1
           ? 'Sessions are short and easy (about half volume), with no hard efforts.'
           : stage === 2
             ? 'Sessions are easy at about 75% volume, with no hard efforts yet.'
-            : 'Your normal sessions are back at about 90% volume.',
+            : lagging
+              ? 'Volume is back to about 90%, but every session stays easy until your HRV recovers.'
+              : 'Your normal sessions are back at about 90% volume.',
       actions,
+      today:
+        stage === 3 && !lagging
+          ? ['Do today’s session as planned, at about 90% of the volume.', 'Back off if a hard effort feels much harder than usual.']
+          : [
+              stage === 1 ? 'Do today’s session short: about half the planned time.' : stage === 2 ? 'Do about three quarters of today’s planned time.' : 'Do close to the full planned time.',
+              TALK,
+              'Skip anything hard: no intervals, tempo, or long efforts yet.',
+              'Stop early if it feels harder than it should. Resting today is also fine.',
+            ],
+      next:
+        stage === 1
+          ? `${inDays} the plan steps up to about 75% volume, still easy.`
+          : stage === 2
+            ? `${inDays} the plan steps up to about 90% volume.`
+            : lagging
+              ? `Hard sessions return when your HRV is ${hrvGate} for two days.`
+              : `${inDays} your full plan is back.`,
+      question: 'How are your symptoms today?',
       asks: [
-        { action: 'resume', label: 'I feel fully recovered: restore my plan' },
-        { action: 'sick_mild', label: 'I feel ill again' },
+        { action: 'resume', label: 'Gone, and I feel strong: restore my plan' },
+        { action: 'sick_mild', label: 'Still a cold: keep it very easy' },
+        { action: 'sick_systemic', label: 'Worse: fever, chest, or body aches' },
       ],
-      advice: ['If a session feels harder than it should, stop early. A slower return costs days; a relapse costs weeks.'],
-      forceEasy: stage < 3,
+      advice: ['A slower return costs days. A relapse costs weeks.'],
+      forceEasy: stage < 3 || lagging,
     };
   }
 
@@ -312,7 +395,11 @@ export function prescribe(e: EpisodeState | null, a: BodyAssessment, today: stri
         status: 'ill',
         tone: 'alert',
         headline: 'Rest until your symptoms clear',
-        body: 'With a fever, chest symptoms, or body aches, training slows your recovery and can be unsafe. Your plan shows rest for now, and nothing is lost by taking it.',
+        body:
+          'With a fever, chest symptoms, or body aches, training slows your recovery and can be unsafe. Your plan shows rest for now, and nothing is lost by taking it.' +
+          (a.episode?.phase === 'recovering' ? ' Your signals are improving. When the fever, chest symptoms, and aches are gone, tell us and we will start easing you back in.' : ''),
+        today: ['Rest. No training today.', 'Drink plenty and sleep as much as you can.', 'When the fever, chest symptoms, and aches are gone, tap “I’m better”.'],
+        next: 'When you tell us you are better, the plan brings you back in three stages, starting short and easy.',
         planNote: 'The next few days are rest days. They update every day until you tell us you are better.',
         actions: [act('ill-systemic', 'unavailable', 0, 3, 'Illness: rest until your symptoms clear', undefined, true)],
         asks: [
@@ -329,7 +416,11 @@ export function prescribe(e: EpisodeState | null, a: BodyAssessment, today: stri
         status: 'ill',
         tone: 'alert',
         headline: 'Easy training only while you have a cold',
-        body: 'With symptoms above the neck only, light movement is fine if you feel up to it. Hard sessions wait until you are well.',
+        body:
+          'With symptoms above the neck only, light movement is fine if you feel up to it. Hard sessions wait until you are well.' +
+          (a.episode?.phase === 'recovering' ? ' Your signals are improving, so the plan will start stepping back up in a few days.' : ''),
+        today: ['If you feel up to it: 20 to 30 minutes, very easy.', TALK, 'Otherwise rest. Neither choice sets you back.'],
+        next: 'When your symptoms are gone, tap “I’m better” and the plan steps back up in stages.',
         planNote: 'Sessions are easy at about half volume. Resting instead is always fine.',
         actions: [act('ill-mild', 'recovery_day', 0, 3, 'Cold: easy effort only, half volume', 0.5, true)],
         asks: [
@@ -348,6 +439,8 @@ export function prescribe(e: EpisodeState | null, a: BodyAssessment, today: stri
       headline: 'Backing off so you can absorb the work',
       body: 'You told us you are worn down, and your signals agree. A few easy days now get you back to good training faster than pushing through.',
       planNote: 'Sessions are easy at about 70% volume until your signals return to your normal range.',
+      today: ['Do today’s session easy and a little shorter, or rest.', TALK, 'Get to bed early tonight.'],
+      next: `The plan returns to normal when your HRV is ${hrvGate} and your resting heart rate is back in range.`,
       actions: [act('tired', 'recovery_day', 0, 3, 'Recovery block: easy effort only', 0.7)],
       asks: [{ action: 'better', label: 'I feel recovered', primary: true }],
       advice: ['Protect your sleep this week. It does more for recovery than anything else you control.'],
@@ -386,6 +479,8 @@ export function prescribe(e: EpisodeState | null, a: BodyAssessment, today: stri
         actions: [act('suspect-illness', 'recovery_day', 0, 2, 'Possible illness: easy effort only until your signals settle', 0.6, true)],
         question: 'Are you feeling ill?',
         asks: ILL_ASKS,
+        today: ['Keep any training short and easy today, or rest.', 'Answer the question below so we can set the right plan.'],
+        next: 'Your answer decides the plan: rest for a fever or chest symptoms, light training for a cold, or back to normal if you feel fine.',
         forceEasy: true,
       };
     }
@@ -411,6 +506,8 @@ export function prescribe(e: EpisodeState | null, a: BodyAssessment, today: stri
           { action: 'fine', label: 'No, I feel fine' },
         ],
         advice: hard ? ['If you still feel flat after a week of easy training, take a full rest week and consider seeing a doctor.'] : [],
+        today: hard ? ['Rest today.', 'Eat well and get to bed early.'] : ['Do today’s session easy and a little shorter.', TALK, 'No hard efforts until your signals settle.'],
+        next: `Hard sessions return when your HRV is ${hrvGate} and your resting heart rate is back in range.`,
         forceEasy: true,
       };
     }
@@ -430,6 +527,8 @@ export function prescribe(e: EpisodeState | null, a: BodyAssessment, today: stri
           { action: 'fine', label: 'No, I feel fine' },
         ],
         advice: ['Give yourself a longer sleep window for the next few nights.'],
+        today: ['Do today’s session easy and a little shorter.', 'Plan an earlier night.'],
+        next: 'The plan returns to normal after two nights back in your normal range.',
         forceEasy: true,
       };
     }
@@ -467,9 +566,29 @@ export function prescribe(e: EpisodeState | null, a: BodyAssessment, today: stri
       tone: 'caution',
       headline: 'Your body is under more strain than usual today',
       body: 'One off day is common after a hard session, a late night, or a drink. If tomorrow looks the same, we will adjust your plan.',
-      advice: ['Keep today easy. If a hard session is planned, move it or swap it for easy training.'],
+      today: ['Keep today easy. If a hard session is planned, swap it for easy training.', TALK],
+      next: 'If tomorrow looks the same, the plan adjusts. If it clears, nothing changes.',
       asks: [{ action: 'sick_mild', label: 'I’m feeling ill' }],
       forceEasy: true,
+    };
+  }
+  const slowOff = coreOff(a);
+  if (a.episode || slowOff.length) {
+    // No open episode, but HRV or resting HR sits outside the normal range:
+    // either the tail of an illness we already walked back from, or one signal
+    // drifting alone. Say so; it is not, by itself, a reason to change the plan.
+    const ks = slowOff.length ? slowOff : (a.episode?.stillOff ?? []);
+    const off = ks.map((k) => VITAL_NAMES[k] ?? k).join(' and ') || 'one of your signals';
+    const plural2 = ks.length > 1;
+    return {
+      ...base,
+      status: 'watch',
+      tone: 'neutral',
+      headline: `Your ${off} ${plural2 ? 'are' : 'is'} outside your normal range`,
+      body: `${plural2 ? 'They often take' : 'It often takes'} a week or two to settle after an illness or a hard block. Your plan is unchanged, and we are watching whether other signals follow.`,
+      today: ['Train as planned.', 'Back off if a hard effort feels much harder than usual.'],
+      next: ks.includes('hrv') ? `This note clears when your HRV is ${hrvGate} again.` : null,
+      asks: [{ action: 'sick_mild', label: 'I’m feeling ill' }],
     };
   }
   if (a.latest?.level === 'watch') {
