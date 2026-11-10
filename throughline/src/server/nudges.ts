@@ -5,9 +5,9 @@ import 'server-only';
  * (if anything) to send, dedupes against today's notifications log (one nudge
  * per athlete per local day), sends the email, and records it.
  */
-import { and, desc, eq, gte, lte } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lte } from 'drizzle-orm';
 import { getDb } from '@/db';
-import { athletes, activities, notifications } from '@/db/schema';
+import { athletes, activities, healthEpisodes, notifications } from '@/db/schema';
 import { getAthletePortal, type PortalSession } from '@/server/portal';
 import { getAdaptationState } from '@/server/adaptation';
 import { decideNudge, type Nudge } from '@/server/nudgeLogic';
@@ -184,6 +184,15 @@ async function buildAndDecide(
   const db = await getDb();
   const portal = await getAthletePortal(athleteId);
   if (!portal) return null;
+
+  // While the athlete is ill (or we suspect it), stay quiet: no "get your
+  // session in", no "it's been 5 days". Body-status alerts cover this period.
+  const [holding] = await db
+    .select({ id: healthEpisodes.id })
+    .from(healthEpisodes)
+    .where(and(eq(healthEpisodes.athleteId, athleteId), inArray(healthEpisodes.status, ['suspected', 'confirmed'])))
+    .limit(1);
+  if (holding) return null;
 
   // Priority: the ~monthly progress check-in takes the day's single slot when due.
   const checkin = await maybeProgressCheckin(athleteId, fullName.split(' ')[0], portal.today);

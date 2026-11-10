@@ -26,6 +26,9 @@ quirks: the app maps each store to this one payload.
         "totalSeconds": 26100,
         "deepSeconds": 5400, "remSeconds": 6000, "lightSeconds": 13500, "awakeSeconds": 1200
       },
+      "respiratoryRate": 14.8,      // overnight, breaths/min
+      "spo2Pct": 96,                // overnight blood oxygen
+      "skinTempC": 0.3,             // wrist/skin temp; a deviation is fine
       "weightKg": 74.2,
       "bodyFatPct": 14.1,
       "vo2max": 52.3                // stored as the running estimate
@@ -76,4 +79,5 @@ what the store has; omit what it does not.
 Push on app foreground and after a HealthKit / Health Connect background
 delivery, covering the last 7 days (the server handles the overlap). The
 Health Connect declaration must list the read types used here: steps, resting
-heart rate, HRV, sleep, weight, body fat, VO2max, exercise sessions.
+heart rate, HRV, sleep, respiratory rate, oxygen saturation, skin temperature,
+weight, body fat, VO2max, exercise sessions.

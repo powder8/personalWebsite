@@ -197,15 +197,29 @@ function upsertDailySummary(db: DB, athleteId: string, day: string, recovery: Wh
       day,
       provider: 'whoop',
       restingHr: recovery.score?.resting_heart_rate ?? null,
+      spo2Pct: recovery.score?.spo2_percentage ?? null,
+      skinTempC: recovery.score?.skin_temp_celsius ?? null,
       metrics,
     })
     .onConflictDoUpdate({
       target: [dailySummaries.athleteId, dailySummaries.day],
       set: {
         restingHr: recovery.score?.resting_heart_rate ?? null,
-        metrics: sql`daily_summaries.metrics || excluded.metrics`,
+        spo2Pct: sql`coalesce(excluded.spo2_pct, ${dailySummaries.spo2Pct})`,
+        skinTempC: sql`coalesce(excluded.skin_temp_c, ${dailySummaries.skinTempC})`,
+        // coalesce: a row first created by another path (e.g. breathing rate
+        // from sleep) has null metrics, and null || jsonb is null.
+        metrics: sql`coalesce(daily_summaries.metrics, '{}'::jsonb) || excluded.metrics`,
       },
     });
+}
+
+/** Overnight breathing rate lands on the sleep's wake-up day (an illness marker). */
+function upsertRespiratoryRate(db: DB, athleteId: string, day: string, rate: number) {
+  return db
+    .insert(dailySummaries)
+    .values({ athleteId, day, provider: 'whoop', respiratoryRate: rate })
+    .onConflictDoUpdate({ target: [dailySummaries.athleteId, dailySummaries.day], set: { respiratoryRate: rate } });
 }
 
 // ---------------------------------------------------------------------------
@@ -277,6 +291,8 @@ export async function syncWhoopData(
     if (sleep?.score_state === 'SCORED') {
       const sleepDay = isoToDay(sleep.end);
       await upsertSleep(db, athleteId, sleepDay, sleep);
+      const rr = sleep.score?.respiratory_rate;
+      if (rr != null && rr > 0) await upsertRespiratoryRate(db, athleteId, sleepDay, rr);
       syncedSleep++;
     }
 

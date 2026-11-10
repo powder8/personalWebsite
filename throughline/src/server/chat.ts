@@ -15,6 +15,7 @@ import { getAdaptationState } from '@/server/adaptation';
 import { getAthleteZones, getAthleteVdot } from '@/db/paceConfig';
 import { equivalentPerformances, secPerKmToMinPerMile, paceRangeLabel } from '@/engine/plan';
 import { CHAT_TOOLS, executeChatTool, type ChatActor, type ActionTaken } from '@/server/chatTools';
+import { evaluateBodyStatus } from '@/server/bodyStatus';
 
 export function chatConfigured(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
@@ -88,6 +89,22 @@ async function buildContext(
       portal.readiness.score != null ? ` (${portal.readiness.score})` : ''
     }${portal.readiness.sentence ? `. "${portal.readiness.sentence}"` : ''}.`,
   );
+  // Body status: what the recovery signals say against the athlete's own
+  // healthy baseline, and what the plan already did about it.
+  try {
+    const body = (await evaluateBodyStatus(db, athleteId, portal.today))?.view;
+    if (body && body.status !== 'unknown') {
+      lines.push(
+        `Body status: ${body.status}. ${body.headline}. ${body.body}` +
+          (body.evidence.length ? ` Readings: ${body.evidence.join('; ')}.` : '') +
+          (body.planNote ? ` Plan response already applied: ${body.planNote}` : '') +
+          (body.load.note ? ` ${body.load.note}` : ''),
+      );
+      for (const h of body.history.slice(-3)) lines.push(`Past episode: ${h.kind}, ${h.startedOn} to ${h.endedOn} (${h.days} days).`);
+    }
+  } catch {
+    /* body status is context, never a blocker for chat */
+  }
   if (portal.todaySession) {
     const s = portal.todaySession;
     lines.push(

@@ -113,15 +113,19 @@ export function reconcileEpisode(prev: EpisodeState | null, a: BodyAssessment, t
     }
 
     case 'dismissed': {
-      if (!det) return !a.stale && a.clearStreak >= 1 ? { ...seen, status: 'resolved', resolvedOn: today } : seen;
+      // "I feel fine" buys a few quiet days: those days are accepted as normal.
       const since = open.dismissedOn ? diffDays(today, open.dismissedOn) : 0;
-      // Still clearly off most of a week after "I feel fine": ask once more.
-      if (!open.reraised && since >= 5 && det.severity !== 'mild') return { ...seen, status: 'suspected', reraised: true };
-      return seen;
+      if (since < 5) return seen;
+      if (!det) return a.stale ? seen : { ...seen, status: 'resolved', resolvedOn: today };
+      // Still clearly off after that: ask once more, then take their word for it.
+      return open.reraised ? seen : { ...seen, status: 'suspected', reraised: true };
     }
 
     case 'returning': {
-      if (det) {
+      // The athlete's word counts: after "I'm better" the signals get a few days
+      // to catch up before we call it a relapse. Stage 1 is easy anyway.
+      const sinceCleared = open.clearedOn ? diffDays(today, open.clearedOn) : 0;
+      if (det && sinceCleared >= 3) {
         // Relapse: go back to holding, keeping what the athlete told us.
         return { ...seen, status: open.report ? 'confirmed' : 'suspected', reportedOn: open.report ? today : null, clearedOn: null, returnDays: null };
       }
@@ -282,7 +286,9 @@ export function prescribe(e: EpisodeState | null, a: BodyAssessment, today: stri
       status: 'returning',
       tone: 'caution',
       headline: 'Building back up in stages',
-      body: `Day ${Math.min(dayNo, total)} of ${total} of your return. Your body needs about as long to rebuild as it spent fighting, so the plan steps back up in three stages instead of all at once.`,
+      body:
+        `Day ${Math.min(dayNo, total)} of ${total} of your return. Your body needs time to rebuild after fighting something, so the plan steps back up in three stages instead of all at once.` +
+        (a.episode ? ' Your signals are still outside your normal range, so keep these first days truly easy.' : ''),
       planNote:
         stage === 1
           ? 'Sessions are short and easy (about half volume), with no hard efforts.'

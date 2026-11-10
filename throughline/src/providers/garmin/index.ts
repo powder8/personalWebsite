@@ -169,8 +169,15 @@ export const garmin: Provider = {
           ...(restingHr != null ? { restingHrRecords: [{ day, restingHr }] } : {}),
         };
       }
-      case 'sleeps':
+      case 'sleeps': {
+        const sleepDay = isoDay(p.calendarDate as string | undefined, p.startTimeInSeconds as number);
+        // Overnight breathing rate and SpO2 ride along as offset→value maps.
+        const respiratoryRate = meanOfMap(p.timeOffsetSleepRespiration);
+        const spo2Pct = meanOfMap(p.timeOffsetSleepSpo2);
         return {
+          ...(respiratoryRate != null || spo2Pct != null
+            ? { dailySummaries: [{ day: sleepDay, respiratoryRate, spo2Pct }] }
+            : {}),
           sleepRecords: [
             {
               day: isoDay(p.calendarDate as string | undefined, p.startTimeInSeconds as number),
@@ -184,6 +191,13 @@ export const garmin: Provider = {
             },
           ],
         };
+      }
+      case 'skinTemp': {
+        // Overnight skin temperature, reported as a deviation from the user's norm.
+        const dev = (p.avgDeviationCelsius as number | undefined) ?? null;
+        if (dev == null) return {};
+        return { dailySummaries: [{ day: isoDay(p.calendarDate as string | undefined, p.startTimeInSeconds as number), skinTempC: dev }] };
+      }
       case 'userMetrics': {
         // Garmin's User Metrics summary: a device-MEASURED VO2max, reported
         // separately for running and cycling (they legitimately differ, and
@@ -239,6 +253,13 @@ function mapSport(garminType: string | undefined): 'run' | 'bike' | 'swim' | 'st
   if (/STRENGTH|HIIT|PILATES/.test(t)) return 'strength';
   if (/WALK|HIK|ROW|ELLIPTICAL|STAIR|SKI|PADDL|CLIMB/.test(t)) return 'cross_train';
   return 'other';
+}
+
+/** Mean of a Garmin { offsetSeconds: value } map, ignoring non-positive samples. */
+function meanOfMap(m: unknown): number | null {
+  if (!m || typeof m !== 'object') return null;
+  const vs = Object.values(m as Record<string, unknown>).filter((v): v is number => typeof v === 'number' && v > 0);
+  return vs.length ? Math.round((vs.reduce((a, b) => a + b, 0) / vs.length) * 10) / 10 : null;
 }
 
 function garminSourceRef(id: unknown): string | null {

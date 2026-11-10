@@ -287,9 +287,13 @@ test('lifecycle: "I feel fine" leaves the plan alone; a relapse during return go
   assert.equal(e!.reraised, true);
 
   // Relapse: returning + signals off again.
-  const returning: EpisodeState = { ...e!, status: 'returning', report: 'mild', clearedOn: dayAt(53), returnDays: 5 };
+  const returning: EpisodeState = { ...e!, status: 'returning', report: 'mild', clearedOn: dayAt(51), returnDays: 6 };
   const back = reconcileEpisode(returning, a2, later);
   assert.equal(back!.status, 'confirmed');
+  // …but the athlete's "I'm better" is respected for the first days, even with signals still off.
+  const justSaid: EpisodeState = { ...returning, clearedOn: dayAt(54) };
+  assert.equal(reconcileEpisode(justSaid, a2, later)!.status, 'returning');
+  assert.match(prescribe(justSaid, a2, later).body, /still outside your normal range/);
   assert.equal(prescribe(back, a2, later).status, 'ill');
 });
 

@@ -7,6 +7,8 @@ import { getDb } from '@/db';
 import { syncWhoopData } from '@/server/whoop';
 import { guardAthleteWrite } from '@/server/apiAccess';
 import { publicErrorMessage } from '@/lib/publicError';
+import { refreshAthleteHealth } from '@/server/healthRefresh';
+import { athleteToday } from '@/server/athleteToday';
 
 export const runtime = 'nodejs';
 
@@ -19,6 +21,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     const db = await getDb();
     // 30 days: enough to backfill recent workouts Whoop auto-detected.
     const result = await syncWhoopData(db, athleteId, 30);
+    await refreshAthleteHealth(db, athleteId, await athleteToday(athleteId)).catch(() => undefined);
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     const error = publicErrorMessage(e, 'Sync failed.');

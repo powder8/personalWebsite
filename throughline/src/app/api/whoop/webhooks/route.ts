@@ -15,11 +15,13 @@
  *   X-WHOOP-Signature-Timestamp  = milliseconds since epoch
  * The HMAC key is the app's CLIENT SECRET (not a separate webhook secret).
  */
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { getDb } from '@/db';
 import { whoopEnv } from '@/providers/whoop/env';
 import { athleteIdForWhoopUser, deleteWhoopWorkout, syncWhoopData } from '@/server/whoop';
+import { refreshAthleteHealth } from '@/server/healthRefresh';
+import { athleteToday } from '@/server/athleteToday';
 import { publicErrorMessage } from '@/lib/publicError';
 
 export const runtime = 'nodejs';
@@ -101,6 +103,15 @@ export async function POST(req: Request) {
     }
     // Re-pull the last 3 days to capture the freshly-computed record.
     await syncWhoopData(db, athleteId, 3);
+    // New recovery data is the moment to look: WHOOP posts it when the athlete
+    // wakes, so a suspected illness reaches them before the day's session.
+    after(async () => {
+      try {
+        await refreshAthleteHealth(db, athleteId, await athleteToday(athleteId), { notify: true });
+      } catch (e) {
+        console.error('[whoop-webhook] health refresh', e instanceof Error ? e.message : e);
+      }
+    });
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = publicErrorMessage(e, 'Sync failed.');

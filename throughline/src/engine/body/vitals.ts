@@ -49,7 +49,7 @@ export const VITALS: Record<VitalKey, VitalSpec> = {
   resting_hr: { key: 'resting_hr', label: 'Resting HR', unit: 'bpm', bad: 'high', sdFloor: 1.5, weight: 1, decimals: 0 },
   respiratory_rate: { key: 'respiratory_rate', label: 'Breathing rate', unit: '/min', bad: 'high', sdFloor: 0.3, weight: 1.2, illnessMarker: true, decimals: 1 },
   skin_temp: { key: 'skin_temp', label: 'Skin temperature', unit: '°C', bad: 'high', sdFloor: 0.2, weight: 1.2, illnessMarker: true, decimals: 1 },
-  spo2: { key: 'spo2', label: 'Blood oxygen', unit: '%', bad: 'low', sdFloor: 0.7, weight: 0.6, illnessMarker: true, decimals: 0 },
+  spo2: { key: 'spo2', label: 'Blood oxygen', unit: '%', bad: 'low', sdFloor: 0.7, weight: 0.6, illnessMarker: true, decimals: 1 },
   sleep: { key: 'sleep', label: 'Sleep', unit: 'h', bad: 'low', sdFloor: 0.6, weight: 0.4, decimals: 1 },
 };
 export const VITAL_KEYS = Object.keys(VITALS) as VitalKey[];
@@ -153,7 +153,8 @@ export function walkVitals(series: VitalSeries, asOf: string, opts: WalkOptions 
     raw[k] = new Map();
     for (const r of series[k] ?? []) {
       const dn = dayNumber(r.day);
-      if (dn > end || !Number.isFinite(r.value) || r.value <= 0) continue;
+      // Skin temperature may be reported as a deviation, so it can be negative.
+      if (dn > end || !Number.isFinite(r.value) || (k !== 'skin_temp' && r.value <= 0)) continue;
       raw[k].set(dn, [...(raw[k].get(dn) ?? []), r.value]);
       if (dn < first) first = dn;
     }

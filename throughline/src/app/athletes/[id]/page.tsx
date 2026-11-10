@@ -31,6 +31,7 @@ import { getDb } from '@/db';
 import { consoleViewer, athleteVisible } from '@/server/access';
 import { listProposedDirectives } from '@/server/directives';
 import { ProposalActions } from '@/components/ProposalActions';
+import { evaluateBodyStatus } from '@/server/bodyStatus';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +57,8 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
   const viewer = await consoleViewer();
   if (!viewer) notFound();
   const db = await getDb();
+  // Read-only here: the athlete portal, cron, and webhooks are what apply changes.
+  const bodyStatus = (await evaluateBodyStatus(db, id, TODAY).catch(() => null))?.view ?? null;
   if (!(await athleteVisible(db, viewer, id))) notFound();
   const detail = await getAthleteDetail(id);
   if (!detail) notFound();
@@ -395,6 +398,23 @@ export default async function AthletePage({ params }: { params: Promise<{ id: st
             {fitness.estimated ? ' (volume-estimated, no HR/power on these activities)' : ''}. Last{' '}
             {fitness.points.length} days.
           </p>
+        </Card>
+      )}
+
+      {/* Body status: what the athlete's signals say vs their healthy baseline. */}
+      {bodyStatus && bodyStatus.status !== 'unknown' && (
+        <Card title={`Body status · ${bodyStatus.status.replace(/_/g, ' ')}`}>
+          <p className="text-sm font-semibold text-white">{bodyStatus.headline}</p>
+          <p className="mt-1 text-sm text-slate-600">{bodyStatus.body}</p>
+          {bodyStatus.evidence.length > 0 && (
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
+              {bodyStatus.evidence.map((e) => (
+                <li key={e}>{e}</li>
+              ))}
+            </ul>
+          )}
+          {bodyStatus.planNote && <p className="mt-2 text-sm text-slate-500">Plan response: {bodyStatus.planNote}</p>}
+          {bodyStatus.load.note && <p className="mt-1 text-sm text-slate-500">{bodyStatus.load.note}</p>}
         </Card>
       )}
 

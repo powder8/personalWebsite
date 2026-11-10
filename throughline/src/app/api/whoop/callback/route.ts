@@ -49,7 +49,7 @@ export async function GET(req: Request) {
     const tokens = await exchangeCode(code);
     await saveWhoopTokens(db, athleteId, tokens);
     // Kick off an initial 30-day backfill to populate HRV/sleep history.
-    await syncWhoopData(db, athleteId, 30).catch(() => {
+    await syncWhoopData(db, athleteId, 90).catch(() => {
       // Non-fatal — the data will sync on the next webhook event.
     });
     return clear(NextResponse.redirect(`${base}/me/${athleteId}/settings?whoop=connected`));

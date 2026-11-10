@@ -25,7 +25,12 @@ import { getLatestNonRunSession } from '@/server/latestSession';
 import { getSessionDebrief } from '@/server/sessionDebrief';
 import { getRunDebrief } from '@/server/runDebrief';
 import { RecoveryCard } from '@/components/RecoveryCard';
-import { getRecoveryInsights, persistReadiness } from '@/server/recovery';
+import { refreshAthleteHealth } from '@/server/healthRefresh';
+import { getRecoveryInsights } from '@/server/recovery';
+import { BodyStatusCard } from '@/components/BodyStatusCard';
+import { BodySignals } from '@/components/BodySignals';
+import { EnableNotifications } from '@/components/EnableNotifications';
+import { countSubscriptions, vapidPublicKey } from '@/server/push';
 import { RecoveryAdjustment } from '@/components/RecoveryAdjustment';
 import { listActiveDirectives } from '@/server/directives';
 import { decideReadinessGate } from '@/server/readinessGate';
@@ -109,10 +114,20 @@ export default async function PortalPage({
     /* coverage is best-effort */
   }
 
+  // Bring body status up to date BEFORE reading the plan: a new illness or
+  // fatigue episode rewrites the plan's adjustments, and this page must show
+  // the plan as it now stands.
+  let health: Awaited<ReturnType<typeof refreshAthleteHealth>> | null = null;
+  try {
+    health = await refreshAthleteHealth(db, id, await athleteToday(id));
+  } catch (e) {
+    console.error('[portal] health refresh', e instanceof Error ? e.message : e);
+  }
+
   const portal = await getAthletePortal(id);
   if (!portal) notFound();
 
-  const [hasAnchorRaw, adaptation, consistency, latestRun, calendar, crossTraining, latestOther, recovery, injury, disciplines, goalProgress] = await Promise.all([
+  const [hasAnchorRaw, adaptation, consistency, latestRun, calendar, crossTraining, latestOther, recoveryFallback, injury, disciplines, goalProgress, pushDevices] = await Promise.all([
     getAthleteVdot(db, id),
     getAdaptationState(id, portal.today),
     getConsistency(id, portal.today),
@@ -120,21 +135,16 @@ export default async function PortalPage({
     getTrainingCalendar(id, portal.today),
     getRecentCrossTraining(db, id, portal.today),
     getLatestNonRunSession(db, id, portal.today),
-    getRecoveryInsights(db, id, portal.today),
+    health ? null : getRecoveryInsights(db, id, portal.today),
     getActiveInjury(db, id, portal.today),
     getAthleteDisciplines(db, id),
     getGoalProgress(id, portal.today),
+    countSubscriptions(db, id).catch(() => 0),
   ]);
-
-  // Live readiness computed from wearable data takes precedence over any stored
-  // row; persist it best-effort so the autopilot, console, and chat see it too.
-  if (recovery.readiness) {
-    try {
-      await persistReadiness(db, id, recovery.readiness);
-    } catch {
-      /* best-effort */
-    }
-  }
+  const recovery = health?.recovery ?? recoveryFallback!;
+  const body = health?.body ?? null;
+  // Body status is holding training back or managing a return: it owns the message.
+  const bodyManaging = !!body && ['illness_suspected', 'ill', 'returning', 'overreaching', 'under_recovered', 'strained'].includes(body.status) && body.planNote != null;
 
   // Discipline-aware: a cyclist with an FTP anchor (or a swimmer with CSS) has a
   // fitness starting point even without a run VDOT — don't nag them to "set your
@@ -206,7 +216,7 @@ export default async function PortalPage({
     hasGoal: !!goalRace.name,
     goalDone,
     layoffDays: adaptation?.layoffDays ?? null,
-    easeBackAvailable: !!adaptation?.easeBack,
+    easeBackAvailable: !!adaptation?.easeBack && !bodyManaging,
     easeBackApplied: !!adaptation?.easeBackApplied,
     ranToday,
     loggedSports,
@@ -308,6 +318,7 @@ export default async function PortalPage({
         </div>
 
         <section id="recovery" className="scroll-mt-6 space-y-3" aria-label="Recovery between goals">
+          {body && body.status !== 'unknown' && <BodyStatusCard view={body} athleteId={athlete.id} />}
           <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} pattern={recovery.pattern} focus={recovery.focus} history={recovery.history} today={today} />
           <Card title="Your daily check-in"><CheckInForm athleteId={id} day={today} initial={todayCheckIn} /></Card>
           {injury && <InjuryPanel athleteId={id} injury={injury} />}
@@ -356,6 +367,8 @@ export default async function PortalPage({
       {/* The one thing to do now, with the specific workout. A triathlete with
           several sessions today gets the stacked multi-sport view. */}
       <div id="today" className="scroll-mt-20" />
+      {/* When the body is the reason today looks different, say so first. */}
+      {body && (body.tone === 'alert' || body.tone === 'caution') && <BodyStatusCard view={body} athleteId={athlete.id} compact />}
       {showTodayStack ? (
         <TodayStack sessions={remainingSessions} units={units} />
       ) : (
@@ -377,6 +390,8 @@ export default async function PortalPage({
           <a href="#recovery" className="mt-2 inline-block py-2 text-sm font-semibold text-lime-200 underline">Review recovery &amp; adjust today</a>
         </div>
       )}
+
+      {body && body.tone !== 'alert' && body.tone !== 'caution' && <BodyStatusCard view={body} athleteId={athlete.id} compact />}
 
       {/* An ACTIVE injury changes what today is, so it sits with the session. */}
       {injury && <InjuryPanel athleteId={athlete.id} injury={injury} />}
@@ -516,6 +531,13 @@ export default async function PortalPage({
   const bodyPanel = (
     <>
       <div id="recovery" className="scroll-mt-20" />
+      {body && <BodyStatusCard view={body} athleteId={athlete.id} />}
+      {body && <BodySignals view={body} />}
+      {pushDevices === 0 && (
+        <Card title="Hear about it early">
+          <EnableNotifications athleteId={athlete.id} publicKey={vapidPublicKey()} />
+        </Card>
+      )}
       <RecoveryCard snapshot={recovery.snapshot} readiness={recovery.readiness} pattern={recovery.pattern} focus={recovery.focus} history={recovery.history} today={today} />
       <Link
         href={`/me/${athlete.id}/health`}
@@ -547,7 +569,7 @@ export default async function PortalPage({
       label: 'Body',
       icon: TAB_ICONS.body,
       // Low readiness is worth a look even on a day you open Today first.
-      attention: recovery.readiness?.band === 'easy',
+      attention: recovery.readiness?.band === 'easy' || body?.tone === 'alert' || body?.tone === 'caution',
       panel: bodyPanel,
     },
     { id: 'coach', label: 'Coach', icon: TAB_ICONS.coach, panel: coachPanel },
