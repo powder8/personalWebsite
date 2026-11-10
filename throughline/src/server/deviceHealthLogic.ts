@@ -34,6 +34,10 @@ export interface DeviceDay {
   } | null;
   weightKg?: number | null;
   bodyFatPct?: number | null;
+  /** Overnight breathing rate (breaths/min), blood oxygen (%), and wrist/skin temperature (°C; a deviation is fine). */
+  respiratoryRate?: number | null;
+  spo2Pct?: number | null;
+  skinTempC?: number | null;
   /** The device's VO2max estimate (ml/kg/min). Both stores derive it from outdoor walk/run, so it lands as the RUNNING estimate. */
   vo2max?: number | null;
 }
@@ -73,6 +77,9 @@ const BOUNDS = {
   weightKg: [20, 400],
   bodyFatPct: [1, 75],
   vo2max: [10, 100],
+  respiratoryRate: [4, 40],
+  spo2Pct: [70, 100],
+  skinTempC: [-5, 45],
   durationSeconds: [60, 24 * 3600],
   distanceMeters: [0, 1_000_000],
   hr: [30, 240],
@@ -179,10 +186,13 @@ export function toNormalizedBatch(payload: DevicePayload, today: string): Device
     const weightKg = inRange(d.weightKg, BOUNDS.weightKg, `${d.day} weightKg`, skipped);
     const bodyFatPct = inRange(d.bodyFatPct, BOUNDS.bodyFatPct, `${d.day} bodyFatPct`, skipped);
     const vo2max = inRange(d.vo2max, BOUNDS.vo2max, `${d.day} vo2max`, skipped);
+    const respiratoryRate = inRange(d.respiratoryRate, BOUNDS.respiratoryRate, `${d.day} respiratoryRate`, skipped);
+    const spo2Pct = inRange(d.spo2Pct, BOUNDS.spo2Pct, `${d.day} spo2Pct`, skipped);
+    const skinTempC = inRange(d.skinTempC, BOUNDS.skinTempC, `${d.day} skinTempC`, skipped);
 
     // Only write a daily row when it carries something — an empty row would
     // still claim the (athlete, day) slot with nulls.
-    if (steps != null || restingHr != null || weightKg != null || bodyFatPct != null || vo2max != null) {
+    if (steps != null || restingHr != null || weightKg != null || bodyFatPct != null || vo2max != null || respiratoryRate != null || spo2Pct != null || skinTempC != null) {
       batch.dailySummaries.push({
         day: d.day,
         provider,
@@ -191,6 +201,9 @@ export function toNormalizedBatch(payload: DevicePayload, today: string): Device
         weightKg,
         bodyFatPct,
         vo2maxRunning: vo2max,
+        respiratoryRate,
+        spo2Pct,
+        skinTempC,
       });
     }
     if (restingHr != null) batch.restingHrRecords.push({ day: d.day, provider, restingHr: Math.round(restingHr) });

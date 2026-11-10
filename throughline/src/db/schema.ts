@@ -521,6 +521,12 @@ export const dailySummaries = pgTable(
     weightKg: doublePrecision('weight_kg'),
     bodyFatPct: doublePrecision('body_fat_pct'),
     bmi: doublePrecision('bmi'), // Garmin computes it from the profile height; we store no height
+    // Overnight vitals the body-status engine reads (illness markers). Each is
+    // judged only against the athlete's own baseline, so a source that reports
+    // skin temperature as a deviation works the same as one reporting absolute.
+    respiratoryRate: doublePrecision('respiratory_rate'), // breaths/min, overnight
+    spo2Pct: doublePrecision('spo2_pct'), // blood oxygen %, overnight
+    skinTempC: doublePrecision('skin_temp_c'), // overnight skin temperature (°C)
     metrics: jsonb('metrics'), // any extra provider fields
   },
   (t) => [uniqueIndex('daily_summaries_athlete_day_uq').on(t.athleteId, t.day)],
@@ -1028,4 +1034,57 @@ export const rateLimitEvents = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('rate_limit_events_key_idx').on(t.key, t.createdAt)],
+);
+
+// ---------------------------------------------------------------------------
+// Health episodes — a sustained stretch of off signals (illness, overreaching,
+// under-recovery), with what the athlete told us and where the staged return
+// is. One open episode per athlete at a time. See engine/body/episode.ts.
+// ---------------------------------------------------------------------------
+export const healthEpisodes = pgTable(
+  'health_episodes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    athleteId: uuid('athlete_id')
+      .notNull()
+      .references(() => athletes.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(), // illness | overreaching | under_recovered | strain
+    status: text('status').notNull(), // suspected | confirmed | dismissed | returning | resolved
+    startedOn: date('started_on').notNull(),
+    lastOffDay: date('last_off_day').notNull(),
+    report: text('report'), // athlete: mild | systemic | tired
+    reportedOn: date('reported_on'),
+    dismissedOn: date('dismissed_on'),
+    reraised: boolean('reraised').notNull().default(false),
+    clearedOn: date('cleared_on'),
+    returnDays: integer('return_days'),
+    resolvedOn: date('resolved_on'),
+    peakScore: doublePrecision('peak_score').notNull().default(0),
+    /** The status/kind we last told the athlete about (dedups alerts). */
+    notifiedKey: text('notified_key'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('health_episodes_athlete_idx').on(t.athleteId, t.status)],
+);
+
+// ---------------------------------------------------------------------------
+// Web Push subscriptions — one row per browser / installed app the athlete
+// enabled notifications on. The endpoint is the identity.
+// ---------------------------------------------------------------------------
+export const pushSubscriptions = pgTable(
+  'push_subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    athleteId: uuid('athlete_id')
+      .notNull()
+      .references(() => athletes.id, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    lastOkAt: timestamp('last_ok_at', { withTimezone: true }),
+  },
+  (t) => [uniqueIndex('push_subscriptions_endpoint_uq').on(t.endpoint), index('push_subscriptions_athlete_idx').on(t.athleteId)],
 );

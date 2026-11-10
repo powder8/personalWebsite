@@ -21,6 +21,8 @@ export interface ActiveDirective {
   deltaSecPerMile?: number; // pace_adjust: + = slower
   factor?: number; // reduce_volume: multiply distance (e.g. 0.7)
   label?: string; // reason/source ("Out of town", "Achilles niggle")
+  /** Never touch a race session: an automatic hold must not delete a race the athlete may still choose to run. */
+  keepRace?: boolean;
 }
 
 export interface AdjustableSession {
@@ -44,7 +46,7 @@ export function applyDirectives(
   session: AdjustableSession,
   directives: ActiveDirective[],
 ): AdjustedSession {
-  const active = directivesActiveOn(session.day, directives);
+  const active = directivesActiveOn(session.day, directives).filter((d) => !(d.keepRace && session.sessionType === 'race'));
   const adjustments: string[] = [];
   let out: AdjustedSession = { ...session, adjustments };
 
@@ -102,7 +104,7 @@ export function applyDirectives(
     out = { ...out, distanceMeters: out.distanceMeters == null ? null : out.distanceMeters * factor,
       durationSeconds: out.durationSeconds == null ? null : out.durationSeconds * factor };
     const lbl = active.find((d) => d.type === 'reduce_volume')?.label;
-    adjustments.push(`shortened to ${Math.round(factor * 100)}%${lbl ? `, ${lbl}` : ''}`);
+    adjustments.push(`${factor > 1 ? 'extended' : 'shortened'} to ${Math.round(factor * 100)}%${lbl ? `, ${lbl}` : ''}`);
   }
 
   return { ...out, adjustments };

@@ -3,7 +3,7 @@ import { getDb } from '@/db';
 import { athleteToday } from '@/server/athleteToday';
 import { checkInSchema, submitCheckIn } from '@/server/checkIn';
 import { guardAthleteWrite } from '@/server/apiAccess';
-import { getRecoveryInsights, persistReadiness } from '@/server/recovery';
+import { refreshAthleteHealth } from '@/server/healthRefresh';
 
 export const runtime = 'nodejs';
 
@@ -19,11 +19,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   try {
     const db = await getDb();
     await submitCheckIn(db, id, parsed.data);
-    // Recompute immediately, including for athletes without a wearable. The
-    // monitor and coach see the same result as the refreshed athlete portal.
-    const recovery = await getRecoveryInsights(db, id, parsed.data.day);
-    if (recovery.readiness) await persistReadiness(db, id, recovery.readiness);
-    return NextResponse.json({ ok: true, readiness: recovery.readiness });
+    // Recompute immediately, including for athletes without a wearable: body
+    // status, the plan's adjustments, and the day's readiness all see the answer.
+    const health = await refreshAthleteHealth(db, id, parsed.data.day);
+    return NextResponse.json({ ok: true, readiness: health.recovery.readiness });
   } catch {
     return NextResponse.json({ error: 'Could not finish saving your check-in. Please retry.' }, { status: 422 });
   }

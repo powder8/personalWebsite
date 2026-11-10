@@ -18,7 +18,7 @@ import type { ActiveDirective, AdjustmentType } from '@/engine/plan';
 
 export type DirectiveSource = 'coach' | 'auto' | 'athlete';
 /** Why an auto directive exists — lets the monitor regenerate its own idempotently. */
-export type DirectiveCategory = 'low_recovery' | 'missed_days' | 'injury';
+export type DirectiveCategory = 'low_recovery' | 'missed_days' | 'injury' | 'body_status' | 'progression';
 export type DirectiveStatus = 'active' | 'proposed' | 'declined' | 'cleared';
 
 interface DirectiveParams {
@@ -28,6 +28,9 @@ interface DirectiveParams {
   source?: DirectiveSource;
   category?: DirectiveCategory;
   status?: DirectiveStatus;
+  /** Stable identity for monitor-written directives (see syncAutoDirectives). */
+  key?: string;
+  keepRace?: boolean;
 }
 
 export interface NewDirective {
@@ -41,6 +44,8 @@ export interface NewDirective {
   category?: DirectiveCategory;
   /** Assisted-mode proposal: stored inactive until a coach approves. */
   proposed?: boolean;
+  key?: string;
+  keepRace?: boolean;
 }
 
 export async function createDirective(db: DB, athleteId: string, d: NewDirective): Promise<string> {
@@ -52,6 +57,8 @@ export async function createDirective(db: DB, athleteId: string, d: NewDirective
     source: d.source ?? 'coach',
     category: d.category,
     status,
+    key: d.key,
+    keepRace: d.keepRace,
   };
   const [row] = await db
     .insert(directives)
@@ -117,6 +124,7 @@ function toRow(r: {
     label: r.sourceText ?? undefined,
     source: p.source,
     category: p.category,
+    keepRace: p.keepRace,
   };
 }
 
@@ -154,4 +162,67 @@ export async function listProposedDirectives(db: DB, athleteId?: string): Promis
   return rows
     .filter((r) => (r.params as DirectiveParams | null)?.status === 'proposed')
     .map((r) => ({ ...toRow(r), athleteId: r.athleteId }));
+}
+
+/** What the monitor wants in place for one category, each with a stable key. */
+export interface DesiredDirective {
+  key: string;
+  type: AdjustmentType;
+  factor?: number;
+  from: string;
+  to: string;
+  label: string;
+  /** Store as a coach proposal (assisted mode) instead of applying. */
+  proposed: boolean;
+  keepRace?: boolean;
+}
+
+/**
+ * Make the athlete's AUTO directives for a category match `desired`.
+ * Unchanged directives are left alone (only their window moves), so a coach's
+ * approval or decline of a proposal survives the daily re-evaluation. Returns
+ * true when the applied plan changed.
+ */
+export async function syncAutoDirectives(db: DB, athleteId: string, category: DirectiveCategory, desired: DesiredDirective[]): Promise<boolean> {
+  const rows = await db.select().from(directives).where(eq(directives.athleteId, athleteId));
+  const mine = rows.filter((r) => {
+    const p = (r.params as DirectiveParams | null) ?? {};
+    return p.source === 'auto' && p.category === category && p.status !== 'cleared';
+  });
+  const same = (r: (typeof mine)[number], d: DesiredDirective) => {
+    const p = (r.params as DirectiveParams | null) ?? {};
+    return p.key === d.key && p.type === d.type && (p.factor ?? null) === (d.factor ?? null);
+  };
+  let changed = false;
+  for (const d of desired) {
+    const existing = mine.find((r) => same(r, d));
+    if (existing) {
+      if (existing.effectiveFrom !== d.from || existing.effectiveTo !== d.to || existing.sourceText !== d.label) {
+        await db.update(directives).set({ effectiveFrom: d.from, effectiveTo: d.to, sourceText: d.label }).where(eq(directives.id, existing.id));
+        if (existing.active) changed = true;
+      }
+      continue;
+    }
+    await createDirective(db, athleteId, {
+      type: d.type,
+      factor: d.factor,
+      from: d.from,
+      to: d.to,
+      label: d.label,
+      source: 'auto',
+      category,
+      proposed: d.proposed,
+      key: d.key,
+      keepRace: d.keepRace,
+    });
+    if (!d.proposed) changed = true;
+  }
+  for (const r of mine) {
+    const p = (r.params as DirectiveParams | null) ?? {};
+    if (desired.some((d) => same(r, d))) continue;
+    if (!r.active && p.status !== 'proposed') continue; // declined: leave the coach's answer
+    await db.update(directives).set({ active: false, params: { ...p, status: 'cleared' as DirectiveStatus } }).where(eq(directives.id, r.id));
+    if (r.active) changed = true;
+  }
+  return changed;
 }

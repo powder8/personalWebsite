@@ -30,6 +30,7 @@ import {
   type ReadinessResult,
 } from '@/engine';
 
+import { VITALS, type BodyAssessment, type VitalKey } from '@/engine/body';
 import { currentSignal, recoveryPattern, recoveryFocus, type RecoveryPattern } from './recoveryLogic';
 
 const LOOKBACK_DAYS = 60;
@@ -107,10 +108,16 @@ function lastN<T extends { day: string }>(rows: T[], n: number): T[] {
   return [...rows].sort((a, b) => a.day.localeCompare(b.day)).slice(-n);
 }
 
+/**
+ * `assessment` (from the body-status engine) supplies deviations measured
+ * against the HEALTHY baseline. Without it we fall back to the plain rolling
+ * baseline, which drifts toward the sick values during a long illness.
+ */
 export async function getRecoveryInsights(
   db: DB,
   athleteId: string,
   today: string,
+  assessment?: BodyAssessment | null,
 ): Promise<RecoveryInsights> {
   const cutoff = addDays(today, -LOOKBACK_DAYS);
 
@@ -161,9 +168,19 @@ export async function getRecoveryInsights(
     .filter((r) => r.total != null)
     .map((r) => ({ day: r.day, value: r.total! / 3600 }));
 
-  const hrvBase = currentSignal(hrv, today);
-  const rhrBase = currentSignal(rhr, today);
-  const sleepBase = currentSignal(sleepHrs, today);
+  // Healthy-baseline z for one vital on one day (sign: +1 keeps "high = positive").
+  const bodyDays = assessment ? new Map(assessment.days.map((d) => [d.day, d])) : null;
+  const zOn = (day: string, key: VitalKey, fallback: number | null): number | null => {
+    if (!bodyDays) return fallback;
+    // A reading counts for `day` if it is from that day or the day before.
+    const r = bodyDays.get(day)?.vitals[key] ?? bodyDays.get(addDays(day, -1))?.vitals[key];
+    if (!r || r.bad == null) return null;
+    return VITALS[key].bad === 'high' ? r.bad : -r.bad;
+  };
+  const withZ = <T extends { z: number | null }>(base: T, key: VitalKey): T => ({ ...base, z: zOn(today, key, base.z) });
+  const hrvBase = withZ(currentSignal(hrv, today), 'hrv');
+  const rhrBase = withZ(currentSignal(rhr, today), 'resting_hr');
+  const sleepBase = withZ(currentSignal(sleepHrs, today), 'sleep');
 
   // Latest sleep row (by day) for the last-night detail.
   const latestSleep = [...sleepRows].sort((a, b) => b.day.localeCompare(a.day))[0] ?? null;
@@ -239,8 +256,8 @@ export async function getRecoveryInsights(
     const day = addDays(today, i - 6);
     const c = recentChecks.find((r) => r.day === day);
     const result = assessReadiness({ day,
-      hrvZ: currentSignal(hrv, day).z, restingHrZ: currentSignal(rhr, day).z,
-      sleepZ: currentSignal(sleepHrs, day).z,
+      hrvZ: zOn(day, 'hrv', currentSignal(hrv, day).z), restingHrZ: zOn(day, 'resting_hr', currentSignal(rhr, day).z),
+      sleepZ: zOn(day, 'sleep', currentSignal(sleepHrs, day).z),
       soreness: c?.soreness ?? null, energy: c?.energy ?? null,
       yesterdayRpe: c?.yesterdayRpe ?? null, lifeStress: c?.lifeStress, sleepQuality: c?.sleepQuality,
     });

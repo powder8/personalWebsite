@@ -11,6 +11,8 @@ import { ConnectGarmin } from '@/components/ConnectGarmin';
 import { DisconnectButton } from '@/components/DisconnectButton';
 import { DeleteAccount } from '@/components/DeleteAccount';
 import { getGarminStatus } from '@/server/garmin';
+import { EnableNotifications } from '@/components/EnableNotifications';
+import { vapidPublicKey } from '@/server/push';
 import { deleteMyAccount } from './actions';
 import { getWhoopStatus } from '@/server/whoop';
 import { SupportingStrength } from '@/components/SupportingStrength';
@@ -297,6 +299,10 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
       <SectionHeader>Gear &amp; integrations</SectionHeader>
       <Card title="Shoe mileage">
         <ShoesPanel athleteId={athlete.id} shoes={shoes} recentRuns={recentRuns} />
+      </Card>
+
+      <Card title="Notifications">
+        <EnableNotifications athleteId={athlete.id} publicKey={vapidPublicKey()} />
       </Card>
 
       <Card title="Put your plan in your calendar">

@@ -7,7 +7,7 @@
  *   - and provides the registration Web Push will hang off.
  * Nothing under /api or /auth is ever cached.
  */
-const VERSION = 'tl-v1';
+const VERSION = 'tl-v2';
 const STATIC_CACHE = `${VERSION}-static`;
 const OFFLINE_URL = '/offline';
 
@@ -48,4 +48,41 @@ self.addEventListener('fetch', (event) => {
       })),
     );
   }
+});
+
+// --- Web Push: body-status changes and plan adjustments -----------------------
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = { title: 'Throughline', body: event.data ? event.data.text() : '' };
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Throughline', {
+      body: data.body || '',
+      tag: data.tag || undefined,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      data: { url: data.url || '/me' },
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL((event.notification.data && event.notification.data.url) || '/me', self.location.origin);
+  // Only ever open our own pages.
+  if (target.origin !== self.location.origin) return;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+      for (const w of wins) {
+        if ('focus' in w) {
+          w.navigate(target.href);
+          return w.focus();
+        }
+      }
+      return self.clients.openWindow(target.href);
+    }),
+  );
 });
