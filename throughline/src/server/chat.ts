@@ -97,7 +97,10 @@ async function buildContext(
       lines.push(
         `Body status: ${body.status}. ${body.headline}. ${body.body}` +
           (body.evidence.length ? ` Readings: ${body.evidence.join('; ')}.` : '') +
+          (body.markers.length ? ` Signals: ${body.markers.map((m) => `${m.label} ${m.text}`).join('; ')}.` : '') +
           (body.planNote ? ` Plan response already applied: ${body.planNote}` : '') +
+          (body.today.length ? ` Guidance for today: ${body.today.join(' ')}` : '') +
+          (body.next ? ` Next step: ${body.next}` : '') +
           (body.load.note ? ` ${body.load.note}` : ''),
       );
       for (const h of body.history.slice(-3)) lines.push(`Past episode: ${h.kind}, ${h.startedOn} to ${h.endedOn} (${h.days} days).`);

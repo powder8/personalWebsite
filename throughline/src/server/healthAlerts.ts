@@ -10,7 +10,7 @@ import type { BodyStatusView } from './bodyStatus';
 import { sendPushToAthlete } from './push';
 
 export function alertContent(view: BodyStatusView): { title: string; body: string } {
-  const parts = [view.body, view.planNote, view.question ? `${view.question} Open the app to answer.` : null].filter(Boolean);
+  const parts = [view.body, view.today[0] ? `Today: ${view.today[0]}` : view.planNote, view.question ? `${view.question} Open the app to answer.` : null].filter(Boolean);
   return { title: view.headline, body: parts.join(' ') };
 }
 

@@ -186,10 +186,27 @@ export const garmin: Provider = {
               remSeconds: (p.remSleepInSeconds as number) ?? null,
               lightSeconds: (p.lightSleepDurationInSeconds as number) ?? null,
               awakeSeconds: (p.awakeDurationInSeconds as number) ?? null,
-              sleepScore: null,
+              sleepScore: sleepScoreOf(p),
               metrics: p,
             },
           ],
+        };
+      }
+      case 'pulseox':
+      case 'pulseOx': {
+        // Pulse Ox summary: spot and overnight SpO2 samples as an offset→value map.
+        // On-demand spot checks are not comparable night to night, so skip them.
+        if (p.onDemand === true) return {};
+        const spo2Pct = meanOfMap(p.timeOffsetSpo2Values);
+        if (spo2Pct == null) return {};
+        return { dailySummaries: [{ day: isoDay(p.calendarDate as string | undefined, p.startTimeInSeconds as number), spo2Pct }] };
+      }
+      case 'stressDetails': {
+        // Stress detail: Body Battery samples ride along; keep the day's range.
+        const bb = Object.values((p.timeOffsetBodyBatteryValues as Record<string, unknown> | undefined) ?? {}).filter((v): v is number => typeof v === 'number' && v > 0);
+        if (bb.length === 0) return {};
+        return {
+          dailySummaries: [{ day: isoDay(p.calendarDate as string | undefined, p.startTimeInSeconds as number), bodyBatteryLow: Math.min(...bb), bodyBatteryHigh: Math.max(...bb) }],
         };
       }
       case 'skinTemp': {
@@ -253,6 +270,12 @@ function mapSport(garminType: string | undefined): 'run' | 'bike' | 'swim' | 'st
   if (/STRENGTH|HIIT|PILATES/.test(t)) return 'strength';
   if (/WALK|HIK|ROW|ELLIPTICAL|STAIR|SKI|PADDL|CLIMB/.test(t)) return 'cross_train';
   return 'other';
+}
+
+/** Garmin's overall sleep score (0–100), when the device computes one. */
+function sleepScoreOf(p: Record<string, unknown>): number | null {
+  const o = p.overallSleepScore as { value?: unknown } | undefined;
+  return typeof o?.value === 'number' ? Math.round(o.value) : null;
 }
 
 /** Mean of a Garmin { offsetSeconds: value } map, ignoring non-positive samples. */

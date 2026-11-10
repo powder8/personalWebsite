@@ -27,7 +27,7 @@ test('without VAPID keys, push is off (sends are a no-op, not an error)', () => 
 const view = (o: Partial<BodyStatusView>): BodyStatusView => ({
   status: 'illness_suspected', tone: 'alert', headline: 'Your body may be fighting something',
   body: 'Your signals have been outside your normal range for 3 days.', planNote: 'Sessions are easy at about 60% volume.',
-  question: 'Are you feeling ill?', asks: [], advice: [], forceEasy: true, evidence: [], dataDay: '2026-11-10', stale: false,
+  question: 'Are you feeling ill?', asks: [], advice: [], today: [], next: null, markers: [], forceEasy: true, evidence: [], dataDay: '2026-11-10', stale: false,
   vitals: [], load: { ratio: null, note: null }, episode: null, history: [], strain: [], progressionActive: false, planChanged: true, ...o,
 });
 

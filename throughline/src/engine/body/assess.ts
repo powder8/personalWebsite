@@ -72,6 +72,18 @@ export interface DetectedEpisode {
   severity: 'mild' | 'moderate' | 'high';
   /** Load ratio in the week leading into the episode (did training cause this?). */
   leadInLoadRatio: number | null;
+  /**
+   * `recovering`: the signals that showed the problem are back in range and
+   * only the slow ones (HRV, sleep) still lag. HRV often stays low for a week
+   * or two after an illness, so this is the cue to ease back in, not to wait.
+   */
+  phase: 'acute' | 'recovering';
+  /** Vitals that were off during the episode and are back in the normal range now. */
+  recovered: VitalKey[];
+  /** Vitals still clearly outside the normal range over the last few days. */
+  stillOff: VitalKey[];
+  /** Still-off vitals that have moved toward normal over the past week. */
+  improving: VitalKey[];
 }
 
 export interface PastEpisode {
@@ -105,6 +117,12 @@ export interface BodyAssessment {
   load: LoadContext;
   primed: boolean;
   history: PastEpisode[];
+  /**
+   * Vitals whose three-day average is clearly worse than usual right now,
+   * whether or not an episode is active. HRV often sits here for a week or two
+   * after an illness: worth saying, and a reason to hold hard sessions.
+   */
+  offNow: VitalKey[];
 }
 
 const STALE_AFTER = 2; // days without data before we stop calling it current
@@ -145,6 +163,58 @@ function classify(
   return { kind: 'strain', markers, leadIn };
 }
 
+/** Slow signals: they trail recovery, so on their own they don't mean "still ill". */
+const LAGGING: ReadonlySet<VitalKey> = new Set(['hrv', 'sleep']);
+/** A three-day average this far from usual is "clearly off" (about 1 day in 70 by chance). */
+const OFF_NOW = 1.25;
+
+/**
+ * Where an episode stands: which vitals have come back, which still lag, and
+ * whether the picture is "recovering" (the fast signals are back; only slow
+ * ones remain off).
+ *
+ * "Acute" needs real evidence, because this decides relapse: two fast signals
+ * clearly off together, or one strongly off. A single noisy average is not
+ * allowed to send a recovering athlete back to "ill".
+ */
+function episodeProgress(
+  days: BodyDay[],
+  peakStrain: number,
+  spanDays: number,
+): Pick<DetectedEpisode, 'phase' | 'recovered' | 'stillOff' | 'improving'> {
+  const recovered: VitalKey[] = [];
+  const stillOff: VitalKey[] = [];
+  const improving: VitalKey[] = [];
+  let fastOff = 0;
+  let fastStrong = false;
+  for (const k of VITAL_KEYS) {
+    const bads = days.map((d) => d.vitals[k]?.bad).filter((b): b is number => b != null);
+    if (bads.length < 3) continue;
+    const now = mean(bads.slice(-3))!;
+    // Worst three-day stretch of the episode for this vital.
+    let peak = -Infinity;
+    for (let i = 0; i + 3 <= bads.length; i++) peak = Math.max(peak, mean(bads.slice(i, i + 3))!);
+    const lagging = LAGGING.has(k);
+    if (now >= (lagging ? 1 : OFF_NOW)) {
+      stillOff.push(k);
+      const weekAgo = bads.length >= 8 ? mean(bads.slice(-8, -5)) : null;
+      if (weekAgo != null && weekAgo - now >= 0.5) improving.push(k);
+      if (!lagging) {
+        fastOff++;
+        if (now >= 2) fastStrong = true;
+      }
+    } else if (peak >= 1.25 && now < 0.75) {
+      recovered.push(k);
+    }
+  }
+  const acuteNow = fastOff >= 2 || fastStrong;
+  // Combined strain over the last three days, against the episode's worst day.
+  const recentStrain = mean(days.slice(-3).map((d) => d.strain).filter((v): v is number => v != null));
+  const easedOff = recentStrain != null && peakStrain > 0 && recentStrain <= 0.5 * peakStrain;
+  const phase = spanDays >= 4 && !acuteNow && (recovered.length >= 1 || easedOff) ? 'recovering' : 'acute';
+  return { phase, recovered, stillOff, improving };
+}
+
 export function assessBody(
   series: VitalSeries,
   loads: DailyReading[],
@@ -170,6 +240,7 @@ export function assessBody(
     const spanDays = diffDays(asOf, e.startedOn) + 1;
     const { kind, markers, leadIn } = classify(eDays, e.startedOn, spanDays, loads, subjective);
     const recentScore = Math.max(latest?.strain3 ?? 0, latest?.strain ?? 0);
+    const progress = episodeProgress(eDays, e.peakStrain, spanDays);
     episode = {
       kind,
       startedOn: e.startedOn,
@@ -180,12 +251,22 @@ export function assessBody(
       recentScore: Math.round(recentScore * 10) / 10,
       severity: recentScore >= 6 || spanDays >= 14 ? 'high' : recentScore >= 4.5 || spanDays >= 7 ? 'moderate' : 'mild',
       leadInLoadRatio: leadIn,
+      ...progress,
     };
   }
 
   // Observed days since the last episode ended.
   let clearStreak = 0;
   for (let i = days.length - 1; i >= 0 && !days[i].inEpisode; i--) clearStreak++;
+
+  // Clearly off right now (needs at least two of the last three observed days).
+  const offNow: VitalKey[] = stale
+    ? []
+    : VITAL_KEYS.filter((k) => {
+        const bads = days.slice(-3).map((d) => d.vitals[k]?.bad).filter((b): b is number => b != null);
+        // An average, and not one wild night: at least two of the days must be off.
+        return bads.length >= 2 && mean(bads)! >= OFF_NOW && bads.filter((b) => b >= 0.75).length >= 2;
+      });
 
   // --- Room to do more? Steady, in-range signals on consistent training. ---
   const last7 = recent14.filter((d) => diffDays(asOf, d.day) < 7);
@@ -196,6 +277,7 @@ export function assessBody(
   const primed =
     !stale &&
     !episode &&
+    offNow.length === 0 &&
     coverage14 >= 10 &&
     recent14.every((d) => !d.inEpisode) &&
     last7.every((d) => d.level !== 'abnormal') &&
@@ -227,5 +309,5 @@ export function assessBody(
       };
     });
 
-  return { asOf, dataDay, stale, coverage14, latest, days, episode, clearStreak, load, primed, history };
+  return { asOf, dataDay, stale, coverage14, latest, days, episode, clearStreak, load, primed, history, offNow };
 }
